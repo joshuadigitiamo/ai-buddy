@@ -1,0 +1,11 @@
+# Contenuto interno copiato da ClickUp: non va nel repo
+docs/research/handbook-raw/
+
+# IDE / ambiente
+.idea/
+.venv/
+__pycache__/
+.env
+
+# Scaffold PyCharm di esempio
+main.py
