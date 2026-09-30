@@ -16,6 +16,7 @@ Research di supporto, in `docs/research/`:
 | `04-handbook-gap-analysis.md` | Tassonomia di un handbook completo, gap e pagine da aggiungere |
 | `05-modelli-open-self-hosted.md` | Modelli open-weight per la Fase 2: shortlist, licenze, serving |
 | `06-hosting-modello-self-hosted.md` | Dove ospitare un modello, costi, Docker, cold start |
+| `07-costi-hosting-cloud-run.md` | Costi di hosting del server MCP: free tier Cloud Run e servizi di contorno |
 
 ---
 
@@ -39,7 +40,8 @@ Research di supporto, in `docs/research/`:
 | D4 | **Handbook in contesto completo, niente vector DB** per l'handbook | ~8k token, e l'intero handbook sta in un solo contesto (Guides, LANGCHAIN_GUIDE §14). Un RAG su 23 pagine è complessità senza beneficio. | [High] |
 | D5 | **Guides: indice per sezioni + ricerca full-text (SQLite FTS5/BM25)**, embeddings solo se l'eval lo richiede | ~15 guide da ~100 KB non stanno in un contesto. `GUIDES_INDEX.md` mappa già sezione → riga, quindi il chunking per heading è gratis. Ibrido dense+BM25 con RRF (RAG_CHATBOT_GUIDE §11) diventa l'upgrade quando Recall@5 < 0,8. | [Medium] |
 | D6 | **Fase 2 via Claude API su cloud EU**: Vertex AI se si ospita su GCP, Bedrock EU in alternativa | Il bot condiviso deve usare credenziali commerciali, non abbonamenti. Serve residenza UE (GDPR). Stima ~35–70 $/mese per 15 utenti × 10 domande al giorno, inclusa la maggiorazione del 10% per il routing UE. | [Medium] costi |
-| D7 | **Hosting: Cloud Run europe-west8 (Milano)**, da confermare | Il connettore MCP deve essere raggiungibile da internet (lo chiamano i server Anthropic). Ci sono già Google Workspace e un login Google che permette di restringere l'accesso al dominio `digitiamo.com`. Scale-to-zero, quindi costo quasi nullo. | [Medium] |
+| D7 | **Hosting: Cloud Run europe-west8 (Milano)**, da confermare | Il connettore MCP deve essere raggiungibile da internet (lo chiamano i server Anthropic). Ci sono già Google Workspace e un login Google che permette di restringere l'accesso al dominio `digitiamo.com`. Con scale-to-zero e billing request-based il costo è ~0 €/mese: ~20k richieste al mese usano circa il 6% del free tier (180k vCPU-s, 360k GiB-s, 2M richieste). Milano è Tier 1, quindi coperta per intero. Serve comunque un billing account attivo. Vedi `07-costi-hosting-cloud-run.md`. | [High] prezzi, [Medium] traffico |
+| D10 | **Server MCP stateless, gap log su Firestore** | Cloud Run fattura l'istanza finché una richiesta è aperta: uno stream SSE tenuto aperto tutto il giorno fa uscire dal free tier (~15 $/mese). Stateless con risposte JSON lo evita. Il filesystem di Cloud Run è effimero, quindi il gap log non può stare in SQLite nel container. Firestore ha un free tier anche in UE; quello di Cloud Storage vale solo per tre regioni USA. | [High] |
 | D9 | **Backend Fase 2 indipendente dal modello**: default Claude API UE. Proposta alternativa: modello open (Qwen3.8-27B) via API UE a consumo oppure self-hosted con vLLM in Docker | Tiene aperta la porta a sovranità dei dati e indipendenza dal fornitore senza pagarle da subito. A ~3.300 domande al mese una GPU è inattiva il 94–98% del tempo: il self-hosted costa 4–30 volte l'API. Vedi §3.1. | [Medium] |
 | D8 | **Correggere l'handbook prima di indicizzarlo** | Password Wi-Fi in chiaro, due indirizzi legali diversi, due processi ferie in conflitto, valori L.O.V.E. solo come immagine. Un bot sopra contenuti sbagliati amplifica gli errori (caso Air Canada 2024). | [High] |
 
@@ -64,9 +66,9 @@ Custom connector ──HTTPS + OAuth (Google, solo @digitiamo.com)──► MCP 
 
 - **Meno di 10 tool, nomi con namespace** (MCP_SERVERS_GUIDE §20). Ogni output include la fonte, perché "le citazioni che il modello non vede sono citazioni che inventa" (LANGCHAIN_GUIDE L1561).
 - **Resource** `handbook://{pagina}` per chi vuole allegare pagine intere, più i **tool** di ricerca per il modello (MCP_SERVERS_GUIDE §6.3).
-- **Sync ClickUp:** una chiamata `list_document_pages` restituisce tutto l'albero, `get_document_pages` restituisce markdown. Per il sync incrementale si usano `date_edited` e un hash del contenuto, non `date_updated`. Prima dell'indicizzazione si applica un filtro di redazione (pagina Wi-Fi esclusa).
+- **Sync ClickUp:** una chiamata `list_document_pages` restituisce tutto l'albero, `get_document_pages` restituisce markdown. Per il sync incrementale si usano `date_edited` e un hash del contenuto, non `date_updated`. Prima dell'indicizzazione si applica un filtro di redazione (pagina Wi-Fi esclusa). **Da decidere:** come i dati del sync arrivano al container, cioè se il sync ricostruisce l'immagine oppure scrive su un bucket che il server legge all'avvio.
 - **Skill `digitiamo-buddy`** (SKILL.md): quando usare i tool, formato della risposta (risposta, fonte, owner, data di revisione), lista dei temi da escalare, rimando ai referenti.
-- **Gap log:** tabella con domanda, timestamp e "nessuna fonte trovata", **senza user id** (vedi Rischi: Statuto dei Lavoratori art. 4). Revisione settimanale durante il pilota, mensile a regime (Fase 3), che alimenta il backlog dell'handbook.
+- **Gap log:** collezione Firestore (D10) con domanda, timestamp e "nessuna fonte trovata", **senza user id** (vedi Rischi: Statuto dei Lavoratori art. 4). Revisione settimanale durante il pilota, mensile a regime (Fase 3), che alimenta il backlog dell'handbook.
 
 ### Fase 2: assistente dedicato
 
@@ -118,10 +120,10 @@ Research: `docs/research/05-modelli-open-self-hosted.md` (modelli) e `06-hosting
 - **Uscita:** handbook "pulito" con owner, golden set pronto, decisione sulle licenze presa.
 
 ### Fase 1: MVP dentro Claude
-1. Server MCP Python (SDK `mcp`, streamable-http) con i 5 tool sopra. Handbook in memoria, Guides in SQLite FTS5.
+1. Server MCP Python (SDK `mcp`, streamable-http in modalità stateless con risposte JSON, D10) con i 5 tool sopra. Handbook in memoria, Guides in SQLite FTS5, gap log su Firestore.
 2. Job di sync ClickUp + Guides con redazione e hash.
 3. Auth OAuth 2.1 con Google, dominio ristretto (MCP_SERVERS_GUIDE §17).
-4. Deploy su Cloud Run EU, Docker (standard del team).
+4. Deploy su Cloud Run EU, Docker (standard del team). Durante il pilota si controlla la metrica `container/billable_instance_time` per confermare che si resta nel free tier.
 5. Skill `digitiamo-buddy` e guida di installazione di una pagina per i colleghi.
 6. Eval: golden set eseguito contro i tool (Recall@5 del retrieval) e contro Claude con la Skill (correttezza e citazione corretta). Test "contesto vuoto": deve rifiutare.
 7. Pilota con 3–4 persone per 2 settimane, poi rollout a tutti.
