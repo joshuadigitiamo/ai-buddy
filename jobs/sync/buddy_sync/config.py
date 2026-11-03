@@ -14,6 +14,8 @@ from typing import Annotated, Any
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+from buddy_sync.handbook_files import PAGE_FILE_RE
+
 _BRANCH_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
 
 
@@ -46,6 +48,15 @@ class SyncSettings(BaseSettings):
     @classmethod
     def _parse_page_files(cls, value: Any) -> Any:
         return _split_csv(value)
+
+    @field_validator("redact_page_files")
+    @classmethod
+    def _check_page_files(cls, value: frozenset[str]) -> frozenset[str]:
+        # Entries are bare page-file names, never paths (D-25, T-01-40). The value is not
+        # echoed: hide_input_in_errors keeps it out of the error.
+        if any(PAGE_FILE_RE.fullmatch(item) is None for item in value):
+            raise ValueError("redact_page_files entries must be bare page file names ending .md")
+        return value
 
     @field_validator("redact_email_allow_domains", mode="before")
     @classmethod

@@ -41,9 +41,16 @@ def test_settings_validate_from_env_example(example_env: dict[str, str]) -> None
     assert s.redact_email_allow_domains == frozenset({"digitiamo.com"})
 
 
-def test_settings_hold_no_tracker_or_token_field() -> None:
-    assert [name for name in SyncSettings.model_fields if "token" in name] == []
-    assert [name for name in SyncSettings.model_fields if "clickup" in name] == []
+def test_settings_hold_exactly_the_documented_fields() -> None:
+    assert set(SyncSettings.model_fields) == {
+        "handbook_dir",
+        "redact_page_files",
+        "redact_email_allow_domains",
+        "guides_repo_url",
+        "guides_branch",
+        "guides_checkout_dir",
+        "artifact_dir",
+    }
 
 
 def test_page_files_and_domains_parse_comma_separated(
@@ -57,7 +64,7 @@ def test_page_files_and_domains_parse_comma_separated(
 
 
 @pytest.mark.parametrize(
-    "entry", ["sub/a.md", "../a.md", "a b.md", "a.txt", "a", "/etc/a.md", "-a.md"]
+    "entry", ["sub/a.md", "../a.md", "a b.md", "a.txt", "plainname", "/etc/a.md", "-a.md"]
 )
 def test_page_file_entries_must_be_bare_md_names(
     example_env: dict[str, str], monkeypatch: pytest.MonkeyPatch, entry: str
