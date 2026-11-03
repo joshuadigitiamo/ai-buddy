@@ -6,13 +6,18 @@ unknown keys ignored) and ``flatten_pages`` turns the page tree into ordered ``F
 
 from __future__ import annotations
 
+import json
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Self
+from typing import Any, Final, Self
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError, field_validator
+
+MAX_RESPONSE_BYTES: Final = 50_000_000
+_MIN_DELAY_S: Final = 1.0
+_MAX_DELAY_S: Final = 30.0
 
 
 class ClickUpError(Exception):
@@ -133,14 +138,74 @@ class ClickUpClient:
     def close(self) -> None:
         self._client.close()
 
+    def _delay(self, response: httpx.Response, attempt: int) -> float:
+        """Seconds to wait before the next try: Retry-After, else rate-limit reset, else 2**n."""
+        delay = float(2**attempt)
+        retry_after = response.headers.get("Retry-After")
+        reset = response.headers.get("X-RateLimit-Reset")
+        try:
+            if retry_after is not None:
+                delay = float(retry_after)
+            elif reset is not None:
+                delay = float(reset) - time.time()
+        except ValueError:
+            pass
+        return min(max(delay, _MIN_DELAY_S), _MAX_DELAY_S)
+
+    def _get_body(self, workspace_id: int, doc_id: str) -> bytes:
+        """GET with bounded retries on 429 and 5xx; return the size-checked 200 body."""
+        path = f"/api/v3/workspaces/{workspace_id}/docs/{doc_id}/pages"
+        params: dict[str, str | int] = {"max_page_depth": -1, "content_format": "text/md"}
+        attempt = 0
+        while True:
+            try:
+                with self._client.stream("GET", path, params=params) as response:
+                    status = response.status_code
+                    if status == 200:
+                        return self._read_capped(response, doc_id)
+                    retryable = status == 429 or status >= 500
+                    delay = self._delay(response, attempt) if retryable else 0.0
+            except httpx.HTTPError as exc:
+                # The exception text can echo request details; report its type only.
+                raise ClickUpError(
+                    f"ClickUp request failed ({type(exc).__name__}) for doc {doc_id}"
+                ) from None
+            if not retryable or attempt >= self._max_retries:
+                raise ClickUpError(f"ClickUp returned HTTP {status} for doc {doc_id}")
+            self._sleep(delay)
+            attempt += 1
+
+    @staticmethod
+    def _read_capped(response: httpx.Response, doc_id: str) -> bytes:
+        chunks: list[bytes] = []
+        size = 0
+        for chunk in response.iter_bytes():
+            size += len(chunk)
+            if size > MAX_RESPONSE_BYTES:
+                raise ClickUpError(f"ClickUp response too large for doc {doc_id}")
+            chunks.append(chunk)
+        return b"".join(chunks)
+
     def fetch_pages(self, workspace_id: int, doc_id: str) -> list[ClickUpPage]:
         """One request returns the whole page tree with content and dates."""
-        response = self._client.get(
-            f"/api/v3/workspaces/{workspace_id}/docs/{doc_id}/pages",
-            params={"max_page_depth": -1, "content_format": "text/md"},
-        )
-        if response.status_code != 200:
-            raise ClickUpError(f"ClickUp returned HTTP {response.status_code} for doc {doc_id}")
-        body = response.json()
-        items = body.get("pages", []) if isinstance(body, dict) else body
-        return [ClickUpPage.model_validate(item) for item in items]
+        raw = self._get_body(workspace_id, doc_id)
+        try:
+            body = json.loads(raw)
+        except ValueError:
+            raise ClickUpError(f"ClickUp returned invalid JSON for doc {doc_id}") from None
+        items = body.get("pages") if isinstance(body, dict) else body
+        if not isinstance(items, list):
+            raise ClickUpError(f"ClickUp returned an unexpected payload shape for doc {doc_id}")
+        pages: list[ClickUpPage] = []
+        for index, item in enumerate(items):
+            try:
+                pages.append(ClickUpPage.model_validate(item))
+            except ValidationError as exc:
+                # Locations only: error input values would carry page content.
+                paths = sorted(
+                    ".".join(str(part) for part in (index, *err["loc"])) for err in exc.errors()
+                )
+                raise ClickUpError(
+                    f"ClickUp page failed validation for doc {doc_id} at: " + ", ".join(paths)
+                ) from None
+        return pages

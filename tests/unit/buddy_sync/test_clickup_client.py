@@ -179,7 +179,8 @@ def test_oversized_body_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_page_missing_id_names_field_path_but_not_content() -> None:
     def handler(_request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=[{"name": "TOP-SECRET-TITLE", "content": "TOP-SECRET-BODY"}])
+        page = {"name": "TOP-SECRET-TITLE", "content": "TOP-SECRET-BODY"}
+        return httpx.Response(200, json=[page])
 
     with pytest.raises(ClickUpError) as info:
         _client(handler).fetch_pages(123, "demo-doc")
@@ -216,9 +217,8 @@ def test_token_never_in_errors_or_logs(caplog: pytest.LogCaptureFixture) -> None
     def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(500, text=f"echo {TOKEN}")
 
-    with caplog.at_level(logging.DEBUG):
-        with pytest.raises(ClickUpError) as info:
-            _client(handler).fetch_pages(123, "demo-doc")
+    with caplog.at_level(logging.DEBUG), pytest.raises(ClickUpError) as info:
+        _client(handler).fetch_pages(123, "demo-doc")
 
     assert (TOKEN in str(info.value)) is False
     assert (TOKEN in repr(info.value)) is False
