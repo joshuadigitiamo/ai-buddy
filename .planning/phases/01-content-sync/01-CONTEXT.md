@@ -47,6 +47,12 @@ Out of this phase: serving the index (Phase 2), hosting/deploy and the concrete 
 - **D-23:** `GUIDES_INDEX.md` (assumed by D5) does not exist yet. Decision: create it **in the Guides repo** (section → file:line map), generated rather than hand-written; sync reads it. — **Reversibility:** costly — second cross-repo contract alongside `sections.yaml`.
 - **D-24:** Guides incremental: skip the Guides rebuild when the commit SHA is unchanged; otherwise rebuild the Guides tables fully.
 
+### Scope change 2026-11-03 (during plan 01-08 execution)
+- **D-25:** ClickUp is being shut down. No live or recurring ClickUp sync. The handbook source is the existing 23-page raw snapshot (`docs/research/handbook-raw/`), maintained by us from now on. No `CLICKUP_TOKEN` is needed. Supersedes the live-sync parts of D-13 (denylist stays, keyed by page file instead of ClickUp page id), SYNC-01 and the ClickUp deep-link part of SYNC-05.
+- **D-26:** Handbook Markdown lives in a gitignored local folder of this repo, mounted read-only into the sync like the Guides. It is never committed (public repo).
+- **D-27:** Guides are read from the local checkout `~/Desktop/WORK/Guides` mounted read-only; no `GUIDES_REPO_TOKEN`. Supersedes the token/https part of D-22 for Milestone 1.
+- **Follow-up:** a gap plan adds a local-folder handbook source, removes the live ClickUp path from the pipeline and CLI, defines the replacement citation for handbook pages, rewrites SYNC-01/SYNC-05 accordingly, and reworks plan 01-08 Task 3 (live run) to use the local sources only.
+
 ### Claude's Discretion
 - How `GUIDES_INDEX.md` is generated (script location: Guides repo vs `jobs/sync` tool) and what sync does when it disagrees with actual headings (fail vs regenerate vs warn). Drift risk must be covered by a test.
 - `sections.yaml` exact schema and `durations.json` reading details.

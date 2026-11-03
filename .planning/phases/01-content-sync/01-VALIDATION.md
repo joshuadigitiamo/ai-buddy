@@ -48,11 +48,11 @@ Task IDs are filled by the planner/executor; rows below are seeded per requireme
 | 01-02-T1 | 01-02 | 2 | SYNC-05, SYNC-07 | T-01-06 | Atomic publish | unit | `./run-unit-tests.sh --single-file test_index_roundtrip.py tests/unit/buddy_core` | ❌ W0 | ⬜ pending |
 | 01-02-T2 | 01-02 | 2 | SYNC-07, SYNC-04 | T-01-05, T-01-07 | Hostile queries never raise; version refusal | unit | `./run-unit-tests.sh --single-file test_index_format.py tests/unit/buddy_core`; `test_artifact_store.py`; `test_search_guides.py` | ❌ W0 | ⬜ pending |
 | 01-02-T3 | 01-02 | 2 | SYNC-07 | — | N/A | doc check | `test -f docs/index-format.md && test -f docs/adr/0001-index-handoff.md` | ❌ W0 | ⬜ pending |
-| 01-03-T1 | 01-03 | 2 | SYNC-01, SYNC-03 | T-01-11, T-01-12 | Token never in repr/log/errors; log has rule name only | unit | `./run-unit-tests.sh --single-file test_config.py tests/unit/buddy_sync` | ❌ W0 | ⬜ pending |
+| 01-03-T1 | 01-03 | 2 | SYNC-01, SYNC-03 | T-01-11, T-01-12 | Token never in repr/log/errors; log has rule name only (token cases retired by 01-09: no token exists after D-25) | unit | `./run-unit-tests.sh --single-file test_config.py tests/unit/buddy_sync` | ❌ W0 | ⬜ pending |
 | 01-03-T2 | 01-03 | 2 | SYNC-03 | T-01-10, T-01-13 | Every D-15 rule masks; D-16 survives | unit | `./run-unit-tests.sh --single-file test_redaction.py tests/unit/buddy_sync` | ❌ W0 | ⬜ pending |
 | 01-03-T3 | 01-03 | 2 | SYNC-03 | T-01-10 | Corpus false positives measured (local only) | unit (local) | `./run-unit-tests.sh --single-file test_corpus_local.py tests/unit/buddy_sync` | ❌ W0 | ⬜ pending |
 | 01-04-T1 | 01-04 | 3 | SYNC-03, SYNC-05 | T-01-15 | Denylisted page absent from every byte | unit | `./run-unit-tests.sh --single test_redaction_pipeline.py test_denylisted_page_absent tests/unit/buddy_sync` | ❌ W0 | ⬜ pending |
-| 01-04-T2 | 01-04 | 3 | SYNC-01 | T-01-16, T-01-17 | Token absent from errors; bounded retries | unit | `./run-unit-tests.sh --single-file test_clickup_client.py tests/unit/buddy_sync` | ❌ W0 | ⬜ pending |
+| 01-04-T2 | 01-04 | 3 | SYNC-01 | T-01-16, T-01-17 | Token absent from errors; bounded retries | unit | `./run-unit-tests.sh --single-file test_clickup_client.py tests/unit/buddy_sync` | ❌ W0 | superseded: plan 01-10 deletes the tracker client and this test (D-25) |
 | 01-04-T3 | 01-04 | 3 | SYNC-02 | T-01-18 | Empty denylist refused | unit | `./run-unit-tests.sh --single-file test_handbook_sync.py tests/unit/buddy_sync` | ❌ W0 | ⬜ pending |
 | 01-05-T1 | 01-05 | 3 | SYNC-04 | — | N/A | unit | `./run-unit-tests.sh --single-file test_guides_source.py tests/unit/buddy_sync` | ❌ W0 | ⬜ pending |
 | 01-05-T2 | 01-05 | 3 | SYNC-04 | T-01-24 | Symlink escape excluded | unit | `./run-unit-tests.sh --single-file test_chunker.py tests/unit/buddy_sync`; `--single test_guides_scope.py test_globs tests/unit/buddy_sync` | ❌ W0 | ⬜ pending |
@@ -63,7 +63,15 @@ Task IDs are filled by the planner/executor; rows below are seeded per requireme
 | 01-07-T1 | 01-07 | 4 | (phase) SYNC-01..07 | T-01-33 | Failed build keeps previous artifact | integration (in-process) | `./run-unit-tests.sh --single test_sync_e2e.py test_end_to_end tests/unit/buddy_sync` | ❌ W0 | ⬜ pending |
 | 01-07-T2 | 01-07 | 4 | SYNC-01, SYNC-03, SYNC-04 | T-01-30 | CLI prints no content or token | unit | `./run-unit-tests.sh --single-file test_cli.py tests/unit/buddy_sync` | ❌ W0 | ⬜ pending |
 | 01-08-T1 | 01-08 | 5 | SYNC-04, SYNC-06 | T-01-37 | Guides edits uncommitted until Joshua reviews | local-only | docker run with `GUIDES_LOCAL_DIR=/guides` (see plan 08 Task 1) | ❌ W0 | ⬜ pending |
-| 01-08-T3 | 01-08 | 5 | SYNC-01, SYNC-03, SYNC-05 | T-01-34, T-01-35, T-01-36 | Live artifact clean; `.env` never printed | live (manual trigger) | docker run with `LIVE_ARTIFACT_DIR=/app/artifacts` (see plan 08 Task 3) | ❌ W0 | ⬜ pending |
+| 01-08-T3 | 01-08 | 5 | — | — | Removed before execution by the D-25 scope change; superseded by 01-11-T1/T2 | — | — | — | superseded |
+| 01-09-T1 | 01-09 | 5 | SYNC-01, SYNC-02, SYNC-03, SYNC-05 | T-01-39, T-01-41 | Denylisted file absent from every artifact byte; mtime never read | integration (in-process) | `./run-unit-tests.sh --single test_sync_e2e.py test_end_to_end tests/unit/buddy_sync` | ❌ W0 | ⬜ pending |
+| 01-09-T2 | 01-09 | 5 | SYNC-01, SYNC-02, SYNC-03, SYNC-05 | T-01-39, T-01-40, T-01-42 | Denylisted file never opened; fail closed on malformed input; errors carry no file content | unit | `./run-unit-tests.sh --single-file test_handbook_files.py tests/unit/buddy_sync`; `test_handbook_sync.py`; `test_redaction_pipeline.py` | ❌ W0 | ⬜ pending |
+| 01-09-T3 | 01-09 | 5 | SYNC-01, SYNC-03 | T-01-39 | No token or tracker variable in config; CLI prints no secret | unit + gates | `./run-unit-tests.sh --all` plus the plan's grep gates | ❌ W0 | ⬜ pending |
+| 01-10-T1 | 01-10 | 6 | SYNC-01 | T-01-SC | Tracker adapter and HTTP client removed; image rebuilt | smoke + gates | `./run-unit-tests.sh --all`; `--single test_sync_e2e.py test_end_to_end tests/unit/buddy_sync` | ✅ | ⬜ pending |
+| 01-10-T2 | 01-10 | 6 | SYNC-05, SYNC-07 | T-01-44, T-01-45 | Docs describe shapes only, no content | doc gates | grep gates in plan 10 Task 2 | ✅ | ⬜ pending |
+| 01-10-T3 | 01-10 | 6 | SYNC-01, SYNC-02, SYNC-05 | — | N/A | doc gates | grep gates in plan 10 Task 3 | ✅ | ⬜ pending |
+| 01-11-T1 | 01-11 | 7 | SYNC-01, SYNC-03, SYNC-05 | T-01-46, T-01-47, T-01-49 | Live artifact clean; asserts on integers only; read-only mounts, no network | live (local-only) | docker run with `LIVE_ARTIFACT_DIR=/app/artifacts` (see plan 11 Task 1) | ❌ W0 | ⬜ pending |
+| 01-11-T2 | 01-11 | 7 | SYNC-02, SYNC-04, SYNC-06 | T-01-48 | Nothing generated or private visible to git | live + hygiene | second live run; `./run-unit-tests.sh --all`; `git status --porcelain -- artifacts .cache docs/research/handbook-raw` empty | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -86,7 +94,7 @@ Task IDs are filled by the planner/executor; rows below are seeded per requireme
 | No root-owned files after run | FND-02 | Host filesystem check | `find . -user root -not -path './.git/*' \| head` → empty |
 | Guides sections + exceptions listed in plan | GUIDE-01 | Plan-review artifact | Plan checker reads "Guides applied" block |
 | `docs/index-format.md`, `docs/adr/0001-index-handoff.md` exist | SYNC-07 | Doc review | Read files |
-| Live smoke against `xkwgt-39975`, Wi-Fi page absent | SYNC-01/03 | Needs credentials + network | `docker run … python -m buddy_sync` with `.env` |
+| Live run on the local handbook snapshot and Guides checkout, Wi-Fi page absent (replaces the tracker live smoke, D-25) | SYNC-01/03/05 | Needs the gitignored snapshot and the local Guides checkout, which exist only on the developer machine | plan 11: `docker run --network none … -v …handbook-raw:/handbook:ro -v …/Guides:/guides-src:ro … python -m buddy_sync run --strict` |
 
 ---
 
