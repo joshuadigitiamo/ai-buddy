@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Re-running sync with no ClickUp edits processes 0 pages; editing one page re-processes only that page; a `date_updated`-only change without content change is not re-indexed.
   4. A keyword query against the Guides index returns the matching heading chunk with its file and line reference, together with the scene-clip URL (or the full-video URL from the Guides README) when that section has a video, and nothing when it does not.
   5. The index artifact has a documented, versioned format, and a recorded decision states how it reaches the MCP container (image rebuild vs bucket read).
-**Plans**: 6/8 plans executed
+**Plans**: 7/8 plans executed
 
 Plans:
 **Wave 1**
@@ -49,7 +49,7 @@ Plans:
 - [x] 01-06-PLAN.md — Video map: README URLs, sections.yaml, durations offsets, fallbacks, contract doc (SYNC-06)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01-07-PLAN.md — Sync CLI and pipeline end to end on fixtures (run, list-pages, guides-index, search)
+- [x] 01-07-PLAN.md — Sync CLI and pipeline end to end on fixtures (run, list-pages, guides-index, search)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 01-08-PLAN.md — Real sources: Guides maps + GUIDES_INDEX.md (Joshua commits), live smoke on xkwgt-39975
@@ -113,7 +113,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Content Sync | 6/8 | In Progress | - |
+| 1. Content Sync | 7/8 | In Progress | - |
 | 2. MCP Server and Skill | 0/0 | Not started | - |
 | 3. Google Chat Bot | 0/0 | Not started | - |
 | 4. Infrastructure and CI/CD | 0/0 | Not started | - |
