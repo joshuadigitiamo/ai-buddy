@@ -17,13 +17,10 @@ D11_PATHS = {
 }
 
 CONTRACT_KEYS = {
-    "CLICKUP_TOKEN",
-    "CLICKUP_WORKSPACE_ID",
-    "CLICKUP_DOC_ID",
-    "REDACT_PAGE_IDS",
+    "HANDBOOK_DIR",
+    "REDACT_PAGE_FILES",
     "REDACT_EMAIL_ALLOW_DOMAINS",
     "GUIDES_REPO_URL",
-    "GUIDES_REPO_TOKEN",
     "GUIDES_BRANCH",
     "GUIDES_CHECKOUT_DIR",
     "ARTIFACT_DIR",
@@ -73,11 +70,9 @@ def test_gitignore_protects_public_repo() -> None:
     assert GITIGNORE_REQUIRED - present == set()
 
 
-def test_env_example_has_contract_keys() -> None:
-    assert CONTRACT_KEYS - set(_env_example()) == set()
+def test_env_example_holds_exactly_the_contract_keys() -> None:
+    assert set(_env_example()) == CONTRACT_KEYS
 
 
-def test_env_example_has_no_secret_values() -> None:
-    env = _env_example()
-    secrets_filled = {k for k in ("CLICKUP_TOKEN", "GUIDES_REPO_TOKEN") if env.get(k, "x") != ""}
-    assert secrets_filled == set()
+def test_env_example_has_no_token_variable() -> None:
+    assert {key for key in _env_example() if key.endswith("_TOKEN")} == set()

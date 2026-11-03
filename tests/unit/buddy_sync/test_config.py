@@ -1,4 +1,4 @@
-"""SyncSettings: env loading, secret masking, list parsing and validators."""
+"""SyncSettings: env loading, list parsing and validators."""
 
 from __future__ import annotations
 
@@ -7,10 +7,9 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from buddy_sync.config import ConfigError, SyncSettings
+from buddy_sync.config import SyncSettings
 
 ENV_EXAMPLE = Path(__file__).resolve().parents[3] / ".env.example"
-SENTINEL = "pk_SYNTHETIC_TOKEN_DO_NOT_USE_0000000000"
 
 
 def _example_env() -> dict[str, str]:
@@ -35,35 +34,49 @@ def example_env(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
 
 def test_settings_validate_from_env_example(example_env: dict[str, str]) -> None:
     s = SyncSettings()
-    assert s.clickup_doc_id == example_env["CLICKUP_DOC_ID"]
+    assert s.handbook_dir == Path("/handbook")
+    assert s.redact_page_files == frozenset()
+    assert s.guides_repo_url == "/guides-src"
     assert s.guides_branch == "master"
     assert s.redact_email_allow_domains == frozenset({"digitiamo.com"})
-    assert s.redact_page_ids == frozenset()
-    assert s.clickup_token is None
-    assert s.clickup_workspace_id is None
 
 
-def test_clickup_token_never_appears_in_repr_str_or_json(
+def test_settings_hold_no_tracker_or_token_field() -> None:
+    assert [name for name in SyncSettings.model_fields if "token" in name] == []
+    assert [name for name in SyncSettings.model_fields if "clickup" in name] == []
+
+
+def test_page_files_and_domains_parse_comma_separated(
     example_env: dict[str, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("CLICKUP_TOKEN", SENTINEL)
-    monkeypatch.setenv("GUIDES_REPO_TOKEN", SENTINEL)
-    s = SyncSettings()
-    assert s.clickup_token is not None
-    assert s.clickup_token.get_secret_value() == SENTINEL
-    assert (SENTINEL in repr(s)) is False
-    assert (SENTINEL in str(s)) is False
-    assert (SENTINEL in s.model_dump_json()) is False
-
-
-def test_page_ids_and_domains_parse_comma_separated(
-    example_env: dict[str, str], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("REDACT_PAGE_IDS", "a-1, b-2")
+    monkeypatch.setenv("REDACT_PAGE_FILES", "a.md, b.md")
     monkeypatch.setenv("REDACT_EMAIL_ALLOW_DOMAINS", " Digitiamo.com ,, Example.Invalid ")
     s = SyncSettings()
-    assert s.redact_page_ids == frozenset({"a-1", "b-2"})
+    assert s.redact_page_files == frozenset({"a.md", "b.md"})
     assert s.redact_email_allow_domains == frozenset({"digitiamo.com", "example.invalid"})
+
+
+@pytest.mark.parametrize(
+    "entry", ["sub/a.md", "../a.md", "a b.md", "a.txt", "a", "/etc/a.md", "-a.md"]
+)
+def test_page_file_entries_must_be_bare_md_names(
+    example_env: dict[str, str], monkeypatch: pytest.MonkeyPatch, entry: str
+) -> None:
+    monkeypatch.setenv("REDACT_PAGE_FILES", f"ok.md,{entry}")
+    with pytest.raises(ValidationError) as excinfo:
+        SyncSettings()
+    message = str(excinfo.value)
+    assert "redact_page_files" in message
+    assert (entry in message) is False
+
+
+def test_missing_handbook_dir_names_the_field(
+    example_env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("HANDBOOK_DIR")
+    with pytest.raises(ValidationError) as excinfo:
+        SyncSettings()
+    assert "handbook_dir" in str(excinfo.value)
 
 
 @pytest.mark.parametrize("branch", ["--upload-pack=x", "-x", "bad branch", "a;b"])
@@ -74,30 +87,3 @@ def test_guides_branch_rejects_option_like_values(
     with pytest.raises(ValidationError) as excinfo:
         SyncSettings()
     assert (branch in str(excinfo.value)) is False
-
-
-def test_clickup_doc_id_rejects_unexpected_characters(
-    example_env: dict[str, str], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("CLICKUP_DOC_ID", "abc/../x")
-    with pytest.raises(ValidationError):
-        SyncSettings()
-
-
-def test_require_clickup_names_missing_variables(example_env: dict[str, str]) -> None:
-    s = SyncSettings()
-    with pytest.raises(ConfigError) as excinfo:
-        s.require_clickup()
-    message = str(excinfo.value)
-    assert "CLICKUP_TOKEN" in message
-    assert "CLICKUP_WORKSPACE_ID" in message
-
-
-def test_require_clickup_returns_token_and_workspace(
-    example_env: dict[str, str], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("CLICKUP_TOKEN", SENTINEL)
-    monkeypatch.setenv("CLICKUP_WORKSPACE_ID", "123456")
-    token, workspace_id = SyncSettings().require_clickup()
-    assert token.get_secret_value() == SENTINEL
-    assert workspace_id == 123456
