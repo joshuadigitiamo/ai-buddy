@@ -5,6 +5,7 @@ only ever runs in a directory that carries the ``.buddy-sync-checkout`` marker t
 itself, so a misconfigured ``GUIDES_CHECKOUT_DIR`` cannot touch a working repository.
 """
 
+import base64
 import os
 import re
 import subprocess
@@ -76,9 +77,27 @@ class GitGuidesSource:
         self._token = token
         self._runner = runner
 
+    def _header_value(self) -> str | None:
+        """Basic-auth header for the token; only https urls ever get one."""
+        if self._token is None or urlsplit(self._url).scheme != "https":
+            return None
+        raw = f"x-access-token:{self._token.get_secret_value()}"
+        return "Authorization: Basic " + base64.b64encode(raw.encode()).decode()
+
+    def _scrub(self, text: str) -> str:
+        """Remove the token and its base64 form from text that may reach a message or log."""
+        if self._token is None:
+            return text
+        secret = self._token.get_secret_value()
+        encoded = base64.b64encode(f"x-access-token:{secret}".encode()).decode()
+        return text.replace(secret, "[REDACTED]").replace(encoded, "[REDACTED]")
+
     def _env(self) -> dict[str, str]:
         env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_CONFIG_")}
         entries: list[tuple[str, str]] = [("safe.directory", "*")]
+        header = self._header_value()
+        if header is not None:
+            entries.append(("http.extraHeader", header))
         env["GIT_TERMINAL_PROMPT"] = "0"
         env["GIT_CONFIG_COUNT"] = str(len(entries))
         for index, (key, value) in enumerate(entries):
@@ -99,7 +118,8 @@ class GitGuidesSource:
             )
         except subprocess.CalledProcessError as exc:
             raise GuidesGitError(
-                f"git {_subcommand(args)} failed with exit code {exc.returncode}"
+                f"git {_subcommand(args)} failed with exit code {exc.returncode}: "
+                + self._scrub(_text(exc.stderr))[:500]
             ) from None
         except subprocess.TimeoutExpired:
             raise GuidesGitError(f"git {_subcommand(args)} timed out") from None
@@ -142,3 +162,10 @@ def _subcommand(args: tuple[str, ...]) -> str:
     if rest[:1] == ["-C"]:
         rest = rest[2:]
     return rest[0] if rest else "?"
+
+
+def _text(value: object) -> str:
+    """stderr as text, whether the runner gave str, bytes or nothing."""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace").strip()
+    return str(value or "").strip()

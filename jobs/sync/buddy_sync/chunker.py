@@ -59,7 +59,8 @@ def heading_outline(text: str) -> list[Heading]:
         if token.level != 0 or token.map is None or _heading_tag(token) is None:
             continue
         inline = tokens[index + 1]
-        outline.append(Heading(int(token.tag[1]), inline.content.strip(), token.map[0] + 1))
+        title = " ".join(inline.content.split())
+        outline.append(Heading(int(token.tag[1]), title, token.map[0] + 1))
     return outline
 
 

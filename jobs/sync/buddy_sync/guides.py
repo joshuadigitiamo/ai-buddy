@@ -100,10 +100,25 @@ def sync_guides(
     redactor: Redactor,
     logger: logging.Logger,
 ) -> GuidesSyncResult:
-    """Build the Guides chunks for a checkout."""
+    """Build the Guides chunks for a checkout, or reuse the previous ones (D-24).
+
+    An unchanged commit with matching pipeline and redaction versions yields the same chunks,
+    so they are taken from the previous artifact instead of being recomputed.
+    """
     files = select_guide_files(checkout.path)
-    chunks = build_guide_chunks(checkout.path, files, redactor=redactor, logger=logger)
     outline = {relpath: heading_outline(_read(checkout.path, relpath)) for relpath in files}
+    if (
+        previous is not None
+        and versions_match
+        and previous.meta.guides_commit_sha == checkout.commit_sha
+    ):
+        return GuidesSyncResult(
+            chunks=tuple(previous.guide_chunks()),
+            commit_sha=checkout.commit_sha,
+            rebuilt=False,
+            outline=outline,
+        )
+    chunks = build_guide_chunks(checkout.path, files, redactor=redactor, logger=logger)
     return GuidesSyncResult(
         chunks=tuple(chunks), commit_sha=checkout.commit_sha, rebuilt=True, outline=outline
     )
