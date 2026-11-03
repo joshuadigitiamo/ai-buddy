@@ -1,4 +1,4 @@
-"""Tracer: synthetic ClickUp doc -> redaction -> index.db; denylisted page leaves no trace."""
+"""Tracer: synthetic handbook folder -> redaction -> index.db; denylisted file leaves no trace."""
 
 from __future__ import annotations
 
@@ -6,65 +6,36 @@ import logging
 from datetime import UTC, datetime
 from pathlib import Path
 
-import httpx
 import pytest
-from pydantic import SecretStr
 
 from buddy_core.index_reader import open_index
 from buddy_core.index_writer import build_index
-from buddy_core.models import HandbookPage, IndexContent
+from buddy_core.models import IndexContent
 from buddy_core.store import LocalDirArtifactStore
-from buddy_sync.clickup import ClickUpClient, FlatPage, flatten_pages
 from buddy_sync.handbook import sync_handbook
+from buddy_sync.handbook_files import SOURCE_ID, read_handbook_dir
 from buddy_sync.redaction import REDACTION_VERSION, Redactor
 
-FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "clickup" / "pages.json"
-WORKSPACE_ID = 123
-DOC_ID = "demo-doc"
-WIFI_ID = "demo-page-wifi"
-
-
-def _fetch_flat() -> tuple[list[FlatPage], int]:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, content=FIXTURE.read_bytes())
-
-    client = ClickUpClient(
-        token=SecretStr("pk_SYNTHETIC_TOKEN_DO_NOT_USE_0000000000"),
-        base_url="https://api.clickup.com",
-        timeout_s=5.0,
-        transport=httpx.MockTransport(handler),
-    )
-    try:
-        return flatten_pages(client.fetch_pages(WORKSPACE_ID, DOC_ID))
-    finally:
-        client.close()
-
-
-def _sync(denylist: frozenset[str]) -> tuple[HandbookPage, ...]:
-    flat, skipped = _fetch_flat()
-    result = sync_handbook(
-        flat,
-        previous=None,
-        versions_match=True,
-        denylist=denylist,
-        allow_empty_denylist=False,
-        redactor=Redactor(email_allow_domains=frozenset({"digitiamo.com"})),
-        workspace_id=WORKSPACE_ID,
-        doc_id=DOC_ID,
-        skipped_archived=skipped,
-        logger=logging.getLogger("buddy_sync.test"),
-    )
-    return result.pages
+FIXTURE_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "handbook"
+DENYLIST = frozenset({"04-rete-ospiti.md"})
+KEPT_IDS = ["01-benvenuto", "02-ferie", "03-accesso-ufficio"]
 
 
 @pytest.fixture
 def published_dir(tmp_path: Path) -> Path:
-    pages = _sync(frozenset({WIFI_ID}))
+    files = read_handbook_dir(FIXTURE_DIR, denylist=DENYLIST)
+    result = sync_handbook(
+        files.pages,
+        previous=None,
+        versions_match=True,
+        redactor=Redactor(email_allow_domains=frozenset({"digitiamo.com"})),
+        logger=logging.getLogger("buddy_sync.test"),
+    )
     content = IndexContent(
-        handbook=pages,
+        handbook=result.pages,
         chunks=(),
         videos={},
-        source_doc_id=DOC_ID,
+        source_doc_id=SOURCE_ID,
         guides_commit_sha="none",
         pipeline_version="1",
         redaction_version=REDACTION_VERSION,
@@ -76,38 +47,25 @@ def published_dir(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_denylisted_page_absent(published_dir: Path) -> None:
+def test_denylisted_file_absent(published_dir: Path) -> None:
     blob = (published_dir / "index.db").read_bytes() + (
         published_dir / "index.manifest.json"
     ).read_bytes()
 
-    assert (WIFI_ID.encode() in blob) is False
+    assert (b"04-rete-ospiti" in blob) is False
     assert (b"Rete ospiti" in blob) is False
     assert (b"Wf9-synthetic-wifi-value" in blob) is False
     assert (b"Zq9-synthetic-not-real" in blob) is False
     assert (b"[REDATTO]" in blob) is True
 
 
-def test_pages_carry_source(published_dir: Path) -> None:
+def test_pages_carry_citation(published_dir: Path) -> None:
     with open_index(published_dir / "index.db") as index:
         pages = index.load_handbook()
 
-    assert pages, "no pages stored"
+    assert [p.page_id for p in pages] == KEPT_IDS
+    assert [p.position for p in pages] == list(range(len(KEPT_IDS)))
     for page in pages:
-        assert page.url.startswith("https://app.clickup.com/")
+        assert page.url.startswith("handbook://")
         assert page.title
         assert page.revision_date_iso
-    titles = [p.title for p in pages]
-    ids = {p.page_id for p in pages}
-    assert titles.count("Benvenuto") == 2
-    assert len({p.page_id for p in pages if p.title == "Benvenuto"}) == 2
-    assert "demo-page-0005" not in ids
-    assert "demo-page-0006" not in ids
-    assert [p.position for p in pages] == list(range(len(pages)))
-    assert [p.page_id for p in pages] == [
-        "demo-page-0001",
-        "demo-page-0002",
-        "demo-page-0004",
-        "demo-page-0003",
-        "demo-page-0007",
-    ]
