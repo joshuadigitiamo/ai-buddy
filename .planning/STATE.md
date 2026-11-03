@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 01
+current_phase: 1
 current_phase_name: Content Sync
 status: executing
-stopped_at: Completed 01-07-PLAN.md
-last_updated: "2026-11-03T19:46:29.521Z"
+stopped_at: Completed 01-09-PLAN.md
+last_updated: "2026-11-03T20:37:38.892Z"
 last_activity: 2026-11-03
-last_activity_desc: Phase 01 execution started
-state_head: bf378c37dd07ef5e418050078baa00a88156b843
+last_activity_desc: Phase 1 execution started
+state_head: 701a284dfa2575750644d8093f51d67cc141ed26
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 8
-  completed_plans: 7
+  total_plans: 11
+  completed_plans: 8
   percent: 0
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-03)
 
 **Core value:** An employee gets an answer only from official sources with the source cited, or an honest "non lo so, chiedi a ..." with the gap logged. Never an invented policy.
-**Current focus:** Phase 01 — Content Sync
+**Current focus:** Phase 1 — Content Sync
 
 ## Current Position
 
-Phase: 01 (Content Sync) — EXECUTING
-Plan: 8 of 8
+Phase: 1 (Content Sync) — EXECUTING
+Plan: 9 of 11
 Status: Ready to execute
-Last activity: 2026-11-03 — Phase 01 execution started
+Last activity: 2026-11-03 — Phase 1 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -63,6 +63,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P05 | 6 min | 3 tasks | 11 files |
 | Phase 01 P06 | 4 min | 3 tasks | 9 files |
 | Phase 01 P07 | 25 min | 2 tasks | 6 files |
+| Phase 1 P09 | 45 min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,10 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-07: run_sync closes the previous artifact before building; only IndexVersionError counts it as absent (WARNING, full rebuild)
 - [Phase 01]: 01-07: CLI maps OSError/sqlite3.Error/IndexFormatError to one ERROR line and exit 1; ValidationError names variables only, never values
 - [Phase 01]: 01-07: guides_index_drift is checked only when Guides are rebuilt; list-pages prints denylisted pages with [denied] and redacted title
+- [Phase 1]: Handbook citation is handbook://<page_id>, page_id = file stem (costly; no consumer yet)
+- [Phase 1]: REDACT_PAGE_FILES holds bare file names and every entry must name an existing page file (fail closed)
+- [Phase 1]: Handbook pages flat (parent_id null, depth 0) in file-name order; index.db schema stays 1.0.0
+- [Phase 1]: Executor commits went to branch gsd/phase-01-content-sync because main is guard-protected; needs merge to main
 
 ### Pending Todos
 
@@ -117,6 +122,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T19:46:29.487Z
-Stopped at: Completed 01-07-PLAN.md
+Last session: 2026-11-03T20:37:38.856Z
+Stopped at: Completed 01-09-PLAN.md
 Resume file: None
