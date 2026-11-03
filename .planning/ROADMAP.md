@@ -14,7 +14,7 @@ Execution environment for every phase: Python 3.12, all code and tests run in Do
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Content Sync** - Repo foundation plus the local handbook snapshot and Guides synced into a redacted, incremental, citable index with video mapping
+- [x] **Phase 1: Content Sync** - Repo foundation plus the local handbook snapshot and Guides synced into a redacted, incremental, citable index with video mapping (completed 2026-11-03)
 - [ ] **Phase 2: MCP Server and Skill** - Five cited MCP tools over stateless HTTP with Firestore gap log, Google-domain auth, and the `digitiamo-buddy` Skill
 - [ ] **Phase 3: Google Chat Bot** - Guarded Google Chat bot with LangGraph 2-step RAG, citation and confidence gates, pluggable LLM client, and video cards
 - [ ] **Phase 4: Infrastructure and CI/CD** - Service images, docker compose, kind manifests, Cloud Run YAMLs and path-filtered GitHub Actions with Workload Identity Federation
@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Re-running sync with no handbook edits processes 0 pages; editing one page re-processes only that page; a change of file modification time alone (no content or revision-date change) is not re-indexed.
   4. A keyword query against the Guides index returns the matching heading chunk with its file and line reference, together with the scene-clip URL (or the full-video URL from the Guides README) when that section has a video, and nothing when it does not.
   5. The index artifact has a documented, versioned format, and a recorded decision states how it reaches the MCP container (image rebuild vs bucket read).
-**Plans**: 11/11 plans executed
+**Plans**: 11/11 plans complete
 
 Plans:
 **Wave 1**
@@ -120,7 +120,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Content Sync | 11/11 | In Progress | - |
+| 1. Content Sync | 11/11 | Complete    | 2026-11-03 |
 | 2. MCP Server and Skill | 0/0 | Not started | - |
 | 3. Google Chat Bot | 0/0 | Not started | - |
 | 4. Infrastructure and CI/CD | 0/0 | Not started | - |

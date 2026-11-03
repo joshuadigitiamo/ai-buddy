@@ -6,7 +6,7 @@
     {
       "number": "1",
       "name": "Content Sync",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "2",
@@ -31,8 +31,8 @@
   ],
   "next": {
     "command": "/gsd-progress --next",
-    "label": "Advance to the next step (verify)",
-    "reason": "Phase 1 of 5 · 0% · ready to verify"
+    "label": "Advance to the next step (plan phase 2)",
+    "reason": "Phase 2 of 5 — needs a plan"
   },
-  "updated_at": "2026-11-03T20:56:36.311Z"
+  "updated_at": "2026-11-03T21:12:48.949Z"
 }
