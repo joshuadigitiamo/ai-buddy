@@ -29,7 +29,8 @@ def to_match_query(query: str) -> str | None:
     Every token becomes a double-quoted phrase, so FTS5 operators and column filters in user
     input are inert.
     """
-    tokens = [t for t in query.split() if any(ch.isalnum() for ch in t)]
+    # A NUL byte would end the SQL string early; treat it as a separator like whitespace.
+    tokens = [t for t in query.replace("\x00", " ").split() if any(ch.isalnum() for ch in t)]
     if not tokens:
         return None
     return " OR ".join('"' + t.replace('"', '""') + '"' for t in tokens)
