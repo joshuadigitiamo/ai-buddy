@@ -2,7 +2,7 @@
 
 **Obiettivo:** un assistente conversazionale che risponde in qualsiasi momento a domande su processi, tool e cultura aziendale di Digitiamo.
 **Fonti:** Handbook ClickUp (doc `xkwgt-22915`, 23 pagine) e repo Guides (15 guide tecniche).
-**Stato:** solo pianificazione. Nessun codice finché il piano non è approvato.
+**Stato:** Milestone 1 approvata il 03/11/2026 (vedi §2.1). Si parte con l'uso personale in sviluppo.
 **Complessità:** Media (Fase 1 bassa-media, Fase 2 media).
 **Data:** 24/09/2026
 
@@ -10,10 +10,10 @@ Research di supporto, in `docs/research/`:
 
 | File | Contenuto |
 |---|---|
-| `01-handbook-inventory.md` + `handbook-raw/` | Inventario completo dell'handbook: 23 pagine, ~4.000 parole, problemi di qualità |
-| `02-meridian-e-backend-ai.md` | Meridian, termini Anthropic, opzioni di backend, costi |
+| `01-handbook-inventory.md` + `handbook-raw/` (interno, non pubblicato) | Inventario completo dell'handbook: 23 pagine, ~4.000 parole, problemi di qualità |
+| `02-meridian-e-backend-ai.md` (interno, non pubblicato) | Meridian, termini Anthropic, opzioni di backend, costi |
 | `03-onboarding-best-practices.md` | Deep research sull'onboarding (32 fonti) |
-| `04-handbook-gap-analysis.md` | Tassonomia di un handbook completo, gap e pagine da aggiungere |
+| `04-handbook-gap-analysis.md` (interno, non pubblicato) | Tassonomia di un handbook completo, gap e pagine da aggiungere |
 | `05-modelli-open-self-hosted.md` | Modelli open-weight per la Fase 2: shortlist, licenze, serving |
 | `06-hosting-modello-self-hosted.md` | Dove ospitare un modello, costi, Docker, cold start |
 | `07-costi-hosting-cloud-run.md` | Costi di hosting del server MCP: free tier Cloud Run e servizi di contorno |
@@ -44,6 +44,21 @@ Research di supporto, in `docs/research/`:
 | D10 | **Server MCP stateless, gap log su Firestore** | Cloud Run fattura l'istanza finché una richiesta è aperta: uno stream SSE tenuto aperto tutto il giorno fa uscire dal free tier (~15 $/mese). Stateless con risposte JSON lo evita. Il filesystem di Cloud Run è effimero, quindi il gap log non può stare in SQLite nel container. Firestore ha un free tier anche in UE; quello di Cloud Storage vale solo per tre regioni USA. | [High] |
 | D9 | **Backend Fase 2 indipendente dal modello**: default Claude API UE. Proposta alternativa: modello open (Qwen3.8-27B) via API UE a consumo oppure self-hosted con vLLM in Docker | Tiene aperta la porta a sovranità dei dati e indipendenza dal fornitore senza pagarle da subito. A ~3.300 domande al mese una GPU è inattiva il 94–98% del tempo: il self-hosted costa 4–30 volte l'API. Vedi §3.1. | [Medium] |
 | D8 | **Correggere l'handbook prima di indicizzarlo** | Password Wi-Fi in chiaro, due indirizzi legali diversi, due processi ferie in conflitto, valori L.O.V.E. solo come immagine. Un bot sopra contenuti sbagliati amplifica gli errori (caso Air Canada 2024). | [High] |
+
+## 2.1 Decisioni Milestone 1 (03/11/2026)
+
+Queste decisioni aggiornano §2 per la Milestone 1. Dove c'è conflitto, vale questa sezione.
+
+| # | Decisione | Perché | Confidenza |
+|---|---|---|---|
+| D1a | **Meridian + Claude Max di Joshua solo in sviluppo personale.** Joshua è l'unico utente. Prima che un'altra persona usi il bot, `LLM_BACKEND` passa ad API key (Console o Vertex UE). | I termini Anthropic vietano di instradare credenziali Max "on behalf of their users" e di rendere l'account disponibile ad altri (verificato il 03/11/2026 su code.claude.com/docs/en/legal-and-compliance e Consumer Terms §2). L'uso personale resta una zona grigia, accettata da Joshua. Guardie: visibilità dell'app Google Chat limitata a Joshua, allowlist `ALLOWED_USERS` nel bot. Correzione: Meridian ora dichiara licenza MIT. | [High] divieto, [Medium] uso personale |
+| D7a | **Kubernetes locale (kind) per lo sviluppo, Cloud Run per la produzione.** | K8s locale per validare i manifest senza costi di cluster. Cloud Run resta a ~0 €/mese (D7). | [Medium] |
+| D11 | **Monorepo** (questo repo): `packages/buddy_core`, `services/mcp_server`, `services/chat_bot`, `jobs/sync`, `deploy/`. Un'immagine Docker per servizio. | Server MCP, bot e sync condividono modello dei contenuti e indice, e cambiano insieme. Una persona sola costruisce il progetto. Il bot chiama il server MCP via HTTP come client MCP, quindi una separazione futura non richiede di riscrivere il codice. | [Medium-High] |
+| D12 | **CI/CD con GitHub Actions**: build con filtri per path, push su Artifact Registry, deploy, autenticazione Workload Identity Federation (niente chiavi). | Il repo è già su GitHub. | [High] |
+| D13 | **Milestone 1 = sync, server MCP, bot Google Chat, infra ed eval insieme.** Il bot riceve gli eventi via Pub/Sub in sviluppo e via HTTP (JWT Google) su Cloud Run. | Richiesta di Joshua. Pub/Sub non richiede un URL pubblico verso la macchina locale. | [Medium] |
+| D14 | **Dati di test:** doc ClickUp separato "AI Buddy – Test Handbook" (`xkwgt-39975`, privato, space Wiki), copiato dallo snapshot `docs/research/handbook-raw/` con redazione del Wi-Fi. L'handbook ufficiale `xkwgt-22915` non si tocca: è in riscrittura. ID del doc via variabile d'ambiente. | Evita conflitti con la riscrittura in corso e permette di provare il percorso reale dell'API ClickUp. | [High] |
+| D15 | **Video delle Guides nella chat** come pulsante "Guarda" e miniatura nelle card, con il clip della singola scena collegato alla sezione citata. | Google Chat non incorpora un player video. Il repo Guides è privato e gli URL delle release danno 404 senza login: va bene in sviluppo, ma per altri utenti i video vanno spostati su Google Drive (condivisione al dominio) prima del rollout. | [Medium] |
+| D16 | **Applicare le best practice delle Guides** (`~/Desktop/WORK/Guides`) a ogni fase: MCP_SERVERS_GUIDE (server MCP, tool, transport, auth), RAG_CHATBOT_GUIDE (retrieval, chunking, eval), LANGCHAIN/LANGGRAPH_GUIDE (bot), MLFLOW_GENAI_GUIDE (tracing, eval), KUBERNETES_GUIDE (manifest, deploy), DESIGN_PATTERNS_GUIDE (architettura). Ogni piano di fase cita le sezioni applicate e motiva le eccezioni. | Richiesta di Joshua. Le Guides sono lo standard tecnico del team e la fonte stessa di AI Buddy. | [High] |
 
 ## 3. Architettura
 

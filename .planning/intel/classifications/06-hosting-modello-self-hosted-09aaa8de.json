@@ -1,0 +1,13 @@
+{
+  "source_path": "/home/digitiamo/Desktop/WORK/AI BUDDY/docs/research/06-hosting-modello-self-hosted.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "06 — Hosting di un LLM open-weight: dove e a che costo",
+  "summary": "Research comparing where and at what cost to host an open-weight LLM (Google Cloud Run GPU, Seeweb, on-prem) versus Claude API, given projected traffic.",
+  "scope": ["open-weight LLM hosting", "Google Cloud Run GPU", "Seeweb", "on-prem GPU", "GPU sizing by model size", "Claude API cost comparison", "cold start"],
+  "cross_refs": ["PLAN.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

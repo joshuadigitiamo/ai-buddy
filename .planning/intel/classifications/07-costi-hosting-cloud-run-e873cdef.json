@@ -1,0 +1,13 @@
+{
+  "source_path": "/home/digitiamo/Desktop/WORK/AI BUDDY/docs/research/07-costi-hosting-cloud-run.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Costi di hosting del server MCP su Cloud Run",
+  "summary": "Estimates Cloud Run hosting cost for the Phase 1 MCP server: near-zero monthly under free tier, with risks from long-lived SSE streams and min-instances.",
+  "scope": ["Cloud Run", "MCP server", "request-based billing", "free tier", "Cloud Scheduler", "Artifact Registry", "Firestore", "Secret Manager", "Cloud Build", "Cloud Storage", "min-instances"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

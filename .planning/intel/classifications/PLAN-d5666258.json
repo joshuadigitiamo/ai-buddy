@@ -1,0 +1,22 @@
+{
+  "source_path": "/home/digitiamo/Desktop/WORK/AI BUDDY/docs/PLAN.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Piano: AI Buddy Digitiamo",
+  "summary": "Project plan for AI Buddy, an internal assistant answering Digitiamo handbook and Guides questions with source citations; sets architecture, decisions, phases, and KPIs.",
+  "scope": ["AI Buddy", "Digitiamo handbook (ClickUp)", "Guides repo", "MCP server", "Skill digitiamo-buddy", "ClickUp sync job", "Google Chat bot", "Cloud Run", "Firestore gap log", "Claude API (Vertex AI / Bedrock EU)", "Meridian", "vLLM / Qwen self-hosted model", "monorepo layout", "GitHub Actions CI/CD"],
+  "cross_refs": [
+    "docs/research/01-handbook-inventory.md",
+    "docs/research/handbook-raw/",
+    "docs/research/02-meridian-e-backend-ai.md",
+    "docs/research/03-onboarding-best-practices.md",
+    "docs/research/04-handbook-gap-analysis.md",
+    "docs/research/05-modelli-open-self-hosted.md",
+    "docs/research/06-hosting-modello-self-hosted.md",
+    "docs/research/07-costi-hosting-cloud-run.md"
+  ],
+  "locked": false,
+  "precedence": 0,
+  "notes": "Manifest declares SPEC (authoritative). Content is mixed: decision table, architecture, phases, KPIs, risks. Section 2.1 (Milestone 1 decisions, 03/11/2026) overrides section 2 where they conflict: D1a overrides D1, D7a refines D7. Decisions in 2 and 2.1 are treated as locked by the orchestrator instruction, not by ADR status. Output filename lacks the 8-char SHA-256 suffix because the classifier had no hashing tool available; the synthesizer should match on source_path, not filename."
+}

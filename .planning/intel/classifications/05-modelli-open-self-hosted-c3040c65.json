@@ -1,0 +1,13 @@
+{
+  "source_path": "/home/digitiamo/Desktop/WORK/AI BUDDY/docs/research/05-modelli-open-self-hosted.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "05 — Modelli open-weight self-hosted per la Fase 2",
+  "summary": "Research comparing open-weight self-hosted LLM candidates (Qwen, Gemma, Mistral, gpt-oss, Minerva) and their VRAM needs as an alternative to Claude API for the Phase 2 bot.",
+  "scope": ["open-weight LLMs", "self-hosting", "VRAM requirements", "Phase 2 bot", "Claude API alternative", "tool calling", "licensing", "SQLite FTS5 retrieval"],
+  "cross_refs": ["PLAN.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "MANIFEST_TYPE=DOC applied as authoritative. Content is a model comparison with confidence tags, no ADR status/decision block, no endpoint or schema contracts, so DOC is consistent with the content. Hash suffix omitted: no shell tool was available to compute SHA-256, so the filename uses the slug only; the synthesizer should locate this file via source_path, not filename hash."
+}

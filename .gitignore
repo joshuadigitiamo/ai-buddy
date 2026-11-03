@@ -9,3 +9,6 @@ __pycache__/
 
 # Scaffold PyCharm di esempio
 main.py
+
+# Ricerca e presentazioni interne Digitiamo: solo in locale (repo pubblico)
+docs/internal/

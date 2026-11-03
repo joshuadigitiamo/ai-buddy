@@ -1,0 +1,18 @@
+docs:
+  - path: docs/PLAN.md
+    type: SPEC
+    precedence: 0
+  - path: docs/research/01-handbook-inventory.md
+    type: DOC
+  - path: docs/research/02-meridian-e-backend-ai.md
+    type: DOC
+  - path: docs/research/03-onboarding-best-practices.md
+    type: DOC
+  - path: docs/research/04-handbook-gap-analysis.md
+    type: DOC
+  - path: docs/research/05-modelli-open-self-hosted.md
+    type: DOC
+  - path: docs/research/06-hosting-modello-self-hosted.md
+    type: DOC
+  - path: docs/research/07-costi-hosting-cloud-run.md
+    type: DOC
