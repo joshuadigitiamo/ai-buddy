@@ -19,6 +19,7 @@ import yaml
 
 SOURCE_ID: Final = "local-handbook"
 CITATION_PREFIX: Final = "handbook://"
+PAGE_FILE_RE: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*\.md$")
 
 _EDIT_DATE_RE: Final = re.compile(r"^\d{4}-\d{2}-\d{2} \(date_edited (\d{4}-\d{2}-\d{2})\)$")
 _FENCE: Final = "---"
@@ -68,7 +69,10 @@ def _parse_meta(name: str, block: str) -> dict[str, object]:
     try:
         meta = yaml.safe_load(block)
     except yaml.YAMLError as exc:
-        raise HandbookFilesError(f"{name}: front matter is not valid YAML: {exc}") from exc
+        # The YAML error text quotes the offending line: keep only its class (T-01-42).
+        raise HandbookFilesError(
+            f"{name}: front matter is not valid YAML ({type(exc).__name__})"
+        ) from None
     if not isinstance(meta, dict):
         raise HandbookFilesError(f"{name}: front matter is not a mapping")
     return {str(key): value for key, value in meta.items()}
@@ -124,17 +128,44 @@ def _read_page(path: Path, position: int) -> SourcePage:
     )
 
 
-def read_handbook_dir(root: Path, *, denylist: frozenset[str]) -> HandbookFiles:
-    """Read every non-denylisted ``*.md`` page directly inside ``root``, in file-name order."""
+def _list_page_files(root: Path) -> list[Path]:
+    if not root.is_dir():
+        raise HandbookFilesError("HANDBOOK_DIR is not a directory")
     files = sorted(
         (path for path in root.iterdir() if path.suffix == ".md" and path.is_file()),
         key=lambda path: path.name,
     )
+    for path in files:
+        if PAGE_FILE_RE.fullmatch(path.name) is None:
+            raise HandbookFilesError(
+                f"{path.name}: page file name must match {PAGE_FILE_RE.pattern}"
+            )
+    return files
+
+
+def _check_inside(root: Path, path: Path) -> None:
+    if not path.resolve().is_relative_to(root.resolve()):
+        raise HandbookFilesError(f"{path.name}: file resolves outside HANDBOOK_DIR")
+
+
+def read_handbook_dir(root: Path, *, denylist: frozenset[str]) -> HandbookFiles:
+    """Read every non-denylisted ``*.md`` page directly inside ``root``, in file-name order.
+
+    Every denylist entry must name a page file in the folder, so a typo or a stale entry
+    cannot let a page through. A denylisted file is never opened.
+    """
+    files = _list_page_files(root)
+    unknown = sorted(denylist - {path.name for path in files})
+    if unknown:
+        raise HandbookFilesError(
+            "REDACT_PAGE_FILES names no file in HANDBOOK_DIR: " + ", ".join(unknown)
+        )
     pages: list[SourcePage] = []
     denied = 0
     for path in files:
         if path.name in denylist:
             denied += 1
             continue
+        _check_inside(root, path)
         pages.append(_read_page(path, len(pages)))
     return HandbookFiles(pages=tuple(pages), seen=len(files), denied=denied)
