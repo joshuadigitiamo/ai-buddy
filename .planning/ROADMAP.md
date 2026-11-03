@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Re-running sync with no handbook edits processes 0 pages; editing one page re-processes only that page; a change of file modification time alone (no content or revision-date change) is not re-indexed.
   4. A keyword query against the Guides index returns the matching heading chunk with its file and line reference, together with the scene-clip URL (or the full-video URL from the Guides README) when that section has a video, and nothing when it does not.
   5. The index artifact has a documented, versioned format, and a recorded decision states how it reaches the MCP container (image rebuild vs bucket read).
-**Plans**: 8/11 plans executed
+**Plans**: 9/11 plans executed
 
 Plans:
 **Wave 1**
@@ -56,7 +56,7 @@ Plans:
 - [x] 01-09-PLAN.md — Gap: local handbook folder replaces ClickUp in the sync (handbook:// citation, file denylist, no token)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 01-10-PLAN.md — Gap: delete the ClickUp adapter and httpx; README, index format, SYNC-01/02/05 and Phase 1 criteria reworded
+- [x] 01-10-PLAN.md — Gap: delete the ClickUp adapter and httpx; README, index format, SYNC-01/02/05 and Phase 1 criteria reworded
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 01-11-PLAN.md — Gap: live run on read-only local handbook + Guides mounts, live-artifact checks (supersedes 01-08 Task 3)
@@ -120,7 +120,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Content Sync | 8/11 | In Progress | - |
+| 1. Content Sync | 9/11 | In Progress | - |
 | 2. MCP Server and Skill | 0/0 | Not started | - |
 | 3. Google Chat Bot | 0/0 | Not started | - |
 | 4. Infrastructure and CI/CD | 0/0 | Not started | - |
