@@ -7,6 +7,7 @@ import json
 import logging
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -73,7 +74,7 @@ def _run(
     )
 
 
-def _edit(fetched: list[FlatPage], page_id: str, **changes: object) -> list[FlatPage]:
+def _edit(fetched: list[FlatPage], page_id: str, **changes: Any) -> list[FlatPage]:
     return [replace(p, **changes) if p.page_id == page_id else p for p in fetched]
 
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 
 from buddy_core.models import HandbookPage
@@ -71,13 +71,20 @@ def sync_handbook(
     skipped_archived: int,
     logger: logging.Logger,
 ) -> HandbookSyncResult:
-    """Redact every non-denylisted page and return rows in tree order."""
+    """Redact every non-denylisted page and return rows in tree order.
+
+    A page is *processed* when it is new, when ``versions_match`` is False, when its
+    ``date_edited`` differs from the previous row, or when the hash of its redacted text
+    differs. Otherwise the previous row is kept, with the current position, depth and parent.
+    """
     if not denylist and not allow_empty_denylist:
         raise EmptyDenylistError(
             "REDACT_PAGE_IDS is empty; set it or pass allow_empty_denylist explicitly"
         )
 
+    before = {row.page_id: row for row in previous or ()}
     rows: list[HandbookPage] = []
+    processed = 0
     denied = 0
     for page in fetched:
         if page.page_id in denylist:
@@ -85,6 +92,19 @@ def sync_handbook(
             continue
         title = redactor.redact(page.name)
         body = redactor.redact(page.content)
+        content_hash = _content_hash(title.text, body.text)
+        old = before.get(page.page_id)
+        if (
+            old is not None
+            and versions_match
+            and old.date_edited_raw == page.date_edited
+            and old.content_hash == content_hash
+        ):
+            rows.append(
+                replace(old, parent_id=page.parent_id, position=len(rows), depth=page.depth)
+            )
+            continue
+        processed += 1
         log_hits(logger, page.page_id, _merge_hits(title.hits, body.hits))
         rows.append(
             HandbookPage(
@@ -100,21 +120,19 @@ def sync_handbook(
                     page.date_edited if page.date_edited is not None else page.date_created
                 ),
                 content_md=body.text,
-                content_hash=_content_hash(title.text, body.text),
+                content_hash=content_hash,
             )
         )
 
     if not rows:
         raise EmptyHandbookError("no handbook page left after denylist and archived filters")
 
-    # First-run path: every page is new. The comparison with `previous` comes in Task 3.
-    _ = (previous, versions_match)
     return HandbookSyncResult(
         pages=tuple(rows),
         seen=len(fetched),
-        processed=len(rows),
-        unchanged=0,
-        removed=0,
+        processed=processed,
+        unchanged=len(rows) - processed,
+        removed=len(before.keys() - {row.page_id for row in rows}),
         denied=denied,
         skipped_archived=skipped_archived,
     )
