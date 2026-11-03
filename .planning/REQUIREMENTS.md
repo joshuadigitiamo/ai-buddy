@@ -9,8 +9,8 @@ Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requireme
 
 ### Foundation
 
-- [ ] **FND-01**: Repo follows the D11 layout (`packages/buddy_core`, `services/mcp_server`, `services/chat_bot`, `jobs/sync`, `deploy/k8s`, `deploy/cloudrun`, `.github/workflows`, `tests/`) on Python 3.12 with pip `requirements.txt` / `requirements-dev.txt`, and ruff, pytest (`-v --tb=short`, `--cov`) and `mypy --strict` (where feasible) configured; public functions carry type hints.
-- [ ] **FND-02**: `run-unit-tests.sh` at repo root supports `--all`, `--single <file> <test_name> <dir>` and `--single-file <file> <dir>`; it builds the test image first, then runs `docker run --rm` with `--env-file .env` (fallback `.env.example`) and the cwd mounted; uses `set -euo pipefail` and a `log()` helper. No Python runs on the host.
+- [x] **FND-01**: Repo follows the D11 layout (`packages/buddy_core`, `services/mcp_server`, `services/chat_bot`, `jobs/sync`, `deploy/k8s`, `deploy/cloudrun`, `.github/workflows`, `tests/`) on Python 3.12 with pip `requirements.txt` / `requirements-dev.txt`, and ruff, pytest (`-v --tb=short`, `--cov`) and `mypy --strict` (where feasible) configured; public functions carry type hints.
+- [x] **FND-02**: `run-unit-tests.sh` at repo root supports `--all`, `--single <file> <test_name> <dir>` and `--single-file <file> <dir>`; it builds the test image first, then runs `docker run --rm` with `--env-file .env` (fallback `.env.example`) and the cwd mounted; uses `set -euo pipefail` and a `log()` helper. No Python runs on the host.
 - [ ] **GUIDE-01**: Every phase plan cites the Guides sections it applies (MCP_SERVERS_GUIDE, RAG_CHATBOT_GUIDE, LANGCHAIN/LANGGRAPH_GUIDE, MLFLOW_GENAI_GUIDE, KUBERNETES_GUIDE, DESIGN_PATTERNS_GUIDE as relevant) and justifies any exception (D16). Owned by Phase 1 (convention set there), enforced at every phase plan check.
 
 ### Content Sync
@@ -110,8 +110,8 @@ Each requirement maps to exactly one phase. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FND-01 | Phase 1 | Pending |
-| FND-02 | Phase 1 | Pending |
+| FND-01 | Phase 1 | Complete |
+| FND-02 | Phase 1 | Complete |
 | GUIDE-01 | Phase 1 | Pending |
 | SYNC-01 | Phase 1 | Pending |
 | SYNC-02 | Phase 1 | Pending |
