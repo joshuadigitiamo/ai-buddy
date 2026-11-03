@@ -82,6 +82,27 @@ def _slice_text(lines: Sequence[str], start: int, end: int) -> tuple[str, int]:
     return "\n".join(lines[start:end]).rstrip(), end
 
 
+def _pack_blocks(
+    lines: Sequence[str], blocks: Sequence[_Block], max_chars: int
+) -> list[list[_Block]]:
+    """Greedily group consecutive blocks into parts of at most ``max_chars``.
+
+    A block is never split, so a single block over the limit becomes a part of its own.
+    """
+    parts: list[list[_Block]] = []
+    current: list[_Block] = []
+    for block in blocks:
+        if current:
+            candidate, _ = _slice_text(lines, current[0].start, block.end)
+            if len(candidate) > max_chars:
+                parts.append(current)
+                current = []
+        current.append(block)
+    if current:
+        parts.append(current)
+    return parts
+
+
 def _section_chunks(
     lines: Sequence[str],
     *,
@@ -89,26 +110,29 @@ def _section_chunks(
     h2: Heading,
     h3: Heading | None,
     blocks: Sequence[_Block],
+    max_chars: int,
 ) -> list[GuideChunk]:
-    if not blocks:
-        return []
-    heading_line = (h3 or h2).line
-    text, last_line = _slice_text(lines, blocks[0].start, blocks[-1].end)
-    if not text:
-        return []
-    return [
-        GuideChunk(
-            chunk_key="",
-            file=file,
-            h2=h2.title,
-            h3=h3.title if h3 else None,
-            heading=(h3 or h2).title,
-            line_start=heading_line,
-            line_end=last_line,
-            part_index=0,
-            text=text,
+    heading = h3 or h2
+    chunks: list[GuideChunk] = []
+    for part in _pack_blocks(lines, blocks, max_chars):
+        text, last_line = _slice_text(lines, part[0].start, part[-1].end)
+        if not text:
+            continue
+        first_part = not chunks
+        chunks.append(
+            GuideChunk(
+                chunk_key="",
+                file=file,
+                h2=h2.title,
+                h3=h3.title if h3 else None,
+                heading=heading.title,
+                line_start=heading.line if first_part else part[0].start + 1,
+                line_end=last_line,
+                part_index=len(chunks),
+                text=text,
+            )
         )
-    ]
+    return chunks
 
 
 def chunk_markdown(text: str, *, file: str, max_chars: int = MAX_CHUNK_CHARS) -> list[GuideChunk]:
@@ -129,7 +153,9 @@ def chunk_markdown(text: str, *, file: str, max_chars: int = MAX_CHUNK_CHARS) ->
 
     def flush() -> None:
         if h2 is not None:
-            chunks.extend(_section_chunks(lines, file=file, h2=h2, h3=h3, blocks=blocks))
+            chunks.extend(
+                _section_chunks(lines, file=file, h2=h2, h3=h3, blocks=blocks, max_chars=max_chars)
+            )
 
     for token in tokens:
         assert token.map is not None

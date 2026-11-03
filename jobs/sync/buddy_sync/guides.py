@@ -4,7 +4,8 @@ import logging
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from typing import Final
 
 from buddy_core.index_reader import IndexReader
 from buddy_core.models import GuideChunk
@@ -23,9 +24,24 @@ class GuidesSyncResult:
     outline: dict[str, list[Heading]]
 
 
+EXTRA_FILES: Final = ("AI-Engineering/MULTI_AGENT_ARCHITECTURE_DESIGN.md",)
+_EXCLUDED_DIRS: Final = frozenset({"videos", ".git"})
+_EXCLUDED_NAMES: Final = frozenset({"README.md", "CLAUDE.md"})
+
+
+def _is_indexable(root: Path, relpath: str) -> bool:
+    """D-19: no videos/ or .git/ content, no README or CLAUDE files, nothing outside root."""
+    parts = PurePosixPath(relpath).parts
+    if _EXCLUDED_DIRS.intersection(parts[:-1]) or parts[-1] in _EXCLUDED_NAMES:
+        return False
+    return (root / relpath).resolve().is_relative_to(root.resolve())
+
+
 def select_guide_files(root: Path) -> list[str]:
-    """Indexed files as sorted posix paths relative to ``root``."""
-    return sorted(path.relative_to(root).as_posix() for path in root.glob("**/*_GUIDE.md"))
+    """Indexed files as sorted posix paths relative to ``root`` (D-19)."""
+    found = {path.relative_to(root).as_posix() for path in root.glob("**/*_GUIDE.md")}
+    found.update(extra for extra in EXTRA_FILES if (root / extra).is_file())
+    return sorted(rel for rel in found if _is_indexable(root, rel))
 
 
 def _read(root: Path, relpath: str) -> str:
