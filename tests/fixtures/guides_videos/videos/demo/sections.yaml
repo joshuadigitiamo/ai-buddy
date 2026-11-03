@@ -1,0 +1,9 @@
+schema: 1
+guide: AI-Engineering/DEMO_GUIDE.md
+video: demo
+sections:
+  - scene: S02Intro
+    h2: "1. Basics"
+  - scene: S03Chunking
+    h2: "1. Basics"
+    h3: Chunking
