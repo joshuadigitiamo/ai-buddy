@@ -1,0 +1,38 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": null,
+  "phases": [
+    {
+      "number": "1",
+      "name": "Content Sync",
+      "status": "in_progress"
+    },
+    {
+      "number": "2",
+      "name": "MCP Server and Skill",
+      "status": "pending"
+    },
+    {
+      "number": "3",
+      "name": "Google Chat Bot",
+      "status": "pending"
+    },
+    {
+      "number": "4",
+      "name": "Infrastructure and CI/CD",
+      "status": "pending"
+    },
+    {
+      "number": "5",
+      "name": "Evaluation and Milestone Gate",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd-progress --next",
+    "label": "Advance to the next step",
+    "reason": "Phase 1 of 5 · 0% · executing"
+  },
+  "updated_at": "2026-11-03T19:07:28.937Z"
+}
