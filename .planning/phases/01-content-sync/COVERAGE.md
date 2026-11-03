@@ -1,17 +1,17 @@
-# API Coverage — ClickUp Public API v3 (Docs)
+# API Coverage — Phase 1
 
 > Full coverage by default. Opt-outs are explicit, reasoned decisions.
-> Surface: the v3 Docs endpoints under `/api/v3/workspaces/{workspace_id}/docs` (ClickUp Public API v3 OpenAPI, read in 01-RESEARCH.md). Phase 1 integrates the read path of one doc (SYNC-01).
+> Since D-25 (2026-11-03) Phase 1 integrates no external API: the handbook is read from a local folder and the Guides from a local git checkout. The former Docs-API integration (plans 01-04 to 01-07) was removed in plan 01-10. The table keeps the capabilities that integration covered, so the decision history stays visible.
 
 | capability | decision | reason |
 |---|---|---|
-| getDocPages (GET /docs/{doc_id}/pages, max_page_depth, content_format) | INTEGRATE | |
-| getDocPageListing (GET /docs/{doc_id}/page_listing) | OPT-OUT | not needed: /pages returns the same tree plus content and dates in one call; the listing has no dates (research Pitfall 4) |
-| getPage (GET /docs/{doc_id}/pages/{page_id}) | OPT-OUT | not needed: one /pages call per run already returns every page; per-page fetches would only add requests |
-| getDoc (GET /docs/{doc_id}) | OPT-OUT | not needed: the doc id comes from CLICKUP_DOC_ID and no doc-level metadata is indexed |
-| searchDocs (GET /docs) | OPT-OUT | not needed: the sync reads one configured doc and never discovers docs |
-| createDoc (POST /docs) | OPT-OUT | explicitly out of scope: write actions on ClickUp are Out of Scope in REQUIREMENTS.md |
-| createPage (POST /docs/{doc_id}/pages) | OPT-OUT | explicitly out of scope: write actions on ClickUp are Out of Scope in REQUIREMENTS.md |
-| editPage (PUT /docs/{doc_id}/pages/{page_id}) | OPT-OUT | explicitly out of scope: write actions on ClickUp are Out of Scope in REQUIREMENTS.md |
+| getDocPages (GET /docs/{doc_id}/pages, max_page_depth, content_format) | OPT-OUT | removed by D-25: the tracker is being shut down; the handbook is read from a local folder |
+| getDocPageListing (GET /docs/{doc_id}/page_listing) | OPT-OUT | removed by D-25: the tracker is being shut down; the handbook is read from a local folder |
+| getPage (GET /docs/{doc_id}/pages/{page_id}) | OPT-OUT | removed by D-25: the tracker is being shut down; the handbook is read from a local folder |
+| getDoc (GET /docs/{doc_id}) | OPT-OUT | removed by D-25: the tracker is being shut down; the handbook is read from a local folder |
+| searchDocs (GET /docs) | OPT-OUT | removed by D-25: the tracker is being shut down; the handbook is read from a local folder |
+| createDoc (POST /docs) | OPT-OUT | removed by D-25: the tracker is being shut down; the handbook is read from a local folder |
+| createPage (POST /docs/{doc_id}/pages) | OPT-OUT | removed by D-25: the tracker is being shut down; the handbook is read from a local folder |
+| editPage (PUT /docs/{doc_id}/pages/{page_id}) | OPT-OUT | removed by D-25: the tracker is being shut down; the handbook is read from a local folder |
 
-Note: the Guides repository is read with the `git` CLI over HTTPS (clone/fetch), not through the GitHub REST API, so it has no API surface to enumerate here.
+Note: the Guides repository is read with the `git` CLI (clone), not through the GitHub REST API, so it has no API surface to enumerate here. The clone source is a local path (the read-only mount of the Guides checkout, D-27).

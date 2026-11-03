@@ -45,27 +45,27 @@ Keys (all required; a missing key raises `IndexFormatError`):
 | `build_id` | See Versioning |
 | `content_hash` | See Versioning |
 | `guides_commit_sha` | Commit of the Guides repo that was indexed |
-| `source_doc_id` | Id of the source handbook document (value comes from the environment) |
+| `source_doc_id` | Identifier of the handbook source: `local-handbook` for the local Markdown folder (D-25) |
 | `pipeline_version` | Version of the sync pipeline that produced the rows |
 | `redaction_version` | Version of the redaction rules applied before storing text |
 | `created_at_utc` | ISO-8601 UTC time of the build |
 
 ### handbook_pages
 
-One row per handbook page, in document order.
+One row per handbook page file, in file-name order. The handbook is a flat folder of Markdown files (`NN-slug.md`) with YAML front matter; each column below says where its value comes from, so a reader can tell what a citation or date means. A page is cited as `handbook://<page_id>`, for example the page stored in `07-slug.md` is `handbook://07-slug`.
 
 | Column | Type | Null | Meaning |
 |--------|------|------|---------|
-| `page_id` | TEXT PK | no | Source page id |
-| `parent_id` | TEXT | yes | Parent page id, null for a top-level page |
-| `position` | INTEGER UNIQUE | no | Order in the document tree walk; unique per artifact |
-| `depth` | INTEGER | no | Nesting depth, 0 for top level |
-| `title` | TEXT | no | Page title (redacted) |
-| `url` | TEXT | no | Deep link to the page in the source tool |
-| `date_edited_raw` | INTEGER | yes | Source edit timestamp, unmodified (epoch milliseconds) |
-| `date_created_raw` | INTEGER | yes | Source creation timestamp, unmodified |
-| `revision_date_iso` | TEXT | yes | `YYYY-MM-DD` derived from `date_edited_raw`, else from `date_created_raw` |
-| `content_md` | TEXT | no | Full page markdown (redacted) |
+| `page_id` | TEXT PK | no | File name without `.md` |
+| `parent_id` | TEXT | yes | Always null: the folder is flat |
+| `position` | INTEGER UNIQUE | no | Index in file-name order; unique per artifact |
+| `depth` | INTEGER | no | Always 0: the folder is flat |
+| `title` | TEXT | no | Front matter `title` (redacted) |
+| `url` | TEXT | no | Citation URI `handbook://<page_id>`. No web copy of the handbook exists; the Phase 2 MCP resource template `handbook://{pagina}` serves the page under this URI |
+| `date_edited_raw` | INTEGER | yes | Revision date from front matter `last_updated` (for an exported page of the form `YYYY-MM-DD (date_edited YYYY-MM-DD)`, its `date_edited` part), as epoch milliseconds at 00:00 UTC |
+| `date_created_raw` | INTEGER | yes | Front matter `date_created`, same unit; null when the key is absent |
+| `revision_date_iso` | TEXT | yes | ISO-8601 UTC datetime string from `handbook.revision_date_iso`, for example `2026-11-03T00:00:00+00:00`; derived from `date_edited_raw`, else from `date_created_raw` |
+| `content_md` | TEXT | no | Full page markdown after the front matter (redacted) |
 | `content_hash` | TEXT | no | sha256 of the stored (redacted) content only |
 
 `content_hash` columns never hash pre-redaction text: a masked low-entropy secret could otherwise be recovered by guessing against the hash.
@@ -119,7 +119,7 @@ The base URL and the offset are stored separately (decision D-01). `buddy_core.m
 
 ## Incremental state
 
-Incremental state lives in the previous artifact (D-10). The sync job opens the last `index.db` and compares each page's `date_edited_raw` and `content_hash`. There is no separate state file. The manifest below is for consumers that want to check freshness without opening the database.
+Incremental state lives in the previous artifact (D-10). The sync job opens the last `index.db` and compares each page's `date_edited_raw` and `content_hash`. File modification time is never read. There is no separate state file. The manifest below is for consumers that want to check freshness without opening the database.
 
 ## Loading
 
@@ -142,8 +142,9 @@ The `sha256` here is a transfer check on file bytes. It is not the logical `cont
 
 ## Not indexed
 
-- Pages on the sync denylist: dropped before processing and never written, hashed or counted.
-- `date_updated`: the source tool's update timestamp must never influence indexing, so no column holds it.
+- Pages whose file name is listed in `REDACT_PAGE_FILES`: the file is never opened, and the page is never written or hashed.
+- File modification times, and the update date of exported pages (only the edit date counts): they must never influence indexing, so no column holds them.
+- Front-matter keys other than `title`, `last_updated` and `date_created`.
 - Text above a guide's first `##` heading (title and table of contents).
 - Image attachment URLs: the alt text is kept, the URL is removed.
 - Any pre-redaction text, or any hash of it.
@@ -155,3 +156,4 @@ How the artifact reaches the MCP container is recorded in [ADR 0001](adr/0001-in
 ## Changelog
 
 - 1.0.0: first published format.
+- 1.0.0 amended 2026-11-03, before any consumer or published artifact existed: handbook rows come from the local Markdown folder (D-25); the `page_id`, `parent_id`, `depth`, `url`, `date_edited_raw`, `date_created_raw` and meta `source_doc_id` meanings above replace the previous ones. The DDL is unchanged, so `schema_version` stays 1.0.0.
