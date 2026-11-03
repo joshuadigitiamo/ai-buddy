@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Content Sync
 status: executing
-stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-11-03T19:34:19.392Z"
+stopped_at: Completed 01-06-PLAN.md
+last_updated: "2026-11-03T19:40:03.995Z"
 last_activity: 2026-11-03
 last_activity_desc: Phase 01 execution started
-state_head: 749bab735aee25a89c7104366d07ed855e41ce86
+state_head: 09d6772587d99b79a1358a9c5fdee08c0b46c1be
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 8
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-03)
 ## Current Position
 
 Phase: 01 (Content Sync) — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8
 Status: Ready to execute
 Last activity: 2026-11-03 — Phase 01 execution started
 
@@ -61,6 +61,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P03 | 5 min | 3 tasks | 5 files |
 | Phase 01 P04 | 4 min | 3 tasks | 6 files |
 | Phase 01 P05 | 6 min | 3 tasks | 11 files |
+| Phase 01 P06 | 4 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Plan 01-04: ClickUp response is streamed and capped at MAX_RESPONSE_BYTES; transport errors are not retried and report the exception type only
 - [Phase 01]: 01-05: chunk keys always derive from redacted headings via public assign_chunk_keys; GUIDES_INDEX.md table format is the costly cross-repo contract (File | Level | Section | Line)
 - [Phase 01]: 01-05: GitGuidesSource attaches the token only as an http.extraHeader in GIT_CONFIG env for https urls; destructive git requires the .buddy-sync-checkout marker
+- [Phase 01]: resolve_video_links fails on a duplicate README row or a guide mapped by two sections.yaml files, and needs the chunks of every mapped guide — Silent override is the drift D-02 forbids; guide must be an indexed file (T-01-26)
+- [Phase 01]: Only a dash in the README video cell means no video; an empty or malformed cell raises VideoMapError — Format drift guard for the cross-repo README table contract
 
 ### Pending Todos
 
@@ -110,6 +113,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T19:34:19.360Z
-Stopped at: Completed 01-05-PLAN.md
+Last session: 2026-11-03T19:40:03.959Z
+Stopped at: Completed 01-06-PLAN.md
 Resume file: None
