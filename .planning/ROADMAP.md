@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Re-running sync with no ClickUp edits processes 0 pages; editing one page re-processes only that page; a `date_updated`-only change without content change is not re-indexed.
   4. A keyword query against the Guides index returns the matching heading chunk with its file and line reference, together with the scene-clip URL (or the full-video URL from the Guides README) when that section has a video, and nothing when it does not.
   5. The index artifact has a documented, versioned format, and a recorded decision states how it reaches the MCP container (image rebuild vs bucket read).
-**Plans**: 3/8 plans executed
+**Plans**: 4/8 plans executed
 
 Plans:
 **Wave 1**
@@ -44,7 +44,7 @@ Plans:
 - [x] 01-03-PLAN.md — SyncSettings and the shared redaction filter (D-14..D-18), local corpus check
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 01-04-PLAN.md — ClickUp v3 source, denylist, incremental handbook sync (SYNC-01/02/03/05)
+- [x] 01-04-PLAN.md — ClickUp v3 source, denylist, incremental handbook sync (SYNC-01/02/03/05)
 - [ ] 01-05-PLAN.md — Guides git source, heading chunker, GUIDES_INDEX.md generation and drift check (SYNC-04)
 - [ ] 01-06-PLAN.md — Video map: README URLs, sections.yaml, durations offsets, fallbacks, contract doc (SYNC-06)
 
@@ -113,7 +113,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Content Sync | 3/8 | In Progress | - |
+| 1. Content Sync | 4/8 | In Progress | - |
 | 2. MCP Server and Skill | 0/0 | Not started | - |
 | 3. Google Chat Bot | 0/0 | Not started | - |
 | 4. Infrastructure and CI/CD | 0/0 | Not started | - |

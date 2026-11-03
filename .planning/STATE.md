@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Content Sync
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-11-03T19:20:33.812Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-11-03T19:26:08.716Z"
 last_activity: 2026-11-03
 last_activity_desc: Phase 01 execution started
-state_head: 0fba9f7eebac57fc59a6124b8307732c2b9d168f
+state_head: 6b90e9f220623229bc35202beb4da5ad253afd88
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 8
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-03)
 ## Current Position
 
 Phase: 01 (Content Sync) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Ready to execute
 Last activity: 2026-11-03 — Phase 01 execution started
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01 | 25 min | 3 tasks | 17 files |
 | Phase 01 P02 | 5 min | 3 tasks | 13 files |
 | Phase 01 P03 | 5 min | 3 tasks | 5 files |
+| Phase 01 P04 | 4 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-02: only the latest artifact is kept in ARTIFACT_DIR; versioned = schema_version + build_id + manifest. ArtifactStore port with LocalDirArtifactStore; bucket vs baked image deferred to Phase 4 (D-12, ADR 0001)
 - [Phase 01]: 01-03: IBAN rule retries shorter heads when an uppercase word is swallowed; signed_url_query keeps fragment; entropy rule skips URLs via one alternation
 - [Phase 01]: 01-03: non-company e-mails masked by default; allow-listing calendar/reply-to domains deferred to plan 08
+- [Phase 01]: Plan 01-04: a page is processed when new, versions_match is False, date_edited differs, or the redacted-text hash differs; unchanged pages keep the previous row with current position, depth and parent
+- [Phase 01]: Plan 01-04: ClickUp response is streamed and capped at MAX_RESPONSE_BYTES; transport errors are not retried and report the exception type only
 
 ### Pending Todos
 
@@ -104,6 +107,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T19:20:33.783Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-11-03T19:26:08.685Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None
