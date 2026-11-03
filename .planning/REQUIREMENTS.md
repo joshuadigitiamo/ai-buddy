@@ -3,7 +3,7 @@
 **Defined:** 2026-11-03
 **Core Value:** An employee gets an answer only from official sources with the source cited, or an honest "non lo so, chiedi a ..." with the gap logged. Never an invented policy.
 
-Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requirements.md`. No PRD exists; IDs are derived from explicit PLAN.md statements. Milestone 1 scope: personal dev use only (Joshua), test handbook `xkwgt-39975`.
+Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requirements.md`. No PRD exists; IDs are derived from explicit PLAN.md statements. Milestone 1 scope: personal dev use only (Joshua), handbook = the local Markdown snapshot kept in a gitignored folder of this repo (D-25: ClickUp is being shut down).
 
 ## v1 Requirements (Milestone 1)
 
@@ -15,11 +15,11 @@ Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requireme
 
 ### Content Sync
 
-- [ ] **SYNC-01**: Sync job reads the ClickUp document whose id comes from an environment variable (Milestone 1 value `xkwgt-39975`): page tree via `list_document_pages`, page content as markdown via `get_document_pages`. The ClickUp token is read from the environment, never committed.
-- [x] **SYNC-02**: Sync is incremental: a page is re-processed only when its `date_edited` or content hash changed; a change in `date_updated` alone does not trigger re-indexing.
+- [ ] **SYNC-01**: Sync job reads the handbook from a local folder of Markdown pages whose path comes from an environment variable (`HANDBOOK_DIR`, mounted read-only; Milestone 1 content: the 23-page snapshot in the gitignored `docs/research/handbook-raw/`). One file per page with YAML front matter (`title`, `last_updated`, optional `date_created`). The folder is never committed (public repo). No external API and no token are used (D-25, D-26).
+- [x] **SYNC-02**: Sync is incremental: a page is re-processed only when its revision date (front matter `last_updated`, or its `date_edited` part for pages exported with both dates) or the hash of its redacted content changed; a change in file modification time alone does not trigger re-indexing.
 - [ ] **SYNC-03**: A redaction filter runs before indexing: the Wi-Fi page is excluded and no credential-like content reaches any index artifact (covered by a fixture test with synthetic secrets).
 - [x] **SYNC-04**: Guides repo content (git pull of the repo path/URL from env) is split by heading into a SQLite FTS5 index; each chunk keeps file, heading and line reference (`GUIDES_INDEX` section -> line mapping, D5).
-- [ ] **SYNC-05**: The handbook is stored as an in-memory-loadable snapshot of full pages; each page records its ClickUp deep-link URL, title, and revision date (`date_edited`).
+- [ ] **SYNC-05**: The handbook is stored as an in-memory-loadable snapshot of full pages; each page records its citation URI `handbook://<page-id>` (page id = file name without `.md`, the URI the Phase 2 resource `handbook://{pagina}` serves), its title and its revision date.
 - [ ] **SYNC-06**: Video mapping links each Guides section to its scene clip URL when one exists, otherwise to the full-video URL taken from the Guides README; sections without a video map to none.
 - [x] **SYNC-07**: The sync output is a versioned index artifact (handbook snapshot + Guides SQLite + video map) with a documented format, and the handoff decision is recorded: an `ArtifactStore` interface with a local-directory implementation in Phase 1, with bucket read vs image rebuild (baked) chosen together with the hosting platform in Phase 4 (D-12).
 
@@ -161,4 +161,4 @@ Note on GUIDE-01: it is a project-wide constraint (D16). It is mapped to Phase 1
 
 ---
 *Requirements defined: 2026-11-03*
-*Last updated: 2026-11-03 after roadmap creation*
+*Last updated: 2026-11-03 after the D-25..D-27 scope change (SYNC-01, SYNC-02, SYNC-05 reworded)*

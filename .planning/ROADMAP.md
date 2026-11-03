@@ -2,7 +2,7 @@
 
 ## Overview
 
-Milestone 1 builds the full AI Buddy chain for Joshua's personal development use, against the ClickUp test handbook (`xkwgt-39975`) and the Guides repo. It starts with the content the assistant may speak from (sync, redaction, index), puts it behind five cited MCP tools plus the `digitiamo-buddy` Skill, adds the Google Chat bot that reasons over those tools with a 2-step RAG workflow, packages everything for kind and Cloud Run with CI/CD, and closes with an eval phase that decides the milestone gate: >= 90% correct answers with citation on the golden set, 0 invented policies, and the empty-context test refusing. Every phase applies the Guides best practices (D16) and its plan cites the sections used.
+Milestone 1 builds the full AI Buddy chain for Joshua's personal development use, against the local handbook snapshot (D-25) and the Guides repo. It starts with the content the assistant may speak from (sync, redaction, index), puts it behind five cited MCP tools plus the `digitiamo-buddy` Skill, adds the Google Chat bot that reasons over those tools with a 2-step RAG workflow, packages everything for kind and Cloud Run with CI/CD, and closes with an eval phase that decides the milestone gate: >= 90% correct answers with citation on the golden set, 0 invented policies, and the empty-context test refusing. Every phase applies the Guides best practices (D16) and its plan cites the sections used.
 
 Execution environment for every phase: Python 3.12, all code and tests run in Docker, no Python on the host.
 
@@ -14,7 +14,7 @@ Execution environment for every phase: Python 3.12, all code and tests run in Do
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Content Sync** - Repo foundation plus ClickUp test handbook and Guides synced into a redacted, incremental, citable index with video mapping
+- [ ] **Phase 1: Content Sync** - Repo foundation plus the local handbook snapshot and Guides synced into a redacted, incremental, citable index with video mapping
 - [ ] **Phase 2: MCP Server and Skill** - Five cited MCP tools over stateless HTTP with Firestore gap log, Google-domain auth, and the `digitiamo-buddy` Skill
 - [ ] **Phase 3: Google Chat Bot** - Guarded Google Chat bot with LangGraph 2-step RAG, citation and confidence gates, pluggable LLM client, and video cards
 - [ ] **Phase 4: Infrastructure and CI/CD** - Service images, docker compose, kind manifests, Cloud Run YAMLs and path-filtered GitHub Actions with Workload Identity Federation
@@ -23,14 +23,14 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 1: Content Sync
-**Goal**: The developer can build a clean, citable knowledge index from the ClickUp test handbook and the Guides repo, and run all tests in Docker from day one.
+**Goal**: The developer can build a clean, citable knowledge index from the local handbook snapshot and the Guides repo, and run all tests in Docker from day one.
 **Depends on**: Nothing (first phase)
 **Requirements**: FND-01, FND-02, GUIDE-01, SYNC-01, SYNC-02, SYNC-03, SYNC-04, SYNC-05, SYNC-06, SYNC-07
 **Guides applied (D16)**: RAG_CHATBOT_GUIDE (chunking by heading, retrieval basics), DESIGN_PATTERNS_GUIDE (source adapters, shared `buddy_core`); plan lists exact sections and exceptions.
 **Success Criteria** (what must be TRUE):
   1. `./run-unit-tests.sh --all` builds the test image and runs the suite in Docker, `--single <file> <test_name> <dir>` and `--single-file <file> <dir>` run only the targeted tests, and ruff, mypy and pytest coverage all execute without Python installed on the host.
-  2. Running the sync job with the ClickUp doc id from the environment (`xkwgt-39975`) produces a handbook snapshot where every page has its ClickUp deep-link URL, title and `date_edited`, and the Wi-Fi page and any credential-like text are absent from every produced artifact.
-  3. Re-running sync with no ClickUp edits processes 0 pages; editing one page re-processes only that page; a `date_updated`-only change without content change is not re-indexed.
+  2. Running the sync job on the local handbook folder (path from the environment, mounted read-only, no token, no network) produces a handbook snapshot where every page has its `handbook://` citation URI, title and revision date, and the Wi-Fi page and any credential-like text are absent from every produced artifact.
+  3. Re-running sync with no handbook edits processes 0 pages; editing one page re-processes only that page; a change of file modification time alone (no content or revision-date change) is not re-indexed.
   4. A keyword query against the Guides index returns the matching heading chunk with its file and line reference, together with the scene-clip URL (or the full-video URL from the Guides README) when that section has a video, and nothing when it does not.
   5. The index artifact has a documented, versioned format, and a recorded decision states how it reaches the MCP container (image rebuild vs bucket read).
 **Plans**: 8/11 plans executed
