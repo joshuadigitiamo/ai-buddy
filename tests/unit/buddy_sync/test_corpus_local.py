@@ -16,7 +16,7 @@ import pytest
 from buddy_sync.redaction import MASK, RULE_NAMES, Redactor
 
 RAW_DIR = Path(__file__).resolve().parents[3] / "docs" / "research" / "handbook-raw"
-WIFI_FILE = "07-wi-fi.md"  # local test only; the production denylist is id-based (D-13)
+WIFI_FILE = "07-wi-fi.md"  # local test only; production denylist is file-based (D-25)
 NON_MASKING_RULES = {"image_link", "signed_url_query"}
 
 pytestmark = pytest.mark.skipif(
