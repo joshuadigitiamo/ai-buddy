@@ -157,3 +157,23 @@ How the artifact reaches the MCP container is recorded in [ADR 0001](adr/0001-in
 
 - 1.0.0: first published format.
 - 1.0.0 amended 2026-11-03, before any consumer or published artifact existed: handbook rows come from the local Markdown folder (D-25); the `page_id`, `parent_id`, `depth`, `url`, `date_edited_raw`, `date_created_raw` and meta `source_doc_id` meanings above replace the previous ones. The DDL is unchanged, so `schema_version` stays 1.0.0.
+
+## Live verification
+
+Run date: 2026-11-03. The sync ran on the real local sources (D-25, D-26, D-27): the handbook snapshot folder and the local Guides checkout, both mounted read-only, with `--network none`, no token and no `.env`. The check is `tests/unit/buddy_sync/test_live_artifact.py`, which skips unless `LIVE_ARTIFACT_DIR` and `HANDBOOK_DIR` are set. It states counts and booleans only; this section does the same.
+
+| Measure | Value |
+|---------|-------|
+| Handbook page files in the folder | 23 |
+| Pages indexed | 22 |
+| Pages denied (`REDACT_PAGE_FILES`) | 1 |
+| Pages using the export form of `last_updated` | 2 |
+| Guides chunks | 2795 |
+| Video links with source `scene` | 238 |
+| Video links with source `readme_fallback` | 2286 |
+| Residual secret or IBAN detector hits over stored text | 0 |
+| Pages whose url is not `handbook://<page_id>`, with an empty title or with no revision date | 0 |
+
+- The denied page's file stem is not stored and does not occur in any byte of `index.db` or `index.manifest.json`, and none of its page-specific body lines occur in those bytes. One body line is shared with every other page, so the check skips it: it reaches the artifact through the other pages.
+- A second run with identical inputs processed 0 pages, did not rebuild the Guides index and wrote nothing (`artifact_written` false).
+- Research assumptions A1, A2 and A5 (tracker API date unit, response shape and deep-link format) were retired by D-25. No tracker call is made any more, so they were never verified live.
