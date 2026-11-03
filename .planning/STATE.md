@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Content Sync
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-11-03T19:13:51.604Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-11-03T19:20:33.812Z"
 last_activity: 2026-11-03
 last_activity_desc: Phase 01 execution started
-state_head: 63a0dd698ef77638196294d8e583c83b416f71ad
+state_head: 0fba9f7eebac57fc59a6124b8307732c2b9d168f
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 8
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-03)
 ## Current Position
 
 Phase: 01 (Content Sync) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-11-03 — Phase 01 execution started
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 |------|----------|-------|-------|
 | Phase 01 P01 | 25 min | 3 tasks | 17 files |
 | Phase 01 P02 | 5 min | 3 tasks | 13 files |
+| Phase 01 P03 | 5 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,8 @@ Recent decisions affecting current work:
 - [Phase 01]: ruff extend-exclude .planning and docs: ruff 0.17 formats Python code blocks in Markdown
 - [Phase 01]: 01-02: search queries built only via to_match_query (quoted tokens, NUL as separator, bound MATCH parameter); chunk_key is heading-based (changing it needs a schema major bump plus re-sync)
 - [Phase 01]: 01-02: only the latest artifact is kept in ARTIFACT_DIR; versioned = schema_version + build_id + manifest. ArtifactStore port with LocalDirArtifactStore; bucket vs baked image deferred to Phase 4 (D-12, ADR 0001)
+- [Phase 01]: 01-03: IBAN rule retries shorter heads when an uppercase word is swallowed; signed_url_query keeps fragment; entropy rule skips URLs via one alternation
+- [Phase 01]: 01-03: non-company e-mails masked by default; allow-listing calendar/reply-to domains deferred to plan 08
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T19:13:51.577Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-11-03T19:20:33.783Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None
