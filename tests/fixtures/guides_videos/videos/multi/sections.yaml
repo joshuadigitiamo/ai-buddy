@@ -1,0 +1,11 @@
+schema: 1
+guide: AI-Engineering/MULTI_GUIDE.md
+video: multi
+sections:
+  - scene: P1S02Basics
+    h2: "1. Basics"
+  - scene: P2S01Recap
+    h2: "2. Recap"
+  - scene: P2S02Deep
+    h2: "2. Recap"
+    h3: Deep
