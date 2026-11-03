@@ -2,12 +2,12 @@
 
 import json
 import logging
+import os
 import shutil
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
-import httpx
 import pytest
 
 from buddy_core.index_reader import open_index
@@ -15,26 +15,20 @@ from buddy_sync.chunker import heading_outline
 from buddy_sync.cli import main
 from buddy_sync.guides import select_guide_files
 from buddy_sync.guides_index import write_guides_index
+from buddy_sync.handbook_files import SOURCE_ID
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
-TOKEN = "tok-synthetic-Kd8-not-a-real-token"
-DOC_URL_PREFIX = "https://app.clickup.com/123/v/dc/demo-doc/"
-SECRETS = (b"demo-page-wifi", b"Wf9-synthetic-wifi-value", b"Zq9-synthetic-not-real")
+FORBIDDEN = (
+    b"04-rete-ospiti",
+    b"Rete ospiti",
+    b"Wf9-synthetic-wifi-value",
+    b"Zq9-synthetic-not-real",
+    b"legacy.example.invalid",
+    b"legacy-0001",
+)
+KEPT_IDS = ["01-benvenuto", "02-ferie", "03-accesso-ufficio"]
 
-Payload = list[dict[str, Any]]
 RepoFactory = Callable[[Mapping[str, str] | Path], Path]
-
-
-def _walk(pages: Payload) -> list[dict[str, Any]]:
-    flat: list[dict[str, Any]] = []
-    for page in pages:
-        flat.append(page)
-        flat.extend(_walk(page["pages"]))
-    return flat
-
-
-def _page(pages: Payload, page_id: str) -> dict[str, Any]:
-    return next(page for page in _walk(pages) if page["id"] == page_id)
 
 
 def _guides_tree(tmp_path: Path) -> Path:
@@ -58,31 +52,23 @@ def test_end_to_end(
     git_repo_factory: RepoFactory,
 ) -> None:
     repo = git_repo_factory(_guides_tree(tmp_path))
+    handbook = tmp_path / "handbook"
+    shutil.copytree(FIXTURES / "handbook", handbook)
     artifact_dir = tmp_path / "artifacts"
     for name, value in {
-        "CLICKUP_TOKEN": TOKEN,
-        "CLICKUP_WORKSPACE_ID": "123",
-        "CLICKUP_DOC_ID": "demo-doc",
-        "REDACT_PAGE_IDS": "demo-page-wifi",
+        "HANDBOOK_DIR": str(handbook),
+        "REDACT_PAGE_FILES": "04-rete-ospiti.md",
         "GUIDES_REPO_URL": str(repo),
         "GUIDES_BRANCH": "master",
         "GUIDES_CHECKOUT_DIR": str(tmp_path / "checkout"),
         "ARTIFACT_DIR": str(artifact_dir),
     }.items():
         monkeypatch.setenv(name, value)
-    monkeypatch.delenv("GUIDES_REPO_TOKEN", raising=False)
 
-    payload: Payload = json.loads((FIXTURES / "clickup" / "pages.json").read_text("utf-8"))
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/api/v3/workspaces/123/docs/demo-doc/pages"
-        return httpx.Response(200, json=payload)
-
-    transport = httpx.MockTransport(handler)
     seen_output: list[str] = []
 
     def run(*argv: str) -> tuple[int, str]:
-        code = main(list(argv), transport=transport)
+        code = main(list(argv))
         captured = capsys.readouterr()
         seen_output.extend([captured.out, captured.err])
         return code, captured.out
@@ -100,27 +86,34 @@ def test_end_to_end(
     first = run_report()
     assert first["artifact_written"] is True
     assert first["guides_rebuilt"] is True
+    assert first["pages_seen"] == 4
     assert first["pages_denied"] == 1
+    assert first["pages_processed"] == 3
     assert first["guides_index_drift"] == 0
     first_bytes = index_db.read_bytes()
     assert not list(artifact_dir.glob(".index.*.tmp"))
 
-    # The artifact is redacted and complete (ROADMAP criteria 2 and 4).
-    for secret in SECRETS:
-        assert secret not in first_bytes
+    # The artifact is redacted, complete and cites local pages (ROADMAP criteria 2 and 4).
+    blob = first_bytes + (artifact_dir / "index.manifest.json").read_bytes()
+    for secret in FORBIDDEN:
+        assert (secret in blob) is False
+    assert (b"[REDATTO]" in blob) is True
     with open_index(index_db) as reader:
         pages = reader.load_handbook()
-    assert pages
-    assert "demo-page-wifi" not in {page.page_id for page in pages}
+        assert reader.meta.source_doc_id == SOURCE_ID
+    assert [page.page_id for page in pages] == KEPT_IDS
+    assert [page.position for page in pages] == [0, 1, 2]
     for page in pages:
-        assert page.url.startswith(DOC_URL_PREFIX)
+        assert page.url == "handbook://" + page.page_id
         assert page.title
         assert page.revision_date_iso
+    assert pages[1].revision_date_iso is not None
+    assert pages[1].revision_date_iso.startswith("2026-09-20")
 
     code, out = run("search", "chunking", "--artifact-dir", str(artifact_dir))
     assert code == 0
     assert "AI-Engineering/DEMO_GUIDE.md:" in out
-    assert "#t=30" in out
+    assert out.rstrip().endswith("#t=30")
 
     # Unchanged inputs: nothing is processed and no file is touched (D-09, D-10, D-24).
     second = run_report()
@@ -130,18 +123,19 @@ def test_end_to_end(
     assert second["content_hash"] == first["content_hash"]
     assert index_db.read_bytes() == first_bytes
 
-    # Only ClickUp's update timestamp changes: still nothing to do (SYNC-02).
-    for raw in _walk(payload):
-        raw["date_updated"] += 1
+    # Only a file's modification time changes: still nothing to do (SYNC-02).
+    touched = handbook / "01-benvenuto.md"
+    later = touched.stat().st_mtime + 3600
+    os.utime(touched, (later, later))
     stamp_only = run_report()
     assert stamp_only["pages_processed"] == 0
     assert stamp_only["artifact_written"] is False
     assert index_db.read_bytes() == first_bytes
 
     # One page is edited: exactly that page is reprocessed and a new artifact is written.
-    edited = _page(payload, "demo-page-0002")
-    edited["date_edited"] += 5000
-    edited["content"] += "\n\nAggiornamento sintetico."
+    edited = handbook / "03-accesso-ufficio.md"
+    with edited.open("a", encoding="utf-8") as handle:
+        handle.write("\nAggiornamento sintetico.\n")
     third = run_report()
     assert third["pages_processed"] == 1
     assert third["artifact_written"] is True
@@ -156,8 +150,8 @@ def test_end_to_end(
         dest.write_bytes(b"partial")
         raise OSError("simulated disk failure")
 
-    edited["date_edited"] += 5000
-    edited["content"] += "\n\nSecondo aggiornamento."
+    with edited.open("a", encoding="utf-8") as handle:
+        handle.write("\nSecondo aggiornamento.\n")
     with monkeypatch.context() as patch:
         patch.setattr("buddy_sync.pipeline.build_index", partial_build)
         code, _out = run("run")
@@ -170,5 +164,6 @@ def test_end_to_end(
     assert recovered["artifact_written"] is True
     assert index_db.read_bytes() != published
 
-    assert TOKEN not in "".join(seen_output)
-    assert TOKEN not in caplog.text
+    joined = "".join(seen_output) + caplog.text
+    for secret in (b"Wf9-synthetic-wifi-value", b"Zq9-synthetic-not-real"):
+        assert (secret.decode() in joined) is False

@@ -1,4 +1,4 @@
-"""Content sync job: ClickUp handbook and Guides repo to a searchable index artifact."""
+"""Content sync job: local handbook folder and Guides repo to a searchable index artifact."""
 
 from typing import Final
 

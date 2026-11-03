@@ -1,4 +1,4 @@
-"""One sync run: ClickUp handbook + Guides repo + video map -> one published artifact.
+"""One sync run: local handbook folder + Guides repo + video map -> one published artifact.
 
 The run is idempotent (D-09, D-10): the logical content is hashed before anything is built,
 and an unchanged hash touches no file. A failed build discards its staged file and leaves the
@@ -17,12 +17,12 @@ from buddy_core.index_writer import build_index, compute_content_hash
 from buddy_core.models import IndexContent
 from buddy_core.store import ArtifactStore
 from buddy_sync.chunker import PIPELINE_VERSION
-from buddy_sync.clickup import ClickUpClient, flatten_pages
 from buddy_sync.config import SyncSettings
 from buddy_sync.guides import sync_guides
 from buddy_sync.guides_git import GuidesSource
 from buddy_sync.guides_index import check_guides_index
 from buddy_sync.handbook import EmptyDenylistError, sync_handbook
+from buddy_sync.handbook_files import SOURCE_ID, read_handbook_dir
 from buddy_sync.redaction import REDACTION_VERSION, Redactor
 from buddy_sync.video_map import resolve_video_links
 
@@ -36,7 +36,6 @@ class SyncReport:
     pages_unchanged: int
     pages_removed: int
     pages_denied: int
-    pages_skipped_archived: int
     guides_rebuilt: bool
     guides_commit_sha: str
     chunks: int
@@ -65,7 +64,6 @@ def _open_previous(store: ArtifactStore, logger: logging.Logger) -> IndexReader 
 def run_sync(
     settings: SyncSettings,
     *,
-    clickup: ClickUpClient,
     guides: GuidesSource,
     store: ArtifactStore,
     redactor: Redactor,
@@ -75,9 +73,9 @@ def run_sync(
     logger: logging.Logger,
 ) -> SyncReport:
     """Run the whole sync once and return its report."""
-    if not settings.redact_page_ids and not allow_empty_denylist:
+    if not settings.redact_page_files and not allow_empty_denylist:
         raise EmptyDenylistError(
-            "REDACT_PAGE_IDS is empty; set it or pass allow_empty_denylist explicitly"
+            "REDACT_PAGE_FILES is empty; set it or pass allow_empty_denylist explicitly"
         )
 
     previous = _open_previous(store, logger)
@@ -87,18 +85,12 @@ def run_sync(
             and previous.meta.pipeline_version == PIPELINE_VERSION
             and previous.meta.redaction_version == REDACTION_VERSION
         )
-        _token, workspace_id = settings.require_clickup()
-        flat, skipped = flatten_pages(clickup.fetch_pages(workspace_id, settings.clickup_doc_id))
+        files = read_handbook_dir(settings.handbook_dir, denylist=settings.redact_page_files)
         handbook = sync_handbook(
-            flat,
+            files.pages,
             previous=previous.load_handbook() if previous is not None else None,
             versions_match=versions_match,
-            denylist=settings.redact_page_ids,
-            allow_empty_denylist=allow_empty_denylist,
             redactor=redactor,
-            workspace_id=workspace_id,
-            doc_id=settings.clickup_doc_id,
-            skipped_archived=skipped,
             logger=logger,
         )
 
@@ -123,7 +115,7 @@ def run_sync(
             handbook=handbook.pages,
             chunks=synced.chunks,
             videos=videos,
-            source_doc_id=settings.clickup_doc_id,
+            source_doc_id=SOURCE_ID,
             guides_commit_sha=checkout.commit_sha,
             pipeline_version=PIPELINE_VERSION,
             redaction_version=REDACTION_VERSION,
@@ -149,12 +141,11 @@ def run_sync(
         logger.info("content unchanged; no artifact written")
 
     return SyncReport(
-        pages_seen=handbook.seen,
+        pages_seen=files.seen,
         pages_processed=handbook.processed,
         pages_unchanged=handbook.unchanged,
         pages_removed=handbook.removed,
-        pages_denied=handbook.denied,
-        pages_skipped_archived=handbook.skipped_archived,
+        pages_denied=files.denied,
         guides_rebuilt=synced.rebuilt,
         guides_commit_sha=checkout.commit_sha,
         chunks=len(synced.chunks),
