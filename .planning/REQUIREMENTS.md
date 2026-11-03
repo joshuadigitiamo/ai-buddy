@@ -11,16 +11,16 @@ Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requireme
 
 - [x] **FND-01**: Repo follows the D11 layout (`packages/buddy_core`, `services/mcp_server`, `services/chat_bot`, `jobs/sync`, `deploy/k8s`, `deploy/cloudrun`, `.github/workflows`, `tests/`) on Python 3.12 with pip `requirements.txt` / `requirements-dev.txt`, and ruff, pytest (`-v --tb=short`, `--cov`) and `mypy --strict` (where feasible) configured; public functions carry type hints.
 - [x] **FND-02**: `run-unit-tests.sh` at repo root supports `--all`, `--single <file> <test_name> <dir>` and `--single-file <file> <dir>`; it builds the test image first, then runs `docker run --rm` with `--env-file .env` (fallback `.env.example`) and the cwd mounted; uses `set -euo pipefail` and a `log()` helper. No Python runs on the host.
-- [ ] **GUIDE-01**: Every phase plan cites the Guides sections it applies (MCP_SERVERS_GUIDE, RAG_CHATBOT_GUIDE, LANGCHAIN/LANGGRAPH_GUIDE, MLFLOW_GENAI_GUIDE, KUBERNETES_GUIDE, DESIGN_PATTERNS_GUIDE as relevant) and justifies any exception (D16). Owned by Phase 1 (convention set there), enforced at every phase plan check.
+- [x] **GUIDE-01**: Every phase plan cites the Guides sections it applies (MCP_SERVERS_GUIDE, RAG_CHATBOT_GUIDE, LANGCHAIN/LANGGRAPH_GUIDE, MLFLOW_GENAI_GUIDE, KUBERNETES_GUIDE, DESIGN_PATTERNS_GUIDE as relevant) and justifies any exception (D16). Owned by Phase 1 (convention set there), enforced at every phase plan check.
 
 ### Content Sync
 
-- [ ] **SYNC-01**: Sync job reads the handbook from a local folder of Markdown pages whose path comes from an environment variable (`HANDBOOK_DIR`, mounted read-only; Milestone 1 content: the 23-page snapshot in the gitignored `docs/research/handbook-raw/`). One file per page with YAML front matter (`title`, `last_updated`, optional `date_created`). The folder is never committed (public repo). No external API and no token are used (D-25, D-26).
+- [x] **SYNC-01**: Sync job reads the handbook from a local folder of Markdown pages whose path comes from an environment variable (`HANDBOOK_DIR`, mounted read-only; Milestone 1 content: the 23-page snapshot in the gitignored `docs/research/handbook-raw/`). One file per page with YAML front matter (`title`, `last_updated`, optional `date_created`). The folder is never committed (public repo). No external API and no token are used (D-25, D-26).
 - [x] **SYNC-02**: Sync is incremental: a page is re-processed only when its revision date (front matter `last_updated`, or its `date_edited` part for pages exported with both dates) or the hash of its redacted content changed; a change in file modification time alone does not trigger re-indexing.
-- [ ] **SYNC-03**: A redaction filter runs before indexing: the Wi-Fi page is excluded and no credential-like content reaches any index artifact (covered by a fixture test with synthetic secrets).
+- [x] **SYNC-03**: A redaction filter runs before indexing: the Wi-Fi page is excluded and no credential-like content reaches any index artifact (covered by a fixture test with synthetic secrets).
 - [x] **SYNC-04**: Guides repo content (git pull of the repo path/URL from env) is split by heading into a SQLite FTS5 index; each chunk keeps file, heading and line reference (`GUIDES_INDEX` section -> line mapping, D5).
-- [ ] **SYNC-05**: The handbook is stored as an in-memory-loadable snapshot of full pages; each page records its citation URI `handbook://<page-id>` (page id = file name without `.md`, the URI the Phase 2 resource `handbook://{pagina}` serves), its title and its revision date.
-- [ ] **SYNC-06**: Video mapping links each Guides section to its scene clip URL when one exists, otherwise to the full-video URL taken from the Guides README; sections without a video map to none.
+- [x] **SYNC-05**: The handbook is stored as an in-memory-loadable snapshot of full pages; each page records its citation URI `handbook://<page-id>` (page id = file name without `.md`, the URI the Phase 2 resource `handbook://{pagina}` serves), its title and its revision date.
+- [x] **SYNC-06**: Video mapping links each Guides section to its scene clip URL when one exists, otherwise to the full-video URL taken from the Guides README; sections without a video map to none.
 - [x] **SYNC-07**: The sync output is a versioned index artifact (handbook snapshot + Guides SQLite + video map) with a documented format, and the handoff decision is recorded: an `ArtifactStore` interface with a local-directory implementation in Phase 1, with bucket read vs image rebuild (baked) chosen together with the hosting platform in Phase 4 (D-12).
 
 ### MCP Server and Skill
@@ -112,13 +112,13 @@ Each requirement maps to exactly one phase. Updated during roadmap creation.
 |-------------|-------|--------|
 | FND-01 | Phase 1 | Complete |
 | FND-02 | Phase 1 | Complete |
-| GUIDE-01 | Phase 1 | Pending |
-| SYNC-01 | Phase 1 | Pending |
+| GUIDE-01 | Phase 1 | Complete |
+| SYNC-01 | Phase 1 | Complete |
 | SYNC-02 | Phase 1 | Complete |
-| SYNC-03 | Phase 1 | Pending |
+| SYNC-03 | Phase 1 | Complete |
 | SYNC-04 | Phase 1 | Complete |
-| SYNC-05 | Phase 1 | Pending |
-| SYNC-06 | Phase 1 | Pending |
+| SYNC-05 | Phase 1 | Complete |
+| SYNC-06 | Phase 1 | Complete |
 | SYNC-07 | Phase 1 | Complete |
 | MCP-01 | Phase 2 | Pending |
 | MCP-02 | Phase 2 | Pending |
