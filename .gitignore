@@ -12,3 +12,14 @@ main.py
 
 # Ricerca e presentazioni interne Digitiamo: solo in locale (repo pubblico)
 docs/internal/
+
+# Index artifacts, Guides checkout and tool caches: never in the public repo
+*.db
+*.db-journal
+artifacts/
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
