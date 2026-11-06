@@ -5,6 +5,7 @@
 #   ./run-unit-tests.sh --all
 #   ./run-unit-tests.sh --single      <test_file> <test_name> <test_directory>
 #   ./run-unit-tests.sh --single-file <test_file> <test_directory>
+#   ./run-unit-tests.sh --emulator   (Firestore emulator via docker compose; tests marked `firestore`)
 
 set -euo pipefail
 
@@ -18,6 +19,7 @@ usage() {
   echo "  $0 --all"
   echo "  $0 --single <test_file> <test_name> <test_directory>"
   echo "  $0 --single-file <test_file> <test_directory>"
+  echo "  $0 --emulator"
   exit 1
 }
 
@@ -81,6 +83,19 @@ case "$1" in
     pick_env_file >/dev/null
     build_image
     run_in_container python -m pytest "$3/$2" -v --tb=short -o cache_dir=/tmp/.pytest_cache
+    ;;
+  --emulator)
+    # Only mode that touches a network: the compose project's private network, emulator only.
+    env_file="$(pick_env_file)"
+    build_image
+    export BUDDY_ENV_FILE="${env_file}" HOST_UID="$(id -u)" HOST_GID="$(id -g)"
+    compose=(docker compose -p ai-buddy-test -f "${SCRIPT_DIR}/docker-compose.test.yml")
+    trap '"${compose[@]}" down --remove-orphans >/dev/null 2>&1 || true' EXIT
+    log "Starting Firestore emulator ..."
+    "${compose[@]}" up -d --wait firestore
+    log "Running firestore-marked tests (env: $(basename "${env_file}"))"
+    "${compose[@]}" run --rm tests python -m pytest -m firestore tests/integration -v --tb=short \
+      -o cache_dir=/tmp/.pytest_cache -rs
     ;;
   *)
     echo "Error: unknown option '$1'"

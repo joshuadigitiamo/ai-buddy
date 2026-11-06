@@ -8,6 +8,7 @@ dependencies = []
 pythonpath = ["packages/buddy_core", "jobs/sync", "services/mcp_server"]
 testpaths = ["tests"]
 addopts = "-ra --import-mode=importlib"
+markers = ["firestore: needs the Firestore emulator (FIRESTORE_EMULATOR_HOST); run with ./run-unit-tests.sh --emulator"]
 
 [tool.coverage.run]
 source = ["buddy_core", "buddy_sync", "buddy_mcp"]
