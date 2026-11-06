@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Final
+from typing import Any, Final
 
 from fastmcp import FastMCP
 from fastmcp.server.auth import AuthProvider
@@ -49,6 +49,11 @@ def build_server(
     return mcp
 
 
-def build_app(mcp: FastMCP) -> Starlette:
+def host_kwargs(settings: McpSettings | None) -> dict[str, Any]:
+    """Host and Origin allowlists for the HTTP transport (stub)."""
+    return {}
+
+
+def build_app(mcp: FastMCP, settings: McpSettings | None = None) -> Starlette:
     """Stateless streamable HTTP app answering with plain JSON, no held-open stream."""
-    return mcp.http_app(stateless_http=True, json_response=True)
+    return mcp.http_app(stateless_http=True, json_response=True, **host_kwargs(settings))
