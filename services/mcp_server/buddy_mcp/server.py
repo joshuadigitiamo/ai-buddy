@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any, Final
+from urllib.parse import urlsplit
 
 from fastmcp import FastMCP
 from fastmcp.server.auth import AuthProvider
@@ -49,9 +50,29 @@ def build_server(
     return mcp
 
 
+_LOOPBACK_HOSTS: Final = ("localhost", "127.0.0.1")
+_CLAUDE_ORIGIN: Final = "https://claude.ai"
+
+
 def host_kwargs(settings: McpSettings | None) -> dict[str, Any]:
-    """Host and Origin allowlists for the HTTP transport (stub)."""
-    return {}
+    """Keyword arguments for fastmcp's Host/Origin guard (ASVS V13, DNS-rebinding defence).
+
+    Allowed hosts: the host of MCP_PUBLIC_BASE_URL when set, plus localhost and 127.0.0.1 (any
+    port). Allowed origins: the public origin, claude.ai and loopback origins. The same dict feeds
+    the ASGI app and the process runner, so both enforce the same rule.
+    """
+    hosts = list(_LOOPBACK_HOSTS)
+    origins = [_CLAUDE_ORIGIN, *(f"http://{host}:*" for host in _LOOPBACK_HOSTS)]
+    if settings is not None and settings.mcp_public_base_url:
+        public = urlsplit(settings.mcp_public_base_url)
+        if public.hostname and public.hostname not in hosts:
+            hosts.append(public.hostname)
+        origins.append(f"{public.scheme}://{public.netloc}")
+    return {
+        "host_origin_protection": True,
+        "allowed_hosts": hosts,
+        "allowed_origins": origins,
+    }
 
 
 def build_app(mcp: FastMCP, settings: McpSettings | None = None) -> Starlette:
