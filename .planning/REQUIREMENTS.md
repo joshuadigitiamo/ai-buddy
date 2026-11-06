@@ -30,7 +30,7 @@ Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requireme
 - [x] **MCP-03**: Every tool output includes the source URL and revision date, plus `video_url` when the Guides section has a mapped video.
 - [x] **MCP-04**: A search that finds nothing returns an explicit "no results" result (never filler text), so callers can refuse.
 - [ ] **MCP-05**: `buddy_report_gap(question)` writes a Firestore document with question, timestamp and a "nessuna fonte trovata" marker, and stores no user id (verified against the Firestore emulator).
-- [ ] **MCP-06**: Resource `handbook://{pagina}` lets a client attach a whole handbook page.
+- [x] **MCP-06**: Resource `handbook://{pagina}` lets a client attach a whole handbook page.
 - [ ] **MCP-07**: Server auth is OAuth 2.1 with Google restricted to `@digitiamo.com`, read-only, with rate limiting; auth can be switched off for local/kind development only. The bot-to-server authentication mechanism is defined in the phase plan.
 - [ ] **MCP-08**: Skill `digitiamo-buddy` (SKILL.md) states when to use the tools, the answer format (answer, source, owner, revision date), the escalation topic list with referral contacts, and includes a one-page install guide for colleagues.
 
@@ -125,7 +125,7 @@ Each requirement maps to exactly one phase. Updated during roadmap creation.
 | MCP-03 | Phase 2 | Complete |
 | MCP-04 | Phase 2 | Complete |
 | MCP-05 | Phase 2 | Pending |
-| MCP-06 | Phase 2 | Pending |
+| MCP-06 | Phase 2 | Complete |
 | MCP-07 | Phase 2 | Pending |
 | MCP-08 | Phase 2 | Pending |
 | BOT-01 | Phase 3 | Pending |

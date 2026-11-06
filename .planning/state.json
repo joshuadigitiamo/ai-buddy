@@ -11,7 +11,7 @@
     {
       "number": "2",
       "name": "MCP Server and Skill",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "3",
@@ -34,5 +34,5 @@
     "label": "Advance to the next step",
     "reason": "Phase 2 of 5 · 20% · executing"
   },
-  "updated_at": "2026-11-06T20:42:35.086Z"
+  "updated_at": "2026-11-06T20:59:08.223Z"
 }
