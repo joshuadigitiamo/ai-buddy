@@ -5,26 +5,31 @@ requires-python = ">=3.12"
 dependencies = []
 
 [tool.pytest.ini_options]
-pythonpath = ["packages/buddy_core", "jobs/sync"]
+pythonpath = ["packages/buddy_core", "jobs/sync", "services/mcp_server"]
 testpaths = ["tests"]
 addopts = "-ra --import-mode=importlib"
 
 [tool.coverage.run]
-source = ["buddy_core", "buddy_sync"]
+source = ["buddy_core", "buddy_sync", "buddy_mcp"]
 branch = true
 
 [tool.mypy]
 strict = true
 python_version = "3.12"
-mypy_path = "packages/buddy_core:jobs/sync"
-files = ["packages/buddy_core/buddy_core", "jobs/sync/buddy_sync", "tests"]
+mypy_path = "packages/buddy_core:jobs/sync:services/mcp_server"
+files = [
+    "packages/buddy_core/buddy_core",
+    "jobs/sync/buddy_sync",
+    "services/mcp_server/buddy_mcp",
+    "tests",
+]
 explicit_package_bases = true
 plugins = ["pydantic.mypy"]
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-src = ["packages/buddy_core", "jobs/sync", "tests"]
+src = ["packages/buddy_core", "jobs/sync", "services/mcp_server", "tests"]
 # Planning/research markdown embeds illustrative Python; ruff must not gate it.
 extend-exclude = [".planning", "docs"]
 
@@ -32,4 +37,4 @@ extend-exclude = [".planning", "docs"]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["buddy_core", "buddy_sync"]
+known-first-party = ["buddy_core", "buddy_sync", "buddy_mcp"]

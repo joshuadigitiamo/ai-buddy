@@ -56,7 +56,11 @@ def test_requires_python_312() -> None:
 
 def test_requirements_are_pinned() -> None:
     unpinned: list[str] = []
-    for name in ("requirements.txt", "requirements-dev.txt"):
+    for name in (
+        "requirements.txt",
+        "requirements-dev.txt",
+        "services/mcp_server/requirements.txt",
+    ):
         for line in _lines(name):
             if not line or line.startswith(("#", "-r")):
                 continue
