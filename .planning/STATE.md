@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: MCP Server and Skill
 status: executing
-stopped_at: Completed 02-05-PLAN.md
-last_updated: "2026-11-06T21:25:31.844Z"
+stopped_at: Completed 02-06-PLAN.md
+last_updated: "2026-11-06T21:29:42.461Z"
 last_activity: 2026-11-03
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: d4200233f6d0750ba8170b39cdd19fb4b1658ce2
+state_head: b0b3037f5830ea80eb613025fdbb9aa893b226de
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 18
-  completed_plans: 16
+  completed_plans: 17
   percent: 20
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-03)
 ## Current Position
 
 Phase: 02 (MCP Server and Skill) — READY TO EXECUTE
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-11-03 — Phase 01 complete, transitioned to Phase 2
 
@@ -70,6 +70,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P03 | 25 min | 3 tasks | 10 files |
 | Phase 02 P04 | 8 min | 3 tasks | 11 files |
 | Phase 02 P05 | 8 min | 3 tasks | 10 files |
+| Phase 02 P06 | 15 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -115,6 +116,8 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-05: bot-to-MCP auth is a Google-signed service-account ID token (aud = MCP_PUBLIC_BASE_URL, e-mail in BOT_SA_EMAILS) verified through MultiAuth beside the OAuth proxy (D-12 defined and tested)
 - [Phase 02]: 02-05: email_verified accepts only boolean true or string 'true' (Google tokeninfo returns strings); user and bot verifiers require audience and bot tokens require exp
 - [Phase 02]: 02-05: Host/Origin guard uses fastmcp host_origin_protection=True via host_kwargs(settings); K_SERVICE presence refuses AUTH_MODE=off in McpSettings
+- [Phase 02]: 02-06: D-17 escalation list (8 rows, roles HR and responsabile diretto) approved by Joshua as drafted; Skill holds roles only
+- [Phase 02]: 02-06: Skill description must avoid ': ' (breaks unquoted YAML front matter); guarded by safe_load test
 
 ### Pending Todos
 
@@ -141,6 +144,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T21:25:31.765Z
-Stopped at: Completed 02-05-PLAN.md
+Last session: 2026-11-06T21:29:42.383Z
+Stopped at: Completed 02-06-PLAN.md
 Resume file: None
