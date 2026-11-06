@@ -4,17 +4,57 @@ The server only reads the artifact. It never creates, stages or publishes anythi
 artifact directory.
 """
 
-from collections.abc import Mapping
+import sqlite3
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from buddy_core.index_reader import IndexReader, open_index
+from buddy_core.index_reader import IndexReader, open_index, to_match_query
 from buddy_core.models import GuideChunk, HandbookPage, IndexMeta, VideoLink
 from buddy_core.store import LocalDirArtifactStore
+from buddy_mcp.stemming import stem_query, stem_text
 
 
 class SnapshotError(Exception):
     """The artifact cannot be served; messages hold fixed text and page ids only."""
+
+
+class HandbookIndex:
+    """In-memory FTS5 table over whole handbook pages, with Italian Snowball stems (D-01, D-02).
+
+    Built once at cold start from handbook_pages; index.db itself is never altered.
+    """
+
+    def __init__(self, pages: Sequence[HandbookPage]) -> None:
+        # Same loop thread as the async tools, like the Guides reader.
+        self._conn = sqlite3.connect(":memory:")
+        self._pages = tuple(pages)
+        self._conn.execute(
+            "CREATE VIRTUAL TABLE pages USING fts5("
+            "title, body, tokenize='unicode61 remove_diacritics 2')"
+        )
+        self._conn.executemany(
+            "INSERT INTO pages(rowid, title, body) VALUES (?, ?, ?)",
+            [
+                (position, " ".join(stem_text(page.title)), " ".join(stem_text(page.content_md)))
+                for position, page in enumerate(self._pages)
+            ],
+        )
+
+    def search(self, query: str, limit: int) -> list[HandbookPage]:
+        """Pages matching any stem of `query`, best bm25 first; ties keep page order."""
+        expression = to_match_query(" ".join(stem_query(query)))
+        if expression is None:
+            return []
+        rows = self._conn.execute(
+            "SELECT rowid FROM pages WHERE pages MATCH ? ORDER BY bm25(pages, 5.0, 1.0), rowid "
+            "LIMIT ?",
+            (expression, limit),
+        ).fetchall()
+        return [self._pages[int(row[0])] for row in rows]
+
+    def close(self) -> None:
+        self._conn.close()
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +66,7 @@ class IndexSnapshot:
     chunks: Mapping[str, GuideChunk]
     videos: Mapping[str, VideoLink]
     reader: IndexReader
+    handbook_index: HandbookIndex
 
 
 def resolve_index_path(artifact_dir: Path) -> Path:
@@ -54,6 +95,7 @@ def load_snapshot(path: Path) -> IndexSnapshot:
             chunks={chunk.chunk_key: chunk for chunk in reader.guide_chunks()},
             videos=reader.video_links(),
             reader=reader,
+            handbook_index=HandbookIndex(pages),
         )
     except BaseException:
         reader.close()

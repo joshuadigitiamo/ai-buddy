@@ -7,6 +7,7 @@ from starlette.applications import Starlette
 
 from buddy_mcp.config import McpSettings
 from buddy_mcp.guides_tools import register_guides_tools
+from buddy_mcp.handbook_tools import register_handbook_tools
 from buddy_mcp.snapshot import IndexSnapshot
 
 SERVER_NAME: Final = "digitiamo-buddy"
@@ -21,6 +22,7 @@ def build_server(settings: McpSettings, *, snapshot: IndexSnapshot) -> FastMCP:
     """Compose the FastMCP server with every tool group registered."""
     mcp = FastMCP(SERVER_NAME, instructions=_INSTRUCTIONS)
     register_guides_tools(mcp, snapshot, settings)
+    register_handbook_tools(mcp, snapshot)
     return mcp
 
 

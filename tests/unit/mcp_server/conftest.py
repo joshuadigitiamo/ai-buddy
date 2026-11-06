@@ -144,6 +144,7 @@ def snapshot(index_dir: Path) -> Iterator[IndexSnapshot]:
     loaded = load_snapshot(index_dir / "index.db")
     yield loaded
     loaded.reader.close()
+    loaded.handbook_index.close()
 
 
 @pytest.fixture
@@ -165,6 +166,7 @@ def server_for(tmp_path: Path) -> Iterator[Callable[[IndexContent], FastMCP]]:
     yield factory
     for loaded in opened:
         loaded.reader.close()
+        loaded.handbook_index.close()
 
 
 @pytest.fixture

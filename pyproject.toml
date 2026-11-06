@@ -26,6 +26,11 @@ files = [
 explicit_package_bases = true
 plugins = ["pydantic.mypy"]
 
+[[tool.mypy.overrides]]
+# snowballstemmer ships no stubs and no py.typed marker.
+module = "snowballstemmer"
+ignore_missing_imports = true
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100
