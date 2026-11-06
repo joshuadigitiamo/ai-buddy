@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: MCP Server and Skill
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-11-06T21:07:46.078Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-11-06T21:14:54.460Z"
 last_activity: 2026-11-03
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 44252acd2d71471ecb160b565414a95df6629406
+state_head: 96fd1714bb884599ae93ac67b02b0aa6537c9a33
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 18
-  completed_plans: 14
+  completed_plans: 15
   percent: 20
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-03)
 ## Current Position
 
 Phase: 02 (MCP Server and Skill) — READY TO EXECUTE
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-11-03 — Phase 01 complete, transitioned to Phase 2
 
@@ -68,6 +68,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P01 | 8min | 3 tasks | 17 files |
 | Phase 02 P02 | 10 min | 2 tasks | 9 files |
 | Phase 02 P03 | 25 min | 3 tasks | 10 files |
+| Phase 02 P04 | 8 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,8 @@ Recent decisions affecting current work:
 - [Phase 02]: Handbook FTS is a separate in-memory sqlite3 db of Snowball stems built in load_snapshot; no prefix matching until Phase 5 Recall@5
 - [Phase 02]: 02-03: FirestoreStore built directly (gRPC channel is lazy, no loop bound at construction); Fernet imported directly from fastmcp transitive; raise_on_decryption_error=False so a rotated key re-registers clients
 - [Phase 02]: 02-03: MCP-05/MCP-07 left Pending - 02-03 provides storage only; tool (02-04) and auth (02-05) complete them
+- [Phase 02]: buddy_report_gap never reads token or request context and logs only the exception type on backend failure; no caller identity (D-10)
+- [Phase 02]: Log hygiene test attaches its handler to the non-propagating fastmcp logger; handbook_get TOC text carries a Fonte line per entry so every source_url appears in text
 
 ### Pending Todos
 
@@ -134,6 +137,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T21:07:45.995Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-11-06T21:14:54.375Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None
