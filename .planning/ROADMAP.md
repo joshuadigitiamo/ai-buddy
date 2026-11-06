@@ -72,7 +72,7 @@ Plans:
   3. A query with no matching content returns an explicit "no results" result, and `buddy_report_gap` writes a Firestore document with question, timestamp and the "nessuna fonte trovata" marker and no user id (checked on the Firestore emulator).
   4. With auth enabled, a request without a valid Google identity from `@digitiamo.com` is rejected, tools are read-only, and requests beyond the rate limit are refused.
   5. The `digitiamo-buddy` Skill states when to use each tool, the answer format (answer, source, owner, revision date), the escalation topics with referral contacts, and ships with a one-page install guide.
-**Plans**: 6/7 plans executed
+**Plans**: 7/7 plans executed
 
 Plans:
 **Wave 1**
@@ -90,7 +90,7 @@ Plans:
 - [x] 02-06-PLAN.md — digitiamo-buddy Skill (escalation list approved by Joshua) and one-page install guide
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 02-07-PLAN.md — `python -m buddy_mcp` composition root, real-process emulator test, runtime image stage, env contract + README, live Google login checkpoint (may defer to Phase 4)
+- [x] 02-07-PLAN.md — `python -m buddy_mcp` composition root, real-process emulator test, runtime image stage, env contract + README, live Google login checkpoint (may defer to Phase 4)
 
 ### Phase 3: Google Chat Bot
 **Goal**: Joshua can ask the bot a question in Google Chat and get a cited, grounded answer (or an honest refusal or escalation) with a video card when one exists.
@@ -139,7 +139,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Content Sync | 11/11 | Complete    | 2026-11-03 |
-| 2. MCP Server and Skill | 6/7 | In Progress | - |
+| 2. MCP Server and Skill | 7/7 | In Progress | - |
 | 3. Google Chat Bot | 0/0 | Not started | - |
 | 4. Infrastructure and CI/CD | 0/0 | Not started | - |
 | 5. Evaluation and Milestone Gate | 0/0 | Not started | - |

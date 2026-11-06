@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: MCP Server and Skill
-status: executing
-stopped_at: Completed 02-06-PLAN.md
-last_updated: "2026-11-06T21:29:42.461Z"
+status: verifying
+stopped_at: Completed 02-07-PLAN.md
+last_updated: "2026-11-06T22:06:27.711Z"
 last_activity: 2026-11-03
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: b0b3037f5830ea80eb613025fdbb9aa893b226de
+state_head: e9a5b0965fa63dcd41f1a7ce875e0f5b639d2dc3
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 18
-  completed_plans: 17
+  completed_plans: 18
   percent: 20
 ---
 
@@ -27,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-11-03)
 
 ## Current Position
 
-Phase: 02 (MCP Server and Skill) — READY TO EXECUTE
+Phase: 02 (MCP Server and Skill) — ALL PLANS COMPLETE, READY FOR VERIFICATION
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-03 — Phase 01 complete, transitioned to Phase 2
 
 Progress: [██░░░░░░░░] 20%
@@ -71,6 +71,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P04 | 8 min | 3 tasks | 11 files |
 | Phase 02 P05 | 8 min | 3 tasks | 10 files |
 | Phase 02 P06 | 15 min | 3 tasks | 3 files |
+| Phase 02 P07 | n/a | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -118,6 +119,8 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-05: Host/Origin guard uses fastmcp host_origin_protection=True via host_kwargs(settings); K_SERVICE presence refuses AUTH_MODE=off in McpSettings
 - [Phase 02]: 02-06: D-17 escalation list (8 rows, roles HR and responsabile diretto) approved by Joshua as drafted; Skill holds roles only
 - [Phase 02]: 02-06: Skill description must avoid ': ' (breaks unquoted YAML front matter); guarded by safe_load test
+- [Phase 02]: 02-07: python -m buddy_mcp composition root proven as a real process on the Firestore emulator; mcp_server image runs as uid 10001 and does not bake the index
+- [Phase 02]: 02-07: Google OAuth verified live through a fastmcp OAuth client (DCR, Google login, token, five tools, cited search); MCP-07 marked complete by user decision 2026-11-06 with claude.ai connector and non-digitiamo rejection checks carried to Phase 4
 
 ### Pending Todos
 
@@ -128,11 +131,13 @@ None yet.
 - [Phase 1] How synced data reaches the MCP container (image rebuild vs bucket read): decide in Phase 1 plan (SYNC-07)
 - [Phase 1] Per-scene video clips: source is the Guides README (full-video URLs); scene-clip URLs may not exist yet, fall back to full video
 - [Phase 1] ClickUp read-only API token needed (Admin ClickUp)
-- [Phase 2] Bot-to-MCP authentication mechanism: resolved by D-12, defined and tested in 02-05 (Google-signed service-account ID token, BOT_SA_EMAILS allowlist); live check with real Google tokens stays in 02-07
+- [Phase 2] RESOLVED: Bot-to-MCP authentication mechanism defined by D-12 and tested in 02-05 (Google-signed service-account ID token, BOT_SA_EMAILS allowlist). 02-07 verified the user OAuth flow live; a live bot ID-token call was not run (covered by offline tests, revisit with the Phase 3 bot)
 - [Phase 4] GCP project + active billing account needed for live Cloud Run deploy and Workload Identity Federation (Admin Google); region europe-west8 still "da confermare" (D7)
 - [Phase 4] Cost of chat_bot service, Pub/Sub, CI and kind is not covered by research 07; ~0 EUR/month holds for the MCP server only
 - [Later] Videos must move to Google Drive before any non-dev user (D15); `LLM_BACKEND` must move to API key before any second user (D1a)
 - [Later] Open: real team chat channel, Team license budget, CCNL, official handbook owner, which Guides go company-wide, formal data-sovereignty constraint
+- [Phase 4] claude.ai connector live check needs an org owner to add the custom connector
+- [Phase 4] non-digitiamo account rejection not yet tested live
 
 ## Deferred Items
 
@@ -144,6 +149,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T21:29:42.383Z
-Stopped at: Completed 02-06-PLAN.md
+Last session: 2026-11-06T22:06:27.207Z
+Stopped at: Completed 02-07-PLAN.md
 Resume file: None
