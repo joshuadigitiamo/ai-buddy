@@ -9,11 +9,14 @@ them. Incoming bearer tokens are never forwarded anywhere (section 18.1).
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Final
 
 from fastmcp.server.auth import AccessToken, AuthProvider, MultiAuth, OAuthProxy
 from fastmcp.server.auth.providers.google import GoogleTokenVerifier
 from fastmcp.server.auth.providers.jwt import JWTVerifier
+from fastmcp.server.dependencies import get_access_token
+from fastmcp.server.middleware import MiddlewareContext
 from key_value.aio.protocols import AsyncKeyValue
 
 from buddy_mcp.config import McpSettings
@@ -25,6 +28,8 @@ GOOGLE_JWKS_URI: Final = "https://www.googleapis.com/oauth2/v3/certs"
 GOOGLE_ISSUERS: Final = ["https://accounts.google.com", "accounts.google.com"]
 CLAUDE_CALLBACK: Final = "https://claude.ai/api/mcp/auth_callback"
 LOOPBACK_REDIRECTS: Final = ["http://localhost:*", "http://127.0.0.1:*"]
+ANONYMOUS: Final = "anonymous"
+_LOGGER: Final = logging.getLogger("buddy_mcp.auth")
 _CACHE_TTL_SECONDS: Final = 300
 _MAX_CACHE_SIZE: Final = 100
 
@@ -135,6 +140,7 @@ def build_auth(
     ``storage`` is always handed to the proxy, never fastmcp's default file store (MCP-01).
     """
     if settings.auth_mode == "off":
+        _LOGGER.warning("AUTH_MODE=off: authentication disabled (local/kind development only)")
         return None
     # The validator guarantees these when auth is on; the asserts narrow the types.
     assert settings.mcp_public_base_url is not None
@@ -173,3 +179,14 @@ def build_auth(
         jwks_uri=GOOGLE_JWKS_URI,
     )
     return MultiAuth(server=proxy, verifiers=[verifier])
+
+
+def caller_identity(context: MiddlewareContext[Any]) -> str:
+    """Rate-limit key: the authenticated caller's client id, or "anonymous" without a token.
+
+    The identity lives only in memory and is never logged together with question text.
+    """
+    token = get_access_token()
+    if token is None or not token.client_id:
+        return ANONYMOUS
+    return token.client_id

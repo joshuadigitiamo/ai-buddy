@@ -7,8 +7,10 @@ from urllib.parse import urlsplit
 
 from fastmcp import FastMCP
 from fastmcp.server.auth import AuthProvider
+from fastmcp.server.middleware.rate_limiting import RateLimitingMiddleware
 from starlette.applications import Starlette
 
+from buddy_mcp.auth import caller_identity
 from buddy_mcp.config import McpSettings
 from buddy_mcp.gap_tool import register_gap_tool
 from buddy_mcp.gaplog import GapLog
@@ -38,6 +40,15 @@ def build_server(
 ) -> FastMCP:
     """Compose the FastMCP server with every tool group registered."""
     mcp = FastMCP(SERVER_NAME, instructions=_INSTRUCTIONS, auth=auth)
+    # D-14: in memory, per caller, per instance. Every request (initialize, tools/list) takes a
+    # token, hence the generous burst default.
+    mcp.add_middleware(
+        RateLimitingMiddleware(
+            max_requests_per_second=settings.rate_limit_rps,
+            burst_capacity=settings.rate_limit_burst,
+            get_client_id=caller_identity,
+        )
+    )
     register_guides_tools(mcp, snapshot, settings)
     register_handbook_tools(mcp, snapshot)
     register_gap_tool(

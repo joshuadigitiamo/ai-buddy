@@ -6,11 +6,12 @@ environment); no env file is read here. Errors name variables, never values.
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from pydantic import SecretStr, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 _COLLECTION_NAME = re.compile(r"[A-Za-z0-9_-]+")
@@ -50,6 +51,8 @@ class McpSettings(BaseSettings):
     oauth_storage: Literal["memory", "firestore"] = "memory"
     oauth_storage_encryption_key: SecretStr | None = None
     oauth_collection: str = "oauth_state"
+    rate_limit_rps: float = Field(default=5.0, gt=0)
+    rate_limit_burst: int = Field(default=30, ge=1)
 
     @field_validator("bot_sa_emails", mode="before")
     @classmethod
@@ -79,6 +82,12 @@ class McpSettings(BaseSettings):
     @model_validator(mode="after")
     def _check_auth_and_storage(self) -> McpSettings:
         # Names only: no value of a secret may reach the error text.
+        # D-13: the guard lives here so every entry point (server process, tests) hits it.
+        # K_SERVICE is Cloud Run's marker; a different host in Phase 4 must add its own (A6).
+        if self.auth_mode == "off" and "K_SERVICE" in os.environ:
+            raise ValueError(
+                "AUTH_MODE=off is refused when K_SERVICE is set (deployed on Cloud Run)"
+            )
         if self.auth_mode == "on":
             missing = [
                 name
