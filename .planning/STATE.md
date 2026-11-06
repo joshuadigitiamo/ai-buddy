@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: MCP Server and Skill
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-11-06T20:42:35.067Z"
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-11-06T20:54:24.485Z"
 last_activity: 2026-11-03
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: f2364c51ef26fc9e8ac5e0becc853f05123bc106
+state_head: cb35969b0f79f129c03092371db777c2e90e5d85
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 18
-  completed_plans: 11
+  completed_plans: 12
   percent: 20
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-03)
 ## Current Position
 
 Phase: 02 (MCP Server and Skill) — READY TO EXECUTE
-Plan: Not started
+Plan: 2 of 7
 Status: Ready to execute
 Last activity: 2026-11-03 — Phase 01 complete, transitioned to Phase 2
 
@@ -65,6 +65,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 01 P07 | 25 min | 2 tasks | 6 files |
 | Phase 1 P09 | 45 min | 3 tasks | 18 files |
 | Phase 1 P10 | 2 min | 3 tasks | 10 files |
+| Phase 02 P01 | 8min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -98,6 +99,9 @@ Recent decisions affecting current work:
 - [Phase 1]: Handbook pages flat (parent_id null, depth 0) in file-name order; index.db schema stays 1.0.0
 - [Phase 1]: Executor commits went to branch gsd/phase-01-content-sync because main is guard-protected; needs merge to main
 - [Phase 1]: 01-10: revision_date_iso documented as full ISO-8601 UTC datetime (matches code); handbook format change recorded as 1.0.0 amendment (DDL unchanged, no artifact published)
+- [Phase 02]: 02-01: fastmcp 4.1.6, snowballstemmer 3.1.1, google-cloud-firestore 2.34.1 pins approved by Joshua at the legitimacy gate
+- [Phase 02]: 02-01: revision_kind keeps its default but is forced into the advertised output schema required list (json_schema_extra)
+- [Phase 02]: 02-01: Guides revision_date is the index build date labelled indexed_on; source_url is a GitHub permalink pinned to the indexed commit with #L<n> for single-line sections
 
 ### Pending Todos
 
@@ -124,6 +128,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T19:47:40.627Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-mcp-server-and-skill/02-CONTEXT.md
+Last session: 2026-11-06T20:54:16.565Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None

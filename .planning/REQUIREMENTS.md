@@ -25,10 +25,10 @@ Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requireme
 
 ### MCP Server and Skill
 
-- [ ] **MCP-01**: MCP server (Python, FastMCP / SDK `mcp`) serves streamable-http in stateless mode with JSON responses and no persistent SSE streams; it keeps no state on the container filesystem.
-- [ ] **MCP-02**: Server exposes exactly five namespaced tools (fewer than 10): `handbook_get(section?)`, `handbook_search(query)`, `guides_search(query)`, `guides_get_section(id)`, `buddy_report_gap(question)`, with the contract from PLAN section 3.
-- [ ] **MCP-03**: Every tool output includes the source URL and revision date, plus `video_url` when the Guides section has a mapped video.
-- [ ] **MCP-04**: A search that finds nothing returns an explicit "no results" result (never filler text), so callers can refuse.
+- [x] **MCP-01**: MCP server (Python, FastMCP / SDK `mcp`) serves streamable-http in stateless mode with JSON responses and no persistent SSE streams; it keeps no state on the container filesystem.
+- [x] **MCP-02**: Server exposes exactly five namespaced tools (fewer than 10): `handbook_get(section?)`, `handbook_search(query)`, `guides_search(query)`, `guides_get_section(id)`, `buddy_report_gap(question)`, with the contract from PLAN section 3.
+- [x] **MCP-03**: Every tool output includes the source URL and revision date, plus `video_url` when the Guides section has a mapped video.
+- [x] **MCP-04**: A search that finds nothing returns an explicit "no results" result (never filler text), so callers can refuse.
 - [ ] **MCP-05**: `buddy_report_gap(question)` writes a Firestore document with question, timestamp and a "nessuna fonte trovata" marker, and stores no user id (verified against the Firestore emulator).
 - [ ] **MCP-06**: Resource `handbook://{pagina}` lets a client attach a whole handbook page.
 - [ ] **MCP-07**: Server auth is OAuth 2.1 with Google restricted to `@digitiamo.com`, read-only, with rate limiting; auth can be switched off for local/kind development only. The bot-to-server authentication mechanism is defined in the phase plan.
@@ -120,10 +120,10 @@ Each requirement maps to exactly one phase. Updated during roadmap creation.
 | SYNC-05 | Phase 1 | Complete |
 | SYNC-06 | Phase 1 | Complete |
 | SYNC-07 | Phase 1 | Complete |
-| MCP-01 | Phase 2 | Pending |
-| MCP-02 | Phase 2 | Pending |
-| MCP-03 | Phase 2 | Pending |
-| MCP-04 | Phase 2 | Pending |
+| MCP-01 | Phase 2 | Complete |
+| MCP-02 | Phase 2 | Complete |
+| MCP-03 | Phase 2 | Complete |
+| MCP-04 | Phase 2 | Complete |
 | MCP-05 | Phase 2 | Pending |
 | MCP-06 | Phase 2 | Pending |
 | MCP-07 | Phase 2 | Pending |
