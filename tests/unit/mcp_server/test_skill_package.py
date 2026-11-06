@@ -176,7 +176,7 @@ GUIDE_REQUIRED = (
     "Add custom connector",
     "digitiamo-buddy.zip",
 )
-SERVER_URL_PATTERN = re.compile(r"https?://[^\s)`>]+")
+SERVER_URL_PATTERN = re.compile(r"https?://[^\s)`]+")
 ALLOWED_SERVER_URL = "https://<server-host>/mcp"
 
 
