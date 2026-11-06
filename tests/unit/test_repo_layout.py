@@ -24,7 +24,24 @@ CONTRACT_KEYS = {
     "GUIDES_BRANCH",
     "GUIDES_CHECKOUT_DIR",
     "ARTIFACT_DIR",
+    "GUIDES_WEB_BASE",
+    "MCP_HOST",
+    "PORT",
+    "AUTH_MODE",
+    "MCP_PUBLIC_BASE_URL",
+    "GOOGLE_CLIENT_ID",
+    "ALLOWED_EMAIL_DOMAIN",
+    "BOT_SA_EMAILS",
+    "OAUTH_STORAGE",
+    "OAUTH_COLLECTION",
+    "RATE_LIMIT_RPS",
+    "RATE_LIMIT_BURST",
+    "GAP_TTL_DAYS",
+    "GAP_COLLECTION",
+    "GOOGLE_CLOUD_PROJECT",
 }
+
+SECRET_SUFFIXES = ("_SECRET", "_SIGNING_KEY", "_ENCRYPTION_KEY", "_PASSWORD", "_TOKEN")
 
 GITIGNORE_REQUIRED = {
     ".env",
@@ -80,3 +97,11 @@ def test_env_example_holds_exactly_the_contract_keys() -> None:
 
 def test_env_example_has_no_token_variable() -> None:
     assert {key for key in _env_example() if key.endswith("_TOKEN")} == set()
+
+
+def test_env_example_has_no_secret_variable() -> None:
+    assert {key for key in _env_example() if key.endswith(SECRET_SUFFIXES)} == set()
+
+
+def test_env_example_never_targets_the_emulator() -> None:
+    assert "FIRESTORE_EMULATOR_HOST" not in _env_example()
