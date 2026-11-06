@@ -10,6 +10,7 @@ from buddy_core.models import GuideChunk, VideoLink, video_link
 from buddy_mcp.config import McpSettings
 from buddy_mcp.models import (
     DEFAULT_LIMIT,
+    GuidesGetSectionOutput,
     GuidesSearchOutput,
     GuidesSectionResult,
     clamp_limit,
@@ -30,11 +31,22 @@ _SEARCH_DESCRIPTION = (
     "call buddy_report_gap. Fetch one section by its section_id with guides_get_section."
 )
 
+_GET_SECTION_DESCRIPTION = (
+    "Return one Guides section by the section_id that guides_search returned, with source_url, "
+    "revision_date (the index build date) and video_url. status no_results means the id is "
+    "unknown."
+)
+
 
 def guides_permalink(web_base: str, commit_sha: str, chunk: GuideChunk) -> str:
     """GitHub permalink pinned to the indexed commit, with a line anchor (D-05)."""
     path = quote(chunk.file, safe="/")
-    return f"{web_base}/blob/{commit_sha}/{path}#L{chunk.line_start}-L{chunk.line_end}"
+    anchor = (
+        f"L{chunk.line_start}"
+        if chunk.line_start == chunk.line_end
+        else f"L{chunk.line_start}-L{chunk.line_end}"
+    )
+    return f"{web_base}/blob/{commit_sha}/{path}#{anchor}"
 
 
 def _result(
@@ -68,6 +80,10 @@ def _render_block(item: GuidesSectionResult) -> str:
     return "\n".join(lines)
 
 
+def _render(results: list[GuidesSectionResult], empty: str) -> str:
+    return "\n\n".join(_render_block(item) for item in results) if results else empty
+
+
 def register_guides_tools(mcp: FastMCP, snapshot: IndexSnapshot, settings: McpSettings) -> None:
     """Register the Guides tools on `mcp`; all read from the cold-start snapshot."""
 
@@ -84,9 +100,24 @@ def register_guides_tools(mcp: FastMCP, snapshot: IndexSnapshot, settings: McpSe
         out = GuidesSearchOutput(
             status="ok" if results else "no_results", query=query, results=results
         )
-        text = (
-            "\n\n".join(_render_block(item) for item in results)
-            if results
-            else f"Nessun risultato per: {query}"
+        text = _render(results, f"Nessun risultato per: {query}")
+        return ToolResult(content=text, structured_content=out.model_dump(mode="json"))
+
+    @mcp.tool(
+        name="guides_get_section",
+        description=_GET_SECTION_DESCRIPTION,
+        annotations=READ_ONLY,
+        output_schema=GuidesGetSectionOutput.model_json_schema(),
+    )
+    async def guides_get_section(id: str) -> ToolResult:
+        chunk = snapshot.chunks.get(id)
+        results = (
+            [_result(snapshot, settings, chunk, snapshot.videos.get(chunk.chunk_key))]
+            if chunk
+            else []
         )
+        out = GuidesGetSectionOutput(
+            status="ok" if results else "no_results", query=id, results=results
+        )
+        text = _render(results, f"Nessun risultato per: {id}")
         return ToolResult(content=text, structured_content=out.model_dump(mode="json"))
