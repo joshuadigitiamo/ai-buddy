@@ -37,6 +37,7 @@ class McpSettings(BaseSettings):
 
     artifact_dir: Path
     guides_web_base: str
+    google_cloud_project: str | None = None
     mcp_host: str = "0.0.0.0"
     port: int = 8000
     gap_ttl_days: int = 90
