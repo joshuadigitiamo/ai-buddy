@@ -72,7 +72,25 @@ Plans:
   3. A query with no matching content returns an explicit "no results" result, and `buddy_report_gap` writes a Firestore document with question, timestamp and the "nessuna fonte trovata" marker and no user id (checked on the Firestore emulator).
   4. With auth enabled, a request without a valid Google identity from `@digitiamo.com` is rejected, tools are read-only, and requests beyond the rate limit are refused.
   5. The `digitiamo-buddy` Skill states when to use each tool, the answer format (answer, source, owner, revision date), the escalation topics with referral contacts, and ships with a one-page install guide.
-**Plans**: TBD
+**Plans**: 7 plans
+
+Plans:
+**Wave 1**
+- [ ] 02-01-PLAN.md — Legitimacy gate for the new pins; tracer: guides_search over stateless JSON HTTP; full D-06 output contract; Guides slice and cold-start failures
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 02-02-PLAN.md — Handbook slice: Italian stemmed in-memory FTS search, handbook_get (TOC/page), handbook://{pagina} resource
+- [ ] 02-03-PLAN.md — GapLog port + Firestore adapter, Fernet-encrypted Firestore OAuth store, `--emulator` test mode
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 02-04-PLAN.md — buddy_report_gap tool; five-tool surface, read-only, source-field and no-results contract tests
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 02-05-PLAN.md — Auth: Google OAuth proxy restricted to @digitiamo.com, bot service-account ID tokens (D-12), AUTH_MODE/K_SERVICE guard, per-identity rate limit
+- [ ] 02-06-PLAN.md — digitiamo-buddy Skill (escalation list approved by Joshua) and one-page install guide
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 02-07-PLAN.md — `python -m buddy_mcp` composition root, real-process emulator test, runtime image stage, env contract + README, live Google login checkpoint (may defer to Phase 4)
 
 ### Phase 3: Google Chat Bot
 **Goal**: Joshua can ask the bot a question in Google Chat and get a cited, grounded answer (or an honest refusal or escalation) with a video card when one exists.
