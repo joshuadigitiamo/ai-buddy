@@ -147,6 +147,27 @@ def snapshot(index_dir: Path) -> Iterator[IndexSnapshot]:
 
 
 @pytest.fixture
+def server_for(tmp_path: Path) -> Iterator[Callable[[IndexContent], FastMCP]]:
+    """Factory: build a server over a fresh tmp index made from `content`."""
+    opened: list[IndexSnapshot] = []
+    counter = 0
+
+    def factory(content: IndexContent) -> FastMCP:
+        nonlocal counter
+        counter += 1
+        directory = tmp_path / f"extra-{counter}"
+        write_index(directory, content)
+        loaded = load_snapshot(directory / "index.db")
+        opened.append(loaded)
+        config = McpSettings(artifact_dir=directory, guides_web_base=WEB_BASE)
+        return build_server(config, snapshot=loaded)
+
+    yield factory
+    for loaded in opened:
+        loaded.reader.close()
+
+
+@pytest.fixture
 def settings(index_dir: Path) -> McpSettings:
     return McpSettings(artifact_dir=index_dir, guides_web_base=WEB_BASE)
 
