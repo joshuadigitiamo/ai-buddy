@@ -8,7 +8,9 @@ import pytest
 from fastmcp import FastMCP
 from fastmcp.server.auth import AccessToken, MultiAuth, OAuthProxy
 from fastmcp.server.auth.providers.google import GoogleTokenVerifier
+from fastmcp.server.auth.providers.jwt import RSAKeyPair
 from key_value.aio.stores.memory import MemoryStore
+from tests.unit.mcp_server.conftest import BOT_EMAIL, GOOGLE_ISSUER, PUBLIC_BASE_URL
 
 from buddy_mcp.auth import DomainRestrictedGoogleVerifier, build_auth
 from buddy_mcp.config import McpSettings
@@ -82,6 +84,20 @@ async def test_bot_token_rejections(
     client: httpx2.AsyncClient, sign_bot_token: Callable[..., str], overrides: dict[str, Any]
 ) -> None:
     token = sign_bot_token(**overrides)
+    response = await client.post("/mcp", json=_rpc("tools/list", {}), headers=_bearer(token))
+    assert response.status_code == 401
+
+
+async def test_forged_bot_token_is_401(client: httpx2.AsyncClient) -> None:
+    """T-02-20: valid claims for a listed bot, signed by a key the server does not trust."""
+    forger = RSAKeyPair.generate()
+    token = forger.create_token(
+        subject="1234567890",
+        issuer=GOOGLE_ISSUER,
+        audience=PUBLIC_BASE_URL,
+        expires_in_seconds=300,
+        additional_claims={"email": BOT_EMAIL, "email_verified": True},
+    )
     response = await client.post("/mcp", json=_rpc("tools/list", {}), headers=_bearer(token))
     assert response.status_code == 401
 
