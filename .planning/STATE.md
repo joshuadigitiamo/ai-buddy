@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: MCP Server and Skill
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-11-06T21:14:54.460Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-11-06T21:25:31.844Z"
 last_activity: 2026-11-03
 last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 96fd1714bb884599ae93ac67b02b0aa6537c9a33
+state_head: d4200233f6d0750ba8170b39cdd19fb4b1658ce2
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 18
-  completed_plans: 15
+  completed_plans: 16
   percent: 20
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-03)
 ## Current Position
 
 Phase: 02 (MCP Server and Skill) — READY TO EXECUTE
-Plan: 5 of 7
+Plan: 6 of 7
 Status: Ready to execute
 Last activity: 2026-11-03 — Phase 01 complete, transitioned to Phase 2
 
@@ -69,6 +69,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P02 | 10 min | 2 tasks | 9 files |
 | Phase 02 P03 | 25 min | 3 tasks | 10 files |
 | Phase 02 P04 | 8 min | 3 tasks | 11 files |
+| Phase 02 P05 | 8 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,9 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-03: MCP-05/MCP-07 left Pending - 02-03 provides storage only; tool (02-04) and auth (02-05) complete them
 - [Phase 02]: buddy_report_gap never reads token or request context and logs only the exception type on backend failure; no caller identity (D-10)
 - [Phase 02]: Log hygiene test attaches its handler to the non-propagating fastmcp logger; handbook_get TOC text carries a Fonte line per entry so every source_url appears in text
+- [Phase 02]: 02-05: bot-to-MCP auth is a Google-signed service-account ID token (aud = MCP_PUBLIC_BASE_URL, e-mail in BOT_SA_EMAILS) verified through MultiAuth beside the OAuth proxy (D-12 defined and tested)
+- [Phase 02]: 02-05: email_verified accepts only boolean true or string 'true' (Google tokeninfo returns strings); user and bot verifiers require audience and bot tokens require exp
+- [Phase 02]: 02-05: Host/Origin guard uses fastmcp host_origin_protection=True via host_kwargs(settings); K_SERVICE presence refuses AUTH_MODE=off in McpSettings
 
 ### Pending Todos
 
@@ -121,7 +125,7 @@ None yet.
 - [Phase 1] How synced data reaches the MCP container (image rebuild vs bucket read): decide in Phase 1 plan (SYNC-07)
 - [Phase 1] Per-scene video clips: source is the Guides README (full-video URLs); scene-clip URLs may not exist yet, fall back to full video
 - [Phase 1] ClickUp read-only API token needed (Admin ClickUp)
-- [Phase 2] Bot-to-MCP authentication mechanism is not defined in the source; decide in Phase 2 plan
+- [Phase 2] Bot-to-MCP authentication mechanism: resolved by D-12, defined and tested in 02-05 (Google-signed service-account ID token, BOT_SA_EMAILS allowlist); live check with real Google tokens stays in 02-07
 - [Phase 4] GCP project + active billing account needed for live Cloud Run deploy and Workload Identity Federation (Admin Google); region europe-west8 still "da confermare" (D7)
 - [Phase 4] Cost of chat_bot service, Pub/Sub, CI and kind is not covered by research 07; ~0 EUR/month holds for the MCP server only
 - [Later] Videos must move to Google Drive before any non-dev user (D15); `LLM_BACKEND` must move to API key before any second user (D1a)
@@ -137,6 +141,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T21:14:54.375Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-11-06T21:25:31.765Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None
