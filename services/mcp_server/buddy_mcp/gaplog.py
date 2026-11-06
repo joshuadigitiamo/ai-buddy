@@ -3,14 +3,18 @@
 Records question, timestamps, marker and build id; never a caller identity (D-10).
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Protocol
 
 from google.cloud import firestore
 
 from buddy_mcp.models import GAP_MARKER
+
+
+class GapRecordError(ValueError):
+    """A gap record broke a rule; messages never carry the question text."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +26,19 @@ class GapRecord:
     expire_at: datetime
     build_id: str
     tried: tuple[str, ...] = ()
+
+    @classmethod
+    def new(
+        cls,
+        question: str,
+        *,
+        build_id: str,
+        now: datetime,
+        ttl_days: int,
+        tried: Sequence[str] = (),
+    ) -> "GapRecord":
+        # RED stub: no validation yet.
+        return cls(question, now, now + timedelta(days=ttl_days), build_id, tuple(tried))
 
 
 def gap_document(gap: GapRecord) -> dict[str, object]:
@@ -64,3 +81,13 @@ class FirestoreGapLog:
         ref = self._client.collection(self._collection).document()
         await ref.set(gap_document(gap))
         return str(ref.id)
+
+
+class InMemoryGapLog:
+    """RED stub."""
+
+    def __init__(self) -> None:
+        self.records: list[GapRecord] = []
+
+    async def record(self, gap: GapRecord) -> str:
+        return ""
