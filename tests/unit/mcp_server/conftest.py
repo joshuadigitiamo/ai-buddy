@@ -11,6 +11,7 @@ from fastmcp import FastMCP
 from buddy_core.index_writer import build_index
 from buddy_core.models import GuideChunk, HandbookPage, IndexContent, VideoLink, make_chunk_key
 from buddy_mcp.config import McpSettings
+from buddy_mcp.gaplog import InMemoryGapLog
 from buddy_mcp.server import build_server
 from buddy_mcp.snapshot import IndexSnapshot, load_snapshot
 
@@ -161,7 +162,7 @@ def server_for(tmp_path: Path) -> Iterator[Callable[[IndexContent], FastMCP]]:
         loaded = load_snapshot(directory / "index.db")
         opened.append(loaded)
         config = McpSettings(artifact_dir=directory, guides_web_base=WEB_BASE)
-        return build_server(config, snapshot=loaded)
+        return build_server(config, snapshot=loaded, gaplog=InMemoryGapLog(), now=lambda: NOW)
 
     yield factory
     for loaded in opened:
@@ -175,9 +176,18 @@ def settings(index_dir: Path) -> McpSettings:
 
 
 @pytest.fixture
-def make_server(settings: McpSettings, snapshot: IndexSnapshot) -> Callable[..., FastMCP]:
+def gaplog() -> InMemoryGapLog:
+    return InMemoryGapLog()
+
+
+@pytest.fixture
+def make_server(
+    settings: McpSettings, snapshot: IndexSnapshot, gaplog: InMemoryGapLog
+) -> Callable[..., FastMCP]:
     def factory(**overrides: Any) -> FastMCP:
-        return build_server(settings, snapshot=snapshot, **overrides)
+        params: dict[str, Any] = {"gaplog": gaplog, "now": lambda: NOW}
+        params.update(overrides)
+        return build_server(settings, snapshot=snapshot, **params)
 
     return factory
 
