@@ -11,7 +11,7 @@ async def test_template_is_listed_and_no_static_resources(server: FastMCP) -> No
     async with Client(server) as client:
         templates = await client.list_resource_templates()
         resources = await client.list_resources()
-    assert [t.uriTemplate for t in templates] == ["handbook://{pagina}"]
+    assert [t.uri_template for t in templates] == ["handbook://{pagina}"]
     assert resources == []
 
 
@@ -26,7 +26,7 @@ async def test_reading_a_page_returns_citation_header_then_markdown(server: Fast
         "# Ferie e permessi",
     ]
     assert "Come richiedere le ferie" in text
-    assert contents[0].mimeType == "text/markdown"
+    assert contents[0].mime_type == "text/markdown"
 
 
 @pytest.mark.parametrize("uri", ["handbook://nope", "handbook://..%2F..%2Fetc%2Fpasswd"])
