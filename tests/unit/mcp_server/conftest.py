@@ -7,15 +7,27 @@ from typing import Any
 
 import pytest
 from fastmcp import FastMCP
+from fastmcp.server.auth import AuthProvider
+from fastmcp.server.auth.providers.jwt import RSAKeyPair
+from key_value.aio.protocols import AsyncKeyValue
+from key_value.aio.stores.memory import MemoryStore
 
 from buddy_core.index_writer import build_index
 from buddy_core.models import GuideChunk, HandbookPage, IndexContent, VideoLink, make_chunk_key
+from buddy_mcp.auth import ServiceAccountIdTokenVerifier, build_auth
 from buddy_mcp.config import McpSettings
 from buddy_mcp.gaplog import InMemoryGapLog
 from buddy_mcp.server import build_server
 from buddy_mcp.snapshot import IndexSnapshot, load_snapshot
 
 NOW = datetime(2026, 11, 3, 10, 0, 0, tzinfo=UTC)
+PUBLIC_BASE_URL = "http://localhost"
+BOT_EMAIL = "buddy-bot@demo-ai-buddy.iam.gserviceaccount.com"
+GOOGLE_ISSUER = "https://accounts.google.com"
+# Obviously fake values: nothing here is a credential.
+FAKE_CLIENT_ID = "test-client.apps.googleusercontent.com"
+FAKE_CLIENT_SECRET = "fake-client-secret-for-tests"
+FAKE_SIGNING_KEY = "fake-signing-key-for-tests-only"
 WEB_BASE = "https://github.com/example-org/guides"
 SHA = "1" * 40
 FILE = "AI-Engineering/DEMO_GUIDE.md"
@@ -161,7 +173,7 @@ def server_for(tmp_path: Path) -> Iterator[Callable[[IndexContent], FastMCP]]:
         write_index(directory, content)
         loaded = load_snapshot(directory / "index.db")
         opened.append(loaded)
-        config = McpSettings(artifact_dir=directory, guides_web_base=WEB_BASE)
+        config = McpSettings(artifact_dir=directory, guides_web_base=WEB_BASE, auth_mode="off")
         return build_server(config, snapshot=loaded, gaplog=InMemoryGapLog(), now=lambda: NOW)
 
     yield factory
@@ -172,7 +184,7 @@ def server_for(tmp_path: Path) -> Iterator[Callable[[IndexContent], FastMCP]]:
 
 @pytest.fixture
 def settings(index_dir: Path) -> McpSettings:
-    return McpSettings(artifact_dir=index_dir, guides_web_base=WEB_BASE)
+    return McpSettings(artifact_dir=index_dir, guides_web_base=WEB_BASE, auth_mode="off")
 
 
 @pytest.fixture
@@ -195,3 +207,78 @@ def make_server(
 @pytest.fixture
 def server(make_server: Callable[..., FastMCP]) -> FastMCP:
     return make_server()
+
+
+@pytest.fixture
+def bot_key() -> RSAKeyPair:
+    """Stands in for Google's signing key; tests never reach the network."""
+    return RSAKeyPair.generate()
+
+
+@pytest.fixture
+def auth_settings(index_dir: Path) -> McpSettings:
+    return McpSettings(
+        artifact_dir=index_dir,
+        guides_web_base=WEB_BASE,
+        auth_mode="on",
+        mcp_public_base_url=PUBLIC_BASE_URL,
+        google_client_id=FAKE_CLIENT_ID,
+        google_client_secret=FAKE_CLIENT_SECRET,
+        oauth_jwt_signing_key=FAKE_SIGNING_KEY,
+        bot_sa_emails=frozenset({BOT_EMAIL}),
+    )
+
+
+@pytest.fixture
+def sign_bot_token(bot_key: RSAKeyPair) -> Callable[..., str]:
+    """Mint an ID token like Google would for a service account."""
+
+    def sign(
+        *,
+        email: str = BOT_EMAIL,
+        aud: str = PUBLIC_BASE_URL,
+        verified: bool = True,
+        expires_in: int = 300,
+        issuer: str = GOOGLE_ISSUER,
+        extra_claims: dict[str, Any] | None = None,
+    ) -> str:
+        claims: dict[str, Any] = {"email": email, "email_verified": verified}
+        claims.update(extra_claims or {})
+        return bot_key.create_token(
+            subject="1234567890",
+            issuer=issuer,
+            audience=aud,
+            expires_in_seconds=expires_in,
+            additional_claims=claims,
+        )
+
+    return sign
+
+
+@pytest.fixture
+def make_auth_server(
+    auth_settings: McpSettings,
+    snapshot: IndexSnapshot,
+    gaplog: InMemoryGapLog,
+    bot_key: RSAKeyPair,
+) -> Callable[..., FastMCP]:
+    """Server with auth on; the bot verifier trusts `bot_key` instead of Google's JWKS."""
+
+    def factory(
+        *, storage: AsyncKeyValue | None = None, settings: McpSettings | None = None
+    ) -> FastMCP:
+        config = settings or auth_settings
+        verifier = ServiceAccountIdTokenVerifier(
+            allowed_emails=config.bot_sa_emails,
+            granted_scopes=["openid", "https://www.googleapis.com/auth/userinfo.email"],
+            audience=config.mcp_public_base_url or PUBLIC_BASE_URL,
+            public_key=bot_key.public_key,
+        )
+        provider: AuthProvider | None = build_auth(
+            config, storage=storage or MemoryStore(), sa_verifier=verifier
+        )
+        return build_server(
+            config, snapshot=snapshot, gaplog=gaplog, auth=provider, now=lambda: NOW
+        )
+
+    return factory

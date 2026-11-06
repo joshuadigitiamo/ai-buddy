@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import Final
 
 from fastmcp import FastMCP
+from fastmcp.server.auth import AuthProvider
 from starlette.applications import Starlette
 
 from buddy_mcp.config import McpSettings
@@ -31,10 +32,11 @@ def build_server(
     *,
     snapshot: IndexSnapshot,
     gaplog: GapLog,
+    auth: AuthProvider | None = None,
     now: Callable[[], datetime] = _utc_now,
 ) -> FastMCP:
     """Compose the FastMCP server with every tool group registered."""
-    mcp = FastMCP(SERVER_NAME, instructions=_INSTRUCTIONS)
+    mcp = FastMCP(SERVER_NAME, instructions=_INSTRUCTIONS, auth=auth)
     register_guides_tools(mcp, snapshot, settings)
     register_handbook_tools(mcp, snapshot)
     register_gap_tool(

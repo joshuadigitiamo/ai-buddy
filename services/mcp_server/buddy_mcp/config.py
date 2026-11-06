@@ -8,11 +8,20 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Annotated, Any, Literal
 
-from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import SecretStr, field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 _COLLECTION_NAME = re.compile(r"[A-Za-z0-9_-]+")
+_LOOPBACK_PREFIXES = ("http://localhost", "http://127.0.0.1")
+
+
+def _split_csv(value: Any) -> Any:
+    """Split a comma-separated string into stripped, lowercased, non-blank items."""
+    if isinstance(value, str):
+        return [item.strip().lower() for item in value.split(",") if item.strip()]
+    return value
 
 
 class McpSettings(BaseSettings):
@@ -31,6 +40,61 @@ class McpSettings(BaseSettings):
     port: int = 8000
     gap_ttl_days: int = 90
     gap_collection: str = "gaps"
+    auth_mode: Literal["on", "off"] = "on"
+    mcp_public_base_url: str | None = None
+    google_client_id: str | None = None
+    google_client_secret: SecretStr | None = None
+    oauth_jwt_signing_key: SecretStr | None = None
+    allowed_email_domain: str = "digitiamo.com"
+    bot_sa_emails: Annotated[frozenset[str], NoDecode] = frozenset()
+    oauth_storage: Literal["memory", "firestore"] = "memory"
+    oauth_storage_encryption_key: SecretStr | None = None
+    oauth_collection: str = "oauth_state"
+
+    @field_validator("bot_sa_emails", mode="before")
+    @classmethod
+    def _parse_bot_sa_emails(cls, value: Any) -> Any:
+        return _split_csv(value)
+
+    @field_validator("mcp_public_base_url")
+    @classmethod
+    def _check_mcp_public_base_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        # The value is not echoed: hide_input_in_errors keeps it out of the error.
+        if not (value.startswith("https://") or value.startswith(_LOOPBACK_PREFIXES)):
+            raise ValueError(
+                "mcp_public_base_url must start with https:// (http only for localhost)"
+            )
+        return value.rstrip("/")
+
+    @field_validator("allowed_email_domain")
+    @classmethod
+    def _normalize_allowed_email_domain(cls, value: str) -> str:
+        domain = value.strip().lower()
+        if not domain or "@" in domain:
+            raise ValueError("allowed_email_domain must be a bare domain name")
+        return domain
+
+    @model_validator(mode="after")
+    def _check_auth_and_storage(self) -> McpSettings:
+        # Names only: no value of a secret may reach the error text.
+        if self.auth_mode == "on":
+            missing = [
+                name
+                for name, value in (
+                    ("MCP_PUBLIC_BASE_URL", self.mcp_public_base_url),
+                    ("GOOGLE_CLIENT_ID", self.google_client_id),
+                    ("GOOGLE_CLIENT_SECRET", self.google_client_secret),
+                    ("OAUTH_JWT_SIGNING_KEY", self.oauth_jwt_signing_key),
+                )
+                if value is None
+            ]
+            if missing:
+                raise ValueError(f"AUTH_MODE=on requires: {', '.join(missing)}")
+        if self.oauth_storage == "firestore" and self.oauth_storage_encryption_key is None:
+            raise ValueError("OAUTH_STORAGE=firestore requires OAUTH_STORAGE_ENCRYPTION_KEY")
+        return self
 
     @field_validator("guides_web_base")
     @classmethod
