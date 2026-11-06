@@ -162,3 +162,45 @@ def test_skill_has_no_email_address_or_phone_number() -> None:
     text = SKILL_PATH.read_text(encoding="utf-8")
     assert EMAIL_PATTERN.search(text) is None
     assert PHONE_PATTERN.search(text) is None
+
+
+GUIDE_PATH = REPO_ROOT / "docs" / "install-guide.md"
+GUIDE_MAX_WORDS = 500
+GUIDE_REQUIRED = (
+    "claude.ai",
+    "Claude Desktop",
+    "Claude Code",
+    "claude mcp add --transport http digitiamo-buddy",
+    "/mcp",
+    "~/.claude/skills/digitiamo-buddy",
+    "Add custom connector",
+    "digitiamo-buddy.zip",
+)
+SERVER_URL_PATTERN = re.compile(r"https?://[^\s)`>]+")
+ALLOWED_SERVER_URL = "https://<server-host>/mcp"
+
+
+@pytest.fixture(scope="module")
+def guide() -> str:
+    return GUIDE_PATH.read_text(encoding="utf-8")
+
+
+def test_install_guide_fits_one_page(guide: str) -> None:
+    assert len(guide.split()) <= GUIDE_MAX_WORDS
+
+
+@pytest.mark.parametrize("phrase", GUIDE_REQUIRED)
+def test_install_guide_covers_every_client(guide: str, phrase: str) -> None:
+    assert phrase in guide
+
+
+def test_install_guide_states_the_domain_rule_without_an_address(guide: str) -> None:
+    assert "@digitiamo.com" in guide
+    assert EMAIL_PATTERN.search(guide.replace("@digitiamo.com", "")) is None
+    assert PHONE_PATTERN.search(guide) is None
+
+
+def test_install_guide_writes_every_server_url_as_a_placeholder(guide: str) -> None:
+    urls = SERVER_URL_PATTERN.findall(guide)
+    assert urls
+    assert {url for url in urls if "mcp" in url} == {ALLOWED_SERVER_URL}
