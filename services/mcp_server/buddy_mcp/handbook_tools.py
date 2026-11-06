@@ -107,8 +107,10 @@ def register_handbook_tools(mcp: FastMCP, snapshot: IndexSnapshot) -> None:
                 for page in snapshot.pages.values()
             ]
             out = HandbookGetOutput(status="ok", query=None, results=[], toc=toc)
+            # The citation rides on its own line so each entry line stays a stable match.
             text = "\n".join(
-                f"{entry.page_id} - {entry.title} (revisione {entry.revision_date[:10]})"
+                f"{entry.page_id} - {entry.title} (revisione {entry.revision_date[:10]})\n"
+                f"Fonte: {entry.source_url}"
                 for entry in toc
             )
             return ToolResult(content=text, structured_content=out.model_dump(mode="json"))
