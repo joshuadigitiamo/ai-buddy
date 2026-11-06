@@ -1,43 +1,43 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 02
-current_phase_name: MCP Server and Skill
-status: verifying
-stopped_at: Completed 02-07-PLAN.md
-last_updated: "2026-11-06T22:06:27.711Z"
-last_activity: 2026-11-03
-last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: e9a5b0965fa63dcd41f1a7ce875e0f5b639d2dc3
+current_phase: 3
+current_phase_name: Google Chat Bot
+status: planning
+stopped_at: Phase 02 complete, ready to plan Phase 3
+last_updated: "2026-11-06T22:39:00.574Z"
+last_activity: 2026-11-06
+last_activity_desc: Phase 02 complete, transitioned to Phase 3
+state_head: 2667564ea58d19d83ba1d8c2e74582f590581eee
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 18
   completed_plans: 18
-  percent: 20
+  percent: 40
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-03)
+See: .planning/PROJECT.md (updated 2026-11-07)
 
 **Core value:** An employee gets an answer only from official sources with the source cited, or an honest "non lo so, chiedi a ..." with the gap logged. Never an invented policy.
-**Current focus:** Phase 1 — Content Sync
+**Current focus:** Phase 3 — Google Chat Bot
 
 ## Current Position
 
-Phase: 02 (MCP Server and Skill) — ALL PLANS COMPLETE, READY FOR VERIFICATION
-Plan: 7 of 7
-Status: Phase complete — ready for verification
-Last activity: 2026-11-03 — Phase 01 complete, transitioned to Phase 2
+Phase: 3 — Google Chat Bot
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-06 — Phase 02 complete, transitioned to Phase 3
 
-Progress: [██░░░░░░░░] 20%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 18
 - Average duration: - min
 - Total execution time: 0.0 hours
 
@@ -46,6 +46,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 11 | - | - |
+| 02 | 7 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -136,8 +137,8 @@ None yet.
 - [Phase 4] Cost of chat_bot service, Pub/Sub, CI and kind is not covered by research 07; ~0 EUR/month holds for the MCP server only
 - [Later] Videos must move to Google Drive before any non-dev user (D15); `LLM_BACKEND` must move to API key before any second user (D1a)
 - [Later] Open: real team chat channel, Team license budget, CCNL, official handbook owner, which Guides go company-wide, formal data-sovereignty constraint
-- [Phase 4] claude.ai connector live check needs an org owner to add the custom connector
-- [Phase 4] non-digitiamo account rejection not yet tested live
+- [Phase 4] claude.ai connector live check (02-UAT test 10, deferred): org owner likely unreachable; try a member-level personal custom connector once hosted
+- [Phase 4] non-digitiamo account rejection not yet tested live (02-UAT test 9 passed by user decision; Internal consent screen blocks external accounts at Google)
 
 ## Deferred Items
 
@@ -149,6 +150,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T22:06:27.207Z
-Stopped at: Completed 02-07-PLAN.md
+Last session: 2026-11-07T00:20:00Z
+Stopped at: Phase 02 complete, ready to plan Phase 3
 Resume file: None

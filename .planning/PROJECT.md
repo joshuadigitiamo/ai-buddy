@@ -22,7 +22,7 @@ Milestone 1 is done when the eval phase reports all three:
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ MCP server: five cited tools over stateless HTTP, Firestore gap log, Google-domain OAuth, Skill `digitiamo-buddy` — Phase 2 (UAT 24/25, connector check deferred to Phase 4)
 
 ### Active
 
@@ -30,7 +30,6 @@ Full list with IDs in `.planning/REQUIREMENTS.md`. Summary by area:
 
 - [ ] Foundation: monorepo skeleton (D11), Python 3.12 tooling, Dockerized test runner `run-unit-tests.sh`, Guides best practices applied per phase (D16)
 - [ ] Content sync: ClickUp test handbook (`xkwgt-39975`, id from env) and Guides repo into `buddy_core` index; redaction filter; incremental sync on `date_edited` + content hash; section -> video mapping
-- [ ] MCP server: FastMCP, streamable-http stateless JSON, five namespaced tools, source url + revision date on every output, Firestore gap log without user id, Google-domain OAuth, Skill `digitiamo-buddy`
 - [ ] Google Chat bot: Pub/Sub events in dev, HTTP + Google JWT on Cloud Run, LangGraph 2-step RAG with citations and confidence gate, pluggable LLM client (`meridian | api`, Vertex configured not enabled), allowlist guard, cards with source link and "Guarda" video button
 - [ ] Infra: Dockerfile per service, docker compose, kind manifests (Kustomize), Cloud Run YAMLs (europe-west8), GitHub Actions path-filtered build/test/push/deploy with Workload Identity Federation
 - [ ] Eval: golden set (30-50, drafted by Claude, reviewed by Joshua), Recall@5, correctness + citation scoring, MLflow tracing, empty-context refusal test, gate verdict
@@ -135,4 +134,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-03 after initialization from ingested docs (docs/PLAN.md + docs/research/*)*
+*Last updated: 2026-11-07 after Phase 2*
