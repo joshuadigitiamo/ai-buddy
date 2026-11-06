@@ -5,12 +5,16 @@ Records question, timestamps, marker and build id; never a caller identity (D-10
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Protocol
+from datetime import UTC, datetime, timedelta
+from typing import Final, Protocol
 
 from google.cloud import firestore
 
 from buddy_mcp.models import GAP_MARKER
+
+MAX_QUESTION_CHARS: Final = 2000
+MAX_TRIED_ITEMS: Final = 10
+MAX_TRIED_CHARS: Final = 200
 
 
 class GapRecordError(ValueError):
@@ -37,8 +41,24 @@ class GapRecord:
         ttl_days: int,
         tried: Sequence[str] = (),
     ) -> "GapRecord":
-        # RED stub: no validation yet.
-        return cls(question, now, now + timedelta(days=ttl_days), build_id, tuple(tried))
+        text = question.strip()
+        if not text:
+            raise GapRecordError("question must not be empty")
+        if len(text) > MAX_QUESTION_CHARS:
+            raise GapRecordError(f"question longer than {MAX_QUESTION_CHARS} characters")
+        if now.tzinfo is None or now.utcoffset() is None:
+            raise GapRecordError("now must be timezone-aware")
+        if ttl_days < 1:
+            raise GapRecordError("ttl_days must be at least 1")
+        created_at = now.astimezone(UTC)
+        kept = tuple(item[:MAX_TRIED_CHARS] for item in (t.strip() for t in tried) if item)
+        return cls(
+            question=text,
+            created_at=created_at,
+            expire_at=created_at + timedelta(days=ttl_days),
+            build_id=build_id,
+            tried=kept[:MAX_TRIED_ITEMS],
+        )
 
 
 def gap_document(gap: GapRecord) -> dict[str, object]:
@@ -84,10 +104,11 @@ class FirestoreGapLog:
 
 
 class InMemoryGapLog:
-    """RED stub."""
+    """Test double beside the real adapter (D-15): keeps records in a list."""
 
     def __init__(self) -> None:
         self.records: list[GapRecord] = []
 
     async def record(self, gap: GapRecord) -> str:
-        return ""
+        self.records.append(gap)
+        return f"memory-{len(self.records)}"

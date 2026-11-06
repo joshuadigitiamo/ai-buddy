@@ -137,7 +137,8 @@ def _factory(client: _FakeClient, calls: list[int]) -> Callable[[], firestore.As
 
 @pytest.mark.anyio
 async def test_firestore_gaplog_builds_client_lazily_once_and_writes_the_document() -> None:
-    client, calls = _FakeClient(), []
+    client = _FakeClient()
+    calls: list[int] = []
     gaplog = FirestoreGapLog(_factory(client, calls), "gaps-x")
     assert calls == []
 
