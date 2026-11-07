@@ -17,6 +17,7 @@ VIDEO_CARD_TITLE: Final = "Video della guida"
 MAX_ANSWER_CHARS: Final = 3500
 MAX_MESSAGE_CHARS: Final = 4000
 MAX_VIDEO_SECTIONS: Final = 3
+MAX_FONTE_LINES: Final = 3
 
 # The prompt forbids links in the answer; any the model wrote anyway is removed here. A Markdown
 # link keeps its label; a URL, mailto:, www. host, e-mail address or bare domain is dropped whole,
@@ -39,6 +40,10 @@ _BARE_DOMAIN: Final = re.compile(
 _SPACE_RUN: Final = re.compile(r"[ \t]{2,}")
 _SPACE_BEFORE_PUNCT: Final = re.compile(r"[ \t]+([.,;:!?])")
 _WEB_SCHEMES: Final = ("http://", "https://")
+_LINK_LABEL_UNSAFE: Final = str.maketrans({"[": "(", "]": ")", "\n": " ", "\r": " "})
+_LINK_TARGET_UNSAFE: Final = str.maketrans(
+    {"(": "%28", ")": "%29", " ": "%20", "<": "%3C", ">": "%3E", "\n": "%0A", "\r": "%0D"}
+)
 
 
 def sanitize_prose(text: str) -> str:
@@ -68,7 +73,18 @@ def _source_line(source: Evidence) -> str:
     day = _date(source.revision_date)
     if source.kind == "handbook":
         return f"Fonte: Manuale – {source.title} ({source.source_url}), revisione {day}"
-    return f"Fonte: Guida – {source.title} ({source.source_url}), indicizzata il {day}"
+    return f"Fonte: Guida – {_guide_title(source)}, indicizzata il {day}"
+
+
+def _guide_title(source: Evidence) -> str:
+    """The section title as a Markdown link (the Chat app markup is MARKDOWN), built by the bot.
+
+    A non-web permalink is never linked: the title stands alone.
+    """
+    label = source.title.translate(_LINK_LABEL_UNSAFE)
+    if not source.source_url.lower().startswith(_WEB_SCHEMES):
+        return label
+    return f"[{label}]({source.source_url.translate(_LINK_TARGET_UNSAFE)})"
 
 
 def _role_text(reply: BotReply) -> str:
@@ -175,7 +191,7 @@ def _render_text(reply: BotReply) -> str:
         tail = [line for line in (contact_line,) if line]
         if reply.referente is not None:
             tail.append(_referral_sentence(reply))
-        lines = [_source_line(source) for source in _unique(reply.sources)]
+        lines = [_source_line(source) for source in _unique(reply.sources)[:MAX_FONTE_LINES]]
         return _compose(_cap_prose(sanitize_prose(reply.answer)), lines, tail)
     if reply.kind == "refusal":
         head = f"Non lo so, chiedi a {_role_text(reply)}."
