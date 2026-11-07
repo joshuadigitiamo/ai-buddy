@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Google Chat Bot
 status: executing
-stopped_at: Completed 03-05-PLAN.md
-last_updated: "2026-11-07T11:39:13.826Z"
+stopped_at: Completed 03-06-PLAN.md
+last_updated: "2026-11-07T11:49:04.380Z"
 last_activity: 2026-11-07
 last_activity_desc: Phase 03 execution started
-state_head: 8566d6b5eaba2329b3c27528fb5b810726598a3c
+state_head: 5cc6c57d60174d9242a1a7bff3b8d1d1318ff7eb
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 30
-  completed_plans: 23
+  completed_plans: 24
   percent: 40
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 03 (Google Chat Bot) — EXECUTING
-Plan: 6 of 12
+Plan: 7 of 12
 Status: Ready to execute
 Last activity: 2026-11-07 — Phase 03 execution started
 
@@ -78,6 +78,7 @@ Progress: [████░░░░░░] 40%
 | Phase 03 P03 | 5 min | 2 tasks | 12 files |
 | Phase 03 P04 | 10 min | 2 tasks | 13 files |
 | Phase 03 P05 | 25 min | 3 tasks | 9 files |
+| Phase 03 P06 | 7 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -138,6 +139,8 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-05: only LlmOutputError skips the retry plan; LlmUnavailableError propagates (error text, no gap); LlmError at reformulate gives the error reply
 - [Phase 03]: 03-05: a non-null sensitive_topic (even empty or unknown id) is sensitive; role from shared table, HR fallback; final failure is kind referral plus gap
 - [Phase 03]: 03-05: referente contact kept only as verbatim substring of a handbook page returned in the run; gap logs the standalone question plus tried queries of both attempts
+- [Phase 03]: 03-06: anthropic 2.6.0 sends the API key as Authorization: Bearer (no x-api-key); Meridian gate header compatibility to confirm at the 03-12 live check
+- [Phase 03]: 03-06: 'more than one user' under LLM_BACKEND=meridian counts distinct normalized ALLOWED_USERS entries; list exactly one form of the identifier
 
 ### Pending Todos
 
@@ -166,6 +169,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07T11:39:13.730Z
-Stopped at: Completed 03-05-PLAN.md
+Last session: 2026-11-07T11:49:04.280Z
+Stopped at: Completed 03-06-PLAN.md
 Resume file: None

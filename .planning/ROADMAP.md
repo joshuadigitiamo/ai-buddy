@@ -103,7 +103,7 @@ Plans:
   3. Answerable questions return text whose every citation maps to content the MCP tools returned in that run; a question with no source, an unsupported citation, or low confidence returns "non lo so, chiedi a ..." and logs a gap, with no user id stored next to the question.
   4. Questions on sensitive topics (illness, disputes, pay, health, conflicts) receive at most the general written rule plus a referral to a person.
   5. An answer sourced from a Guides section with a mapped video shows a card with the source link, a thumbnail and a "Guarda" button that opens the scene clip (or the full video); handbook answers show the source link.
-**Plans**: 5/12 plans executed
+**Plans**: 6/12 plans executed
 
 Plans:
 **Wave 1**
@@ -116,7 +116,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 - [x] 03-04-PLAN.md — Both Chat event formats and every event kind normalized, add-on @mention end to end, recorded fixtures
 - [x] 03-05-PLAN.md — Retry once, refusal with handbook-quoted referente, gap reporting, smalltalk, sensitive topics (BOT-05, BOT-06)
-- [ ] 03-06-PLAN.md — One Anthropic Messages client (meridian | api), structured output, BotSettings with the D1a single-user guard (BOT-07, BOT-08)
+- [x] 03-06-PLAN.md — One Anthropic Messages client (meridian | api), structured output, BotSettings with the D1a single-user guard (BOT-07, BOT-08)
 - [ ] 03-07-PLAN.md — Thread memory port: Firestore and in-memory adapters, HMAC key, N turns, 24 h expiry (D-10, D-11)
 - [ ] 03-08-PLAN.md — Rendering: Guides video card with thumbnail and "Guarda", handbook citation text, prose sanitising and caps (BOT-09)
 
@@ -167,6 +167,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. Content Sync | 11/11 | Complete    | 2026-11-03 |
 | 2. MCP Server and Skill | 7/7 | Complete    | 2026-11-06 |
-| 3. Google Chat Bot | 5/12 | In Progress | - |
+| 3. Google Chat Bot | 6/12 | In Progress | - |
 | 4. Infrastructure and CI/CD | 0/0 | Not started | - |
 | 5. Evaluation and Milestone Gate | 0/0 | Not started | - |
