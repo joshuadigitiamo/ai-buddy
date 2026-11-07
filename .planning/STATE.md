@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Google Chat Bot
-status: executing
-stopped_at: Completed 03-11-PLAN.md
-last_updated: "2026-11-07T12:36:08.477Z"
+status: verifying
+stopped_at: Completed 03-12-PLAN.md
+last_updated: "2026-11-07T13:51:23.161Z"
 last_activity: 2026-11-07
 last_activity_desc: Phase 03 execution started
-state_head: 0695a4b9c06cee96c384ff199022d3192fc62285
+state_head: 9b80925450a08e521ffa2122dc96673baea2b0d3
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 30
-  completed_plans: 29
+  completed_plans: 30
   percent: 40
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 
 Phase: 03 (Google Chat Bot) — EXECUTING
 Plan: 12 of 12
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-07 — Phase 03 execution started
 
 Progress: [████░░░░░░] 40%
@@ -84,6 +84,7 @@ Progress: [████░░░░░░] 40%
 | Phase 03 P09 | 8 min | 2 tasks | 6 files |
 | Phase 03 P10 | 12 min | 3 tasks | 11 files |
 | Phase 03 P11 | 25 min | 3 tasks | 10 files |
+| Phase 03 P12 | n/a | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -156,6 +157,7 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-10: Chat API errors re-raised as ChatApiError(type name) with from None; GoogleChatApi factory typed to a two-method ChatClient protocol
 - [Phase 03]: 03-11: fastmcp and anthropic loggers floored at INFO in buddy_bot.cli.main so FASTMCP_LOG_LEVEL=DEBUG or ANTHROPIC_LOG=debug cannot log question text or prompts (BOT-11)
 - [Phase 03]: 03-11: SIGTERM left at the interpreter default in python -m buddy_bot; Phase 4 may add a drain handler for Cloud Run
+- [Phase 03]: 03-12: add-on Chat apps publish to Pub/Sub as the gsuiteaddons service agent (not chat-api-push); bot shares the MCP server network namespace for the loopback Host guard; live check approved 2026-11-07
 
 ### Pending Todos
 
@@ -185,6 +187,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07T12:36:08.369Z
-Stopped at: Completed 03-11-PLAN.md
+Last session: 2026-11-07T13:51:23.050Z
+Stopped at: Completed 03-12-PLAN.md
 Resume file: None
