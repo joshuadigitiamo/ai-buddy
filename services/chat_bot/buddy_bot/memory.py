@@ -142,3 +142,29 @@ class FirestoreThreadMemory:
         snapshot = await reference.get()
         data = snapshot.to_dict() if snapshot.exists else None
         await reference.set(next_document(data, turn, now=now, max_turns=self._max_turns))
+
+
+class InMemoryThreadMemory:
+    """Test double beside the real adapter (D-15): same key, cap, expiry and document rules."""
+
+    def __init__(self, *, secret: str, max_turns: int, clock: Clock = utc_now) -> None:
+        self._secret = secret
+        self._max_turns = _check_max_turns(max_turns)
+        self._clock = clock
+        self.documents: dict[str, dict[str, object]] = {}
+
+    async def recent(self, key_source: str, n: int) -> list[Turn]:
+        if not key_source.strip():
+            return []
+        now = _read_clock(self._clock)
+        data = self.documents.get(thread_key(self._secret, key_source))
+        return _tail(live_turns(data, now), n)
+
+    async def append(self, key_source: str, turn: Turn) -> None:
+        if not key_source.strip():
+            return
+        now = _read_clock(self._clock)
+        key = thread_key(self._secret, key_source)
+        self.documents[key] = next_document(
+            self.documents.get(key), turn, now=now, max_turns=self._max_turns
+        )

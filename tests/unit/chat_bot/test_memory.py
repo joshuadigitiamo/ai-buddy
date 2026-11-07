@@ -9,12 +9,12 @@ from typing import Any, cast
 import pytest
 from google.cloud import firestore
 
-import buddy_bot.memory as memory
 from buddy_bot.memory import (
     MAX_ANSWER_CHARS,
     MAX_QUESTION_CHARS,
     MEMORY_TTL,
     FirestoreThreadMemory,
+    InMemoryThreadMemory,
     memory_document,
     thread_key,
 )
@@ -83,21 +83,20 @@ class _Factory:
         return cast(firestore.AsyncClient, self.client)
 
 
-def _in_memory(
-    clock: _Clock | None = None, *, max_turns: int = 3
-) -> "memory.InMemoryThreadMemory":
-    return memory.InMemoryThreadMemory(
-        secret=SECRET, max_turns=max_turns, clock=clock or _Clock()
-    )
+def _in_memory(clock: _Clock | None = None, *, max_turns: int = 3) -> InMemoryThreadMemory:
+    return InMemoryThreadMemory(secret=SECRET, max_turns=max_turns, clock=clock or _Clock())
 
 
 def _firestore(
     factory: _Factory, clock: _Clock | None = None, *, max_turns: int = 3
 ) -> FirestoreThreadMemory:
     return FirestoreThreadMemory(
-        factory, secret=SECRET, collection="thread_memory", max_turns=max_turns,
+        factory,
+        secret=SECRET,
+        collection="thread_memory",
+        max_turns=max_turns,
         clock=clock or _Clock(),
-    )  # fmt: skip
+    )
 
 
 def test_thread_key_is_64_lowercase_hex_and_depends_on_source_and_secret() -> None:
