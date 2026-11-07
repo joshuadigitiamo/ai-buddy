@@ -13,7 +13,7 @@ from buddy_bot.render import (
     render_reply,
     sanitize_prose,
 )
-from buddy_bot.schemas import AnswerDraft, BotReply, Evidence, Reformulation, Referente
+from buddy_bot.schemas import AnswerDraft, BotReply, Evidence, Referente, Reformulation
 from buddy_bot.workflow import WorkflowConfig, WorkflowDeps, run_workflow
 
 pytestmark = pytest.mark.anyio
@@ -144,8 +144,9 @@ def test_no_reply_kind_other_than_answer_carries_a_card() -> None:
     rendered = [render_reply(reply, video_thumbnail_url=THUMBNAIL) for reply in replies]
 
     assert [message.cards_v2 for message in rendered] == [[], [], [], []]
-    assert rendered[1].text.startswith("Per il tuo caso specifico chiedi a HR (hr@example.invalid).")
-    assert "Contatto dal manuale: Contatti (handbook://05-contatti)" in rendered[1].text
+    referral_text = rendered[1].text
+    assert referral_text.startswith("Per il tuo caso specifico chiedi a HR (hr@example.invalid).")
+    assert "Contatto dal manuale: Contatti (handbook://05-contatti)" in referral_text
 
 
 def test_sensitive_answer_ends_with_the_referral_sentence_after_the_fonte_lines() -> None:
@@ -200,7 +201,9 @@ def test_long_prose_is_capped_and_the_whole_message_stays_within_the_limit() -> 
 def test_oversized_contact_still_leaves_a_message_within_the_limit() -> None:
     referente = Referente(role="HR", contact="x" * 5000)
 
-    text = render_reply(BotReply(kind="refusal", referente=referente), video_thumbnail_url=None).text
+    reply = BotReply(kind="refusal", referente=referente)
+
+    text = render_reply(reply, video_thumbnail_url=None).text
 
     assert len(text) == MAX_MESSAGE_CHARS
     assert text.endswith("…")

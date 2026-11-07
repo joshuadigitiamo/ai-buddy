@@ -20,10 +20,15 @@ MAX_VIDEO_SECTIONS: Final = 3
 
 # The prompt forbids URLs in the answer; any the model wrote anyway is removed here.
 _URL_TOKEN: Final = re.compile(r"(?:https?|handbook)://\S+", re.IGNORECASE)
+_SPACE_RUN: Final = re.compile(r"[ \t]{2,}")
+_WEB_SCHEMES: Final = ("http://", "https://")
 
 
 def sanitize_prose(text: str) -> str:
-    return text
+    """Strip model-written links and neutralise angle brackets so it cannot form Chat markup."""
+    without_links = _URL_TOKEN.sub("", text)
+    neutral = without_links.replace("<", "‹").replace(">", "›")
+    return _SPACE_RUN.sub(" ", neutral).strip()
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,7 +84,13 @@ def _video_section(source: Evidence, video_url: str, thumbnail_url: str | None) 
 
 def _video_card(sources: list[Evidence], thumbnail_url: str | None) -> list[dict[str, Any]]:
     """One card, one section per cited Guides source that has a mapped video (D15, BOT-09)."""
-    videos = [(s, s.video_url) for s in sources if s.kind == "guides" and s.video_url]
+    videos = [
+        (source, source.video_url)
+        for source in sources
+        if source.kind == "guides"
+        and source.video_url
+        and source.video_url.lower().startswith(_WEB_SCHEMES)
+    ][:MAX_VIDEO_SECTIONS]
     if not videos:
         return []
     sections = [_video_section(source, url, thumbnail_url) for source, url in videos]
@@ -87,19 +98,74 @@ def _video_card(sources: list[Evidence], thumbnail_url: str | None) -> list[dict
     return [{"cardId": VIDEO_CARD_ID, "card": {"header": header, "sections": sections}}]
 
 
+def _unique(sources: list[Evidence]) -> list[Evidence]:
+    """Each source once, in order of first appearance (BOT-05)."""
+    seen: set[str] = set()
+    unique: list[Evidence] = []
+    for source in sources:
+        if source.source_url not in seen:
+            seen.add(source.source_url)
+            unique.append(source)
+    return unique
+
+
+def _contact_line(reply: BotReply) -> str | None:
+    referente = reply.referente
+    if referente is None or referente.contact_source is None:
+        return None
+    source = referente.contact_source
+    return f"Contatto dal manuale: {source.title} ({source.source_url})"
+
+
+def _referral_sentence(reply: BotReply) -> str:
+    return f"Per il tuo caso specifico chiedi a {_role_text(reply)}."
+
+
+def _cap_prose(prose: str) -> str:
+    if len(prose) <= MAX_ANSWER_CHARS:
+        return prose
+    return prose[: MAX_ANSWER_CHARS - 1].rstrip() + "…"
+
+
+def _compose(prose: str, fonte_lines: list[str], tail: list[str]) -> str:
+    """Join the blocks; whole Fonte lines are dropped from the end until the message fits."""
+    kept = list(fonte_lines)
+    while True:
+        blocks = (prose, "\n".join(kept), "\n".join(tail))
+        text = "\n\n".join(block for block in blocks if block)
+        if len(text) <= MAX_MESSAGE_CHARS or not kept:
+            return text
+        kept.pop()
+
+
+def _clamp(text: str) -> str:
+    if len(text) <= MAX_MESSAGE_CHARS:
+        return text
+    return text[: MAX_MESSAGE_CHARS - 1] + "…"
+
+
+def _render_text(reply: BotReply) -> str:
+    contact_line = _contact_line(reply)
+    if reply.kind == "answer":
+        tail = [line for line in (contact_line,) if line]
+        if reply.referente is not None:
+            tail.append(_referral_sentence(reply))
+        lines = [_source_line(source) for source in _unique(reply.sources)]
+        return _compose(_cap_prose(sanitize_prose(reply.answer)), lines, tail)
+    if reply.kind == "refusal":
+        head = f"Non lo so, chiedi a {_role_text(reply)}."
+    elif reply.kind == "referral":
+        head = _referral_sentence(reply)
+    elif reply.kind == "smalltalk":
+        return SMALLTALK_TEXT
+    else:
+        return ERROR_TEXT
+    return "\n".join(line for line in (head, contact_line) if line)
+
+
 def render_reply(reply: BotReply, *, video_thumbnail_url: str | None) -> RenderedMessage:
     """Render a reply; `video_thumbnail_url` is the static image shown on video cards."""
+    cards: list[dict[str, Any]] = []
     if reply.kind == "answer":
-        prose = _URL_TOKEN.sub("", reply.answer).strip()
-        lines = [_source_line(source) for source in reply.sources]
-        return RenderedMessage(
-            text="\n\n".join([prose, "\n".join(lines)]) if lines else prose,
-            cards_v2=_video_card(reply.sources, video_thumbnail_url),
-        )
-    if reply.kind == "refusal":
-        return RenderedMessage(text=f"Non lo so, chiedi a {_role_text(reply)}.")
-    if reply.kind == "referral":
-        return RenderedMessage(text=f"Per il tuo caso specifico chiedi a {_role_text(reply)}.")
-    if reply.kind == "smalltalk":
-        return RenderedMessage(text=SMALLTALK_TEXT)
-    return RenderedMessage(text=ERROR_TEXT)
+        cards = _video_card(_unique(reply.sources), video_thumbnail_url)
+    return RenderedMessage(text=_clamp(_render_text(reply)), cards_v2=cards)
