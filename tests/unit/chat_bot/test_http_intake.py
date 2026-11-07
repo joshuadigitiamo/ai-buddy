@@ -29,14 +29,14 @@ from buddy_bot.intake.http import (
 
 pytestmark = pytest.mark.anyio
 
-AUDIENCE = "https://bot.example.invalid/"
+AUDIENCE = "https://bot.example.invalid/chat"
 CHAT_EMAIL = "service-123@gcp-sa-gsuiteaddons.iam.gserviceaccount.com"
 OTHER_EMAIL = "attacker@example.invalid"
 GOOGLE_ISSUER = "https://accounts.google.com"
 KEY_ID = "test-key-1"
 
 
-class _CertsResponse(Response):  # type: ignore[misc]
+class _CertsResponse(Response):
     def __init__(self, payload: Mapping[str, str]) -> None:
         self._data = json.dumps(payload).encode("utf-8")
 
@@ -53,7 +53,7 @@ class _CertsResponse(Response):  # type: ignore[misc]
         return self._data
 
 
-class _CertsRequest(Request):  # type: ignore[misc]
+class _CertsRequest(Request):
     """Answers every certificate fetch with the test public key."""
 
     def __init__(self, key: RSAKeyPair) -> None:
