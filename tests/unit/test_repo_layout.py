@@ -40,9 +40,39 @@ CONTRACT_KEYS = {
     "GAP_TTL_DAYS",
     "GAP_COLLECTION",
     "GOOGLE_CLOUD_PROJECT",
+    "ALLOWED_USERS",
+    "LLM_BACKEND",
+    "LLM_BASE_URL",
+    "REFORMULATE_MODEL",
+    "ANSWER_MODEL",
+    "LLM_TIMEOUT_SECONDS",
+    "CONFIDENCE_THRESHOLD",
+    "MEMORY_TURNS",
+    "MEMORY_COLLECTION",
+    "MCP_URL",
+    "MCP_AUTH",
+    "MCP_AUDIENCE",
+    "INTAKE",
+    "PUBSUB_SUBSCRIPTION",
+    "CHAT_JWT_AUDIENCE",
+    "CHAT_JWT_ISSUER_EMAIL",
+    "BOT_HOST",
+    "VIDEO_THUMBNAIL_URL",
+    "HELP_COMMAND_ID",
+    "RUN_DEADLINE_SECONDS",
+    "VERTEX_PROJECT",
+    "VERTEX_REGION",
+    "LANGSMITH_TRACING",
 }
 
-SECRET_SUFFIXES = ("_SECRET", "_SIGNING_KEY", "_ENCRYPTION_KEY", "_PASSWORD", "_TOKEN")
+SECRET_SUFFIXES = (
+    "_SECRET",
+    "_SIGNING_KEY",
+    "_ENCRYPTION_KEY",
+    "_PASSWORD",
+    "_TOKEN",
+    "_API_KEY",
+)
 
 GITIGNORE_REQUIRED = {
     ".env",
@@ -143,4 +173,22 @@ def test_env_example_has_no_secret_variable() -> None:
 
 
 def test_env_example_never_targets_the_emulator() -> None:
-    assert "FIRESTORE_EMULATOR_HOST" not in _env_example()
+    keys = set(_env_example())
+    assert keys & {"FIRESTORE_EMULATOR_HOST", "PUBSUB_EMULATOR_HOST"} == set()
+
+
+def _dockerfile_stage(name: str) -> str:
+    """The text of one Dockerfile stage, from its FROM line to the next FROM (or the end)."""
+    text = (ROOT / "Dockerfile").read_text()
+    start = text.find(f"FROM python:3.12-slim AS {name}")
+    assert start != -1, f"Dockerfile has no {name} stage"
+    following = text.find("\nFROM ", start + 1)
+    return text[start : following if following != -1 else len(text)]
+
+
+def test_chat_bot_stage_disables_tracing() -> None:
+    stage = _dockerfile_stage("chat_bot")
+    assert "LANGSMITH_TRACING=false" in stage
+    assert "USER 10001" in stage
+    assert 'python", "-m", "buddy_bot"' in stage
+    assert "COPY services/mcp_server services/mcp_server" not in stage
