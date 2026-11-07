@@ -1,0 +1,92 @@
+# Live development stack (D-15, D-16): Meridian, MCP server, chat bot and the Firestore emulator.
+# Development only; Phase 4 supersedes it with compose, kind and Cloud Run definitions.
+#
+# - No service publishes a port to the host. Meridian is reachable only on the compose network.
+# - Secrets come only from .env or the shell environment, never from this file.
+# - Meridian credentials live in the external named volume `meridian-claude` (03-01 decision
+#   meridian_credentials 1b): seed it once as services/chat_bot/README.md describes; compose
+#   refuses to start until the volume exists. They are never baked into an image and the host
+#   ~/.claude is never mounted.
+# - Meridian is built only from the source commit Joshua approved at 03-01 Task 1.
+#
+# Host environment: BOT_SA_KEY_FILE (path to the bot service-account key, outside the repo),
+# MERIDIAN_API_KEY and GOOGLE_CLOUD_PROJECT (also read from .env by compose), ARTIFACTS_DIR
+# (optional, default ./artifacts), BOT_UID and BOT_GID (optional, default 1000).
+#
+#   docker compose -f docker-compose.dev.yml up --build
+services:
+  meridian:
+    build:
+      context: https://github.com/rynfar/meridian.git#cafdcf780f1b40c8f0dee17481132f47b4cbb353
+    environment:
+      MERIDIAN_HOST: 0.0.0.0
+      MERIDIAN_PORT: "3456"
+      MERIDIAN_HOST_ID: meridian-dev
+      MERIDIAN_API_KEY: ${MERIDIAN_API_KEY:?set MERIDIAN_API_KEY in .env}
+    volumes:
+      - meridian-claude:/home/claude/.claude
+
+  firestore:
+    image: google/cloud-sdk:592.0.0-emulators
+    command: gcloud emulators firestore start --host-port=0.0.0.0:8080
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/"]
+      interval: 2s
+      timeout: 3s
+      retries: 45
+
+  mcp_server:
+    build:
+      context: .
+      target: mcp_server
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ARTIFACT_DIR: /artifacts
+      AUTH_MODE: "off"
+      MCP_HOST: 0.0.0.0
+      PORT: "8000"
+      FIRESTORE_EMULATOR_HOST: firestore:8080
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:?set GOOGLE_CLOUD_PROJECT in .env}
+    volumes:
+      - ${ARTIFACTS_DIR:-./artifacts}:/artifacts:ro
+    depends_on:
+      firestore:
+        condition: service_healthy
+
+  chat_bot:
+    build:
+      context: .
+      target: chat_bot
+    # The image runs as uid 10001, which cannot read a key file kept at mode 600 by its owner.
+    # Dev runs as the host user instead, so the key file needs no chmod.
+    user: "${BOT_UID:-1000}:${BOT_GID:-1000}"
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      HOME: /tmp
+      INTAKE: pubsub
+      LLM_BACKEND: meridian
+      LLM_BASE_URL: http://meridian:3456
+      MERIDIAN_API_KEY: ${MERIDIAN_API_KEY:?set MERIDIAN_API_KEY in .env}
+      MCP_URL: http://mcp_server:8000/mcp
+      MCP_AUTH: none
+      PORT: "8080"
+      FIRESTORE_EMULATOR_HOST: firestore:8080
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/bot-sa.json
+      LANGSMITH_TRACING: "false"
+    volumes:
+      - ${BOT_SA_KEY_FILE:?set BOT_SA_KEY_FILE}:/secrets/bot-sa.json:ro
+    depends_on:
+      meridian:
+        condition: service_started
+      mcp_server:
+        condition: service_started
+      firestore:
+        condition: service_healthy
+
+volumes:
+  meridian-claude:
+    external: true
