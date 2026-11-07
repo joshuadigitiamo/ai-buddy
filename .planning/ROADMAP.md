@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Content Sync** - Repo foundation plus the local handbook snapshot and Guides synced into a redacted, incremental, citable index with video mapping (completed 2026-11-03)
 - [x] **Phase 2: MCP Server and Skill** - Five cited MCP tools over stateless HTTP with Firestore gap log, Google-domain auth, and the `digitiamo-buddy` Skill (completed 2026-11-06)
-- [ ] **Phase 3: Google Chat Bot** - Guarded Google Chat bot with LangGraph 2-step RAG, citation and confidence gates, pluggable LLM client, and video cards
+- [x] **Phase 3: Google Chat Bot** - Guarded Google Chat bot with LangGraph 2-step RAG, citation and confidence gates, pluggable LLM client, and video cards (completed 2026-11-07)
 - [ ] **Phase 4: Infrastructure and CI/CD** - Service images, docker compose, kind manifests, Cloud Run YAMLs and path-filtered GitHub Actions with Workload Identity Federation
 - [ ] **Phase 5: Evaluation and Milestone Gate** - Golden set, Recall@5, correctness and citation scoring, MLflow tracing, empty-context test and the gate verdict
 
@@ -103,7 +103,7 @@ Plans:
   3. Answerable questions return text whose every citation maps to content the MCP tools returned in that run; a question with no source, an unsupported citation, or low confidence returns "non lo so, chiedi a ..." and logs a gap, with no user id stored next to the question.
   4. Questions on sensitive topics (illness, disputes, pay, health, conflicts) receive at most the general written rule plus a referral to a person.
   5. An answer sourced from a Guides section with a mapped video shows a card with the source link, a thumbnail and a "Guarda" button that opens the scene clip (or the full video); handbook answers show the source link.
-**Plans**: 12/12 plans executed
+**Plans**: 12/12 plans complete
 
 Plans:
 **Wave 1**
@@ -168,6 +168,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. Content Sync | 11/11 | Complete    | 2026-11-03 |
 | 2. MCP Server and Skill | 7/7 | Complete    | 2026-11-06 |
-| 3. Google Chat Bot | 12/12 | In Progress | - |
+| 3. Google Chat Bot | 12/12 | Complete    | 2026-11-07 |
 | 4. Infrastructure and CI/CD | 0/0 | Not started | - |
 | 5. Evaluation and Milestone Gate | 0/0 | Not started | - |
