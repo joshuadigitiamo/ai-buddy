@@ -4,12 +4,17 @@ The bot calls only handbook_search, guides_search and buddy_report_gap. It never
 never parses the prose rendering and never touches index.db.
 """
 
-from collections.abc import AsyncIterator, Mapping, Sequence
+import asyncio
+import threading
+import time
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Generator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from typing import Any, TypeVar
 
 import httpx2
 from fastmcp import Client, FastMCP
+from google.auth.transport.requests import Request
+from google.oauth2 import id_token
 from pydantic import BaseModel
 
 from buddy_bot.schemas import Evidence
@@ -20,6 +25,61 @@ T = TypeVar("T", bound=BaseModel)
 
 class McpToolError(Exception):
     """A tool call failed or returned an unusable payload; the message names the tool only."""
+
+
+class GoogleIdTokenAuth(httpx2.Auth):
+    """Bearer auth for the MCP server: the bot's own Google ID token for ``audience``.
+
+    The token comes from ``fetch_id_token`` (the service-account file in
+    GOOGLE_APPLICATION_CREDENTIALS, else the metadata server on Cloud Run) and is cached in
+    memory for ``lifetime_seconds`` (below the one-hour token life). It is never logged. The
+    fetch blocks, so the async flow runs it in a worker thread; nothing is fetched until the
+    first request.
+    """
+
+    def __init__(
+        self,
+        audience: str,
+        *,
+        fetch: Callable[[Request, str], str] = id_token.fetch_id_token,
+        lifetime_seconds: float = 3000.0,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self._audience = audience
+        self._fetch_token = fetch
+        self._lifetime_seconds = lifetime_seconds
+        self._clock = clock
+        self._lock = threading.Lock()
+        self._token: str | None = None
+        self._fetched_at = 0.0
+
+    def _cached(self) -> str | None:
+        if self._token is not None and self._clock() - self._fetched_at < self._lifetime_seconds:
+            return self._token
+        return None
+
+    def _token_value(self) -> str:
+        with self._lock:
+            cached = self._cached()
+            if cached is not None:
+                return cached
+            token = self._fetch_token(Request(), self._audience)
+            self._token = token
+            self._fetched_at = self._clock()
+            return token
+
+    def sync_auth_flow(
+        self, request: httpx2.Request
+    ) -> Generator[httpx2.Request, httpx2.Response, None]:
+        request.headers["Authorization"] = f"Bearer {self._token_value()}"
+        yield request
+
+    async def async_auth_flow(
+        self, request: httpx2.Request
+    ) -> AsyncGenerator[httpx2.Request, httpx2.Response]:
+        token = self._cached() or await asyncio.to_thread(self._token_value)
+        request.headers["Authorization"] = f"Bearer {token}"
+        yield request
 
 
 def evidence_from(
