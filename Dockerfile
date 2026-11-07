@@ -30,3 +30,24 @@ COPY services/mcp_server services/mcp_server
 USER 10001
 EXPOSE 8000
 CMD ["python", "-m", "buddy_mcp"]
+
+# Runtime image for the chat bot: buddy_core, buddy_bot and only the MCP output models
+# (buddy_mcp/__init__.py and models.py); no server code. Non-root. Tracing export stays off:
+# prompts carry employee questions and may only reach the LLM backend and the MCP server.
+FROM python:3.12-slim AS chat_bot
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app/packages/buddy_core:/app/services/mcp_server:/app/services/chat_bot \
+    LANGSMITH_TRACING=false
+WORKDIR /app
+COPY requirements.txt ./
+COPY services/chat_bot/requirements.txt services/chat_bot/requirements.txt
+RUN pip install -r requirements.txt -r services/chat_bot/requirements.txt
+COPY packages/buddy_core packages/buddy_core
+COPY services/mcp_server/buddy_mcp/__init__.py services/mcp_server/buddy_mcp/__init__.py
+COPY services/mcp_server/buddy_mcp/models.py services/mcp_server/buddy_mcp/models.py
+COPY services/chat_bot/buddy_bot services/chat_bot/buddy_bot
+USER 10001
+EXPOSE 8080
+CMD ["python", "-m", "buddy_bot"]
