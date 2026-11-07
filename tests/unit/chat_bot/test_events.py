@@ -149,6 +149,14 @@ def test_dm_text_without_argument_text_is_kept_whole() -> None:
         {"chat": {"addedToSpacePayload": {"space": {}}}},
         {"chat": {"appCommandPayload": {"space": {"name": ROOM}}}},
         {"chat": {"appCommandPayload": {"appCommandMetadata": "x", "space": {"name": ROOM}}}},
+        {
+            "chat": {
+                "appCommandPayload": {
+                    "appCommandMetadata": {"appCommandId": True},
+                    "space": {"name": ROOM},
+                }
+            }
+        },
         {"type": "ADDED_TO_SPACE", "space": {}},
         {"type": "ADDED_TO_SPACE", "space": "x"},
         {"type": "REMOVED_FROM_SPACE"},
