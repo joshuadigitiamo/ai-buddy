@@ -144,3 +144,23 @@ def test_env_example_mcp_url_matches_the_dev_wiring() -> None:
     lines = (ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
     values = dict(line.split("=", 1) for line in lines if line and not line.startswith("#"))
     assert values["MCP_URL"] == _environment(_services()["chat_bot"])["MCP_URL"]
+
+
+BOT_ONLY_SECRETS = ("THREAD_KEY_SECRET", "MERIDIAN_API_KEY", "ANTHROPIC_API_KEY")
+
+
+def test_mcp_server_does_not_receive_the_bots_env_file_or_secrets() -> None:
+    # IN-03: env_file would hand every .env variable, bot secrets included, to the server.
+    server = _services()["mcp_server"]
+    assert "env_file" not in server
+    environment = _environment(server)
+    for secret in BOT_ONLY_SECRETS:
+        assert secret not in environment
+    assert not [key for key in environment if key.endswith(SECRET_SUFFIXES)]
+
+
+def test_mcp_server_still_gets_the_variables_it_requires() -> None:
+    environment = _environment(_services()["mcp_server"])
+    assert INTERPOLATION.fullmatch(environment["GUIDES_WEB_BASE"]), "required by McpSettings"
+    assert environment["ARTIFACT_DIR"] == "/artifacts"
+    assert environment["AUTH_MODE"] == "off"

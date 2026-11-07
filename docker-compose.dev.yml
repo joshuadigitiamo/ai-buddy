@@ -9,7 +9,7 @@
 #   ~/.claude is never mounted.
 # - Meridian is built only from the source commit Joshua approved at 03-01 Task 1.
 #
-# Host environment: BOT_SA_KEY_FILE (path to the bot service-account key, outside the repo),
+# Host environment: GUIDES_WEB_BASE (required, from .env), BOT_SA_KEY_FILE (path to the bot service-account key, outside the repo),
 # MERIDIAN_API_KEY and GOOGLE_CLOUD_PROJECT (also read from .env by compose), ARTIFACTS_DIR
 # (optional, default ./artifacts), BOT_UID and BOT_GID (optional, default 1000).
 #
@@ -42,12 +42,16 @@ services:
     build:
       context: .
       target: mcp_server
-    env_file:
-      - path: .env
-        required: false
+    # No env_file: the server receives only the variables listed here, never the bot's secrets
+    # (THREAD_KEY_SECRET, MERIDIAN_API_KEY, ANTHROPIC_API_KEY). Compose reads .env for ${...}.
     environment:
       ARTIFACT_DIR: /artifacts
       AUTH_MODE: "off"
+      GUIDES_WEB_BASE: ${GUIDES_WEB_BASE:?set GUIDES_WEB_BASE in .env}
+      GAP_TTL_DAYS: ${GAP_TTL_DAYS:-90}
+      GAP_COLLECTION: ${GAP_COLLECTION:-gaps}
+      RATE_LIMIT_RPS: ${RATE_LIMIT_RPS:-5}
+      RATE_LIMIT_BURST: ${RATE_LIMIT_BURST:-30}
       MCP_HOST: 0.0.0.0
       PORT: "8000"
       FIRESTORE_EMULATOR_HOST: firestore:8080
