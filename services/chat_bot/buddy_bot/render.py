@@ -90,6 +90,7 @@ def _video_card(sources: list[Evidence], thumbnail_url: str | None) -> list[dict
         if source.kind == "guides"
         and source.video_url
         and source.video_url.lower().startswith(_WEB_SCHEMES)
+        and source.source_url.lower().startswith(_WEB_SCHEMES)
     ][:MAX_VIDEO_SECTIONS]
     if not videos:
         return []

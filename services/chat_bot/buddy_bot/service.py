@@ -7,12 +7,12 @@ fields or question text (BOT-11).
 import asyncio
 import logging
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any, Final
 
 from buddy_bot.events import ChatEvent, normalize_event
 from buddy_bot.ports import ChatApi, ThreadMemory, Turn
-from buddy_bot.render import RenderedMessage, render_reply
+from buddy_bot.render import ERROR_TEXT, RenderedMessage, render_reply
 from buddy_bot.schemas import BotReply
 from buddy_bot.workflow import WorkflowDeps, run_workflow
 
@@ -146,11 +146,33 @@ class BotService:
         )
         key = memory_key_source(event)
         reply, rendered = await self._run(event, key)
-        await self._chat.update_message(name=name, text=rendered.text, cards_v2=rendered.cards_v2)
+        if not await self._deliver(event, name, rendered):
+            return
         if key is not None and reply.kind in _REMEMBERED_KINDS:
             await self._remember(
                 key, Turn(question=event.text, answer=reply.answer or rendered.text)
             )
+
+    async def _deliver(self, event: ChatEvent, name: str, rendered: RenderedMessage) -> bool:
+        """Patch the placeholder; on failure retry without the card, then post the error text.
+
+        Returns True when the answer reached the user. The last resort is a new message, so the
+        placeholder is never the final reply; its own failure is logged and not raised.
+        """
+        attempts: tuple[Sequence[Mapping[str, Any]], ...] = (rendered.cards_v2, [])
+        for cards in attempts:
+            try:
+                await self._chat.update_message(name=name, text=rendered.text, cards_v2=cards)
+                return True
+            except Exception as exc:
+                _LOGGER.error("reply patch failed: %s", type(exc).__name__)
+        try:
+            await self._chat.create_message(
+                space=event.space_name, thread=event.thread_name, text=ERROR_TEXT
+            )
+        except Exception as exc:
+            _LOGGER.error("error reply failed: %s", type(exc).__name__)
+        return False
 
     async def _recent(self, key: str | None) -> list[Turn]:
         """History for the reformulation step only; a failing store means no history."""

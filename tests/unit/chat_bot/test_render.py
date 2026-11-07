@@ -262,3 +262,15 @@ def test_a_video_url_that_is_not_http_gets_no_guarda_button() -> None:
     sections = render_reply(mixed, video_thumbnail_url=THUMBNAIL).cards_v2[0]["card"]["sections"]
     assert [section["header"] for section in sections] == ["Sezione B"]
     assert "ftp://" not in json.dumps(sections)
+
+
+def test_a_source_url_that_is_not_http_gets_no_video_section() -> None:
+    bad = _guide("A", MAPPED_VIDEO, line=1).model_copy(update={"source_url": "javascript:alert(1)"})
+    good = _guide("B", MAPPED_VIDEO, line=9)
+
+    assert render_reply(_answer([bad]), video_thumbnail_url=THUMBNAIL).cards_v2 == []
+    sections = render_reply(_answer([bad, good]), video_thumbnail_url=THUMBNAIL).cards_v2[0][
+        "card"
+    ]["sections"]
+    assert [section["header"] for section in sections] == ["Sezione B"]
+    assert "javascript:" not in json.dumps(sections)

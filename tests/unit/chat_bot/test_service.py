@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import pytest
@@ -43,6 +44,23 @@ class _SlowLlm(FakeLlm):
 class _FailingChat(FakeChatApi):
     async def create_message(self, *, space: str, thread: str | None, text: str) -> str:
         raise RuntimeError("chat-secret-detail")
+
+
+class _FlakyUpdateChat(FakeChatApi):
+    """update_message raises for the first `failures` calls, then records like the fake."""
+
+    def __init__(self, failures: int) -> None:
+        super().__init__()
+        self.failures = failures
+        self.update_attempts: list[tuple[str, int]] = []
+
+    async def update_message(
+        self, *, name: str, text: str, cards_v2: Sequence[Mapping[str, Any]]
+    ) -> None:
+        self.update_attempts.append((text, len(cards_v2)))
+        if len(self.update_attempts) <= self.failures:
+            raise RuntimeError("patch-secret-detail")
+        await super().update_message(name=name, text=text, cards_v2=cards_v2)
 
 
 class _Clock:
@@ -283,3 +301,43 @@ async def test_room_message_without_thread_uses_no_memory(make_service: ServiceF
 
     assert len(chat.updated) == 1
     assert memory.calls == 0
+
+
+async def test_rejected_patch_falls_back_to_text_without_the_card(
+    make_service: ServiceFactory, caplog: pytest.LogCaptureFixture
+) -> None:
+    llm, memory = _llm(), DictThreadMemory()
+    chat = _FlakyUpdateChat(failures=1)
+
+    with caplog.at_level(logging.DEBUG):
+        await make_service(llm, chat=chat, memory=memory).handle(load_event("legacy_dm_message"))
+
+    assert len(chat.update_attempts) == 2
+    assert chat.update_attempts[1][1] == 0
+    assert [u.cards_v2 for u in chat.updated] == [()]
+    assert GOOD_DRAFT.answer in chat.updated[0].text
+    assert len(memory.append_calls) == 1
+    assert "patch-secret-detail" not in caplog.text
+
+
+async def test_patch_failing_twice_posts_the_error_text_and_stays_quiet(
+    make_service: ServiceFactory, caplog: pytest.LogCaptureFixture
+) -> None:
+    llm, memory = _llm(), DictThreadMemory()
+    chat = _FlakyUpdateChat(failures=2)
+
+    with caplog.at_level(logging.DEBUG):
+        await make_service(llm, chat=chat, memory=memory).handle(load_event("legacy_dm_message"))
+
+    assert [(m.text) for m in chat.created][-1] == ERROR_TEXT
+    assert len(chat.created) == 2
+    assert memory.append_calls == []
+    assert "patch-secret-detail" not in caplog.text
+
+
+async def test_patch_failing_everywhere_never_raises(make_service: ServiceFactory) -> None:
+    chat = _FlakyUpdateChat(failures=99)
+
+    await make_service(_llm(), chat=chat).handle(load_event("legacy_dm_message"))
+
+    assert chat.updated == []
