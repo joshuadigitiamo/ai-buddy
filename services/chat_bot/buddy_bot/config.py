@@ -6,10 +6,25 @@ environment); no env file is read here. Errors name variables, never values.
 
 from __future__ import annotations
 
+import os
+import re
+from collections.abc import Sequence
 from typing import Annotated, Any, Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+_COLLECTION_NAME = re.compile(r"[A-Za-z0-9_-]+")
+_TRUE_VALUES = frozenset({"1", "true", "yes"})
+_TRACING_VARIABLES = ("LANGSMITH_TRACING", "LANGCHAIN_TRACING_V2")
+_MIN_THREAD_KEY_SECRET_LENGTH = 32
+
+
+def _require(mode: str, *, applies: bool, needs: Sequence[tuple[str, object | None]]) -> None:
+    """Raise naming every variable ``mode`` needs that is unset; values are never read out."""
+    missing = [name for name, value in needs if applies and value is None]
+    if missing:
+        raise ValueError(f"{mode} requires: {', '.join(missing)}")
 
 
 def _split_csv(value: Any) -> Any:
@@ -62,9 +77,76 @@ class BotSettings(BaseSettings):
     def _parse_allowed_users(cls, value: Any) -> Any:
         return _split_csv(value)
 
+    @field_validator("thread_key_secret")
+    @classmethod
+    def _check_thread_key_secret(cls, value: SecretStr) -> SecretStr:
+        # The value is not echoed: SecretStr and hide_input_in_errors keep it out of the error.
+        if len(value.get_secret_value()) < _MIN_THREAD_KEY_SECRET_LENGTH:
+            raise ValueError(
+                f"THREAD_KEY_SECRET must be at least {_MIN_THREAD_KEY_SECRET_LENGTH} characters"
+            )
+        return value
+
+    @field_validator("video_thumbnail_url")
+    @classmethod
+    def _check_video_thumbnail_url(cls, value: str) -> str:
+        if not value.startswith("https://"):
+            raise ValueError("VIDEO_THUMBNAIL_URL must start with https://")
+        return value
+
+    @field_validator("memory_collection")
+    @classmethod
+    def _check_memory_collection(cls, value: str) -> str:
+        if not _COLLECTION_NAME.fullmatch(value):
+            raise ValueError("MEMORY_COLLECTION must match [A-Za-z0-9_-]+")
+        return value
+
     @model_validator(mode="after")
-    def _check_backend(self) -> BotSettings:
+    def _check_startup_guards(self) -> BotSettings:
         # Names only: no value of a secret may reach the error text.
-        if self.llm_backend == "api" and self.anthropic_api_key is None:
-            raise ValueError("LLM_BACKEND=api requires: ANTHROPIC_API_KEY")
+        if self.llm_backend == "vertex":
+            raise ValueError("LLM_BACKEND=vertex is not enabled")
+        if not self.allowed_users:
+            raise ValueError("ALLOWED_USERS must list at least one user")
+        # BOT-08 / D1a: Meridian runs on Joshua's Claude Max credentials, so one person only.
+        if self.llm_backend == "meridian" and len(self.allowed_users) > 1:
+            raise ValueError("LLM_BACKEND=meridian requires exactly one ALLOWED_USERS entry (D1a)")
+        _require(
+            "LLM_BACKEND=meridian",
+            applies=self.llm_backend == "meridian",
+            needs=(("LLM_BASE_URL", self.llm_base_url),),
+        )
+        _require(
+            "LLM_BACKEND=api",
+            applies=self.llm_backend == "api",
+            needs=(("ANTHROPIC_API_KEY", self.anthropic_api_key),),
+        )
+        # Mirror of Phase 2 D-13. K_SERVICE is Cloud Run's marker; a different host in Phase 4
+        # must add its own.
+        if self.mcp_auth == "none" and "K_SERVICE" in os.environ:
+            raise ValueError(
+                "MCP_AUTH=none is refused when K_SERVICE is set (deployed on Cloud Run)"
+            )
+        _require(
+            "MCP_AUTH=google_id_token",
+            applies=self.mcp_auth == "google_id_token",
+            needs=(("MCP_AUDIENCE", self.mcp_audience),),
+        )
+        _require(
+            "INTAKE=pubsub",
+            applies=self.intake == "pubsub",
+            needs=(("PUBSUB_SUBSCRIPTION", self.pubsub_subscription),),
+        )
+        _require(
+            "INTAKE=http",
+            applies=self.intake == "http",
+            needs=(
+                ("CHAT_JWT_AUDIENCE", self.chat_jwt_audience),
+                ("CHAT_JWT_ISSUER_EMAIL", self.chat_jwt_issuer_email),
+            ),
+        )
+        if any(
+            os.environ.get(name, "").strip().lower() in _TRUE_VALUES for name in _TRACING_VARIABLES
+        ):
+            raise ValueError("LANGSMITH_TRACING must be false: prompts must not leave the host")
         return self
