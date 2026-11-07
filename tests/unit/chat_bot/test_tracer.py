@@ -15,11 +15,22 @@ from tests.unit.chat_bot.conftest import (
     load_event,
 )
 
-from buddy_bot.schemas import AnswerDraft, Reformulation
+from buddy_bot.gate import check, cited_sources
+from buddy_bot.schemas import AnswerDraft, Evidence, Reformulation
 from buddy_bot.service import PLACEHOLDER_TEXT, BotService
 from buddy_bot.workflow import WorkflowConfig, WorkflowDeps
 
 pytestmark = pytest.mark.anyio
+
+THRESHOLD = 0.7
+EVIDENCE = Evidence(
+    source_url="handbook://02-ferie",
+    kind="handbook",
+    title="Ferie e permessi",
+    text="Invia la richiesta al responsabile.",
+    revision_date="2026-10-03T00:00:00+00:00",
+    revision_kind="last_updated",
+)
 
 REFORMULATION = Reformulation(
     standalone_question="Come richiedo le ferie?",
@@ -107,3 +118,46 @@ async def test_stranger_reaches_nothing(
     assert llm.calls == []
     assert connector.calls == []
     assert chat.created == [] and chat.updated == []
+
+
+def _draft(**changes: Any) -> AnswerDraft:
+    return GOOD_DRAFT.model_copy(update=changes)
+
+
+@pytest.mark.parametrize(
+    ("evidence", "draft", "reason"),
+    [
+        ({}, GOOD_DRAFT, "no_evidence"),
+        ({EVIDENCE.source_url: EVIDENCE}, _draft(citations=[]), "no_citation"),
+        (
+            {EVIDENCE.source_url: EVIDENCE},
+            _draft(citations=["handbook://99-inventata"]),
+            "unsupported_citation",
+        ),
+        ({EVIDENCE.source_url: EVIDENCE}, _draft(grounded=False), "not_grounded"),
+        ({EVIDENCE.source_url: EVIDENCE}, _draft(confidence=0.69), "low_confidence"),
+        # Two rules broken at once: the earlier check in the fixed order names the reason.
+        ({EVIDENCE.source_url: EVIDENCE}, _draft(citations=[], grounded=False), "no_citation"),
+        ({EVIDENCE.source_url: EVIDENCE}, _draft(confidence=0.7), "ok"),
+    ],
+    ids=[
+        "no_evidence",
+        "no_citation",
+        "unsupported_citation",
+        "not_grounded",
+        "low_confidence",
+        "order_no_citation_before_not_grounded",
+        "passes_at_threshold",
+    ],
+)
+def test_gate_reasons_in_fixed_order(
+    evidence: dict[str, Evidence], draft: AnswerDraft, reason: str
+) -> None:
+    result = check(evidence, draft, THRESHOLD)
+    assert result.reason == reason
+    assert result.ok is (reason == "ok")
+
+
+def test_cited_sources_returns_each_source_once_after_strip() -> None:
+    draft = _draft(citations=[" handbook://02-ferie", "handbook://02-ferie"])
+    assert cited_sources({EVIDENCE.source_url: EVIDENCE}, draft) == [EVIDENCE]
