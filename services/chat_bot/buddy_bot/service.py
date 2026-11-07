@@ -23,9 +23,9 @@ INTRO_TEXT: Final = (
     "come funziono."
 )
 USAGE_TEXT: Final = (
-    "Scrivimi una domanda in linguaggio naturale. Due esempi:\n"
-    "• Come richiedo le ferie? (manuale aziendale)\n"
-    "• Come funziona il chunking nei sistemi RAG? (Guide tecniche)\n"
+    "Scrivimi una domanda in linguaggio naturale. Due esempi:\n\n"
+    "• Come richiedo le ferie? (manuale aziendale)\n\n"
+    "• Come funziona il chunking nei sistemi RAG? (Guide tecniche)\n\n"
     "Rispondo solo da fonti ufficiali e cito sempre la fonte. "
     "Se non trovo la risposta te lo dico e ti indico a chi chiedere."
 )

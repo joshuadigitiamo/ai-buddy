@@ -66,6 +66,13 @@ def test_canned_texts_name_the_bot_and_the_sources() -> None:
     assert "?" in USAGE_TEXT
 
 
+def test_canned_texts_have_no_markdown_soft_breaks() -> None:
+    # Chat renders standard Markdown, where a lone newline is a soft break (live check 2026-11-07).
+    for text in (INTRO_TEXT, USAGE_TEXT):
+        assert "\n" not in text.replace("\n\n", "")
+    assert len(USAGE_TEXT.split("\n\n")) >= 4
+
+
 @pytest.mark.parametrize("shape", ["legacy_added_to_space", "addon_added_to_space"])
 async def test_added_to_space_gets_intro_without_model_calls(
     make_service: ServiceFactory, connector: RecordingConnector, shape: str

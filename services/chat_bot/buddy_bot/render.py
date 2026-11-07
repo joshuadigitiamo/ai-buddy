@@ -127,12 +127,16 @@ def _cap_prose(prose: str) -> str:
     return prose[: MAX_ANSWER_CHARS - 1].rstrip() + "…"
 
 
+# Chat renders standard Markdown: a lone newline is a soft break, so every line is its own
+# paragraph (live check 2026-11-07: two Fonte lines ran together).
+PARAGRAPH_BREAK: Final = "\n\n"
+
+
 def _compose(prose: str, fonte_lines: list[str], tail: list[str]) -> str:
     """Join the blocks; whole Fonte lines are dropped from the end until the message fits."""
     kept = list(fonte_lines)
     while True:
-        blocks = (prose, "\n".join(kept), "\n".join(tail))
-        text = "\n\n".join(block for block in blocks if block)
+        text = PARAGRAPH_BREAK.join(block for block in (prose, *kept, *tail) if block)
         if len(text) <= MAX_MESSAGE_CHARS or not kept:
             return text
         kept.pop()
@@ -160,7 +164,7 @@ def _render_text(reply: BotReply) -> str:
         return SMALLTALK_TEXT
     else:
         return ERROR_TEXT
-    return "\n".join(line for line in (head, contact_line) if line)
+    return PARAGRAPH_BREAK.join(line for line in (head, contact_line) if line)
 
 
 def render_reply(reply: BotReply, *, video_thumbnail_url: str | None) -> RenderedMessage:

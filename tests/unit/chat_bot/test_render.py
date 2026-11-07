@@ -159,6 +159,31 @@ def test_sensitive_answer_ends_with_the_referral_sentence_after_the_fonte_lines(
     assert "Contatto dal manuale: Contatti (handbook://05-contatti)" in text
 
 
+def _assert_no_soft_breaks(text: str) -> None:
+    # Chat renders standard Markdown: a lone "\n" is a soft break and the lines run together.
+    # Live check 2026-11-07: two "Fonte:" lines rendered on one line.
+    assert "\n" not in text.replace("\n\n", "")
+    assert "\n\n\n" not in text
+
+
+def test_every_line_is_its_own_markdown_paragraph() -> None:
+    sources = [_handbook("02-ferie", "Ferie e permessi"), _handbook("03-malattia", "Malattia")]
+    answer = render_reply(_answer(sources, referente=HR), video_thumbnail_url=None).text
+    refusal = render_reply(BotReply(kind="refusal", referente=HR), video_thumbnail_url=None).text
+    referral = render_reply(BotReply(kind="referral", referente=HR), video_thumbnail_url=None).text
+
+    for text in (answer, refusal, referral):
+        _assert_no_soft_breaks(text)
+    blocks = answer.split("\n\n")
+    assert [block.split(" (")[0] for block in blocks[1:3]] == [
+        "Fonte: Manuale – Ferie e permessi",
+        "Fonte: Manuale – Malattia",
+    ]
+    assert blocks[3].startswith("Contatto dal manuale: Contatti")
+    assert blocks[4].startswith("Per il tuo caso specifico chiedi a HR")
+    assert refusal.split("\n\n")[1].startswith("Contatto dal manuale: Contatti")
+
+
 def test_model_links_and_chat_markup_are_removed_from_the_prose() -> None:
     reply = _answer(
         [_handbook("02-ferie", "Ferie e permessi")],
