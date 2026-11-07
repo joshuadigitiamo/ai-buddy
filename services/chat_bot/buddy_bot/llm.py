@@ -27,8 +27,28 @@ MERIDIAN_PLACEHOLDER_KEY = "meridian-local"
 _FENCE = re.compile(r"```[A-Za-z0-9_-]*\s*(.*?)```", re.DOTALL)
 
 
+def _object_slice(text: str) -> str | None:
+    """The text from the first "{" to the last "}" when that slice is a JSON object."""
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end < start:
+        return None
+    candidate = text[start : end + 1]
+    try:
+        parsed = json.loads(candidate)
+    except ValueError:
+        return None
+    return candidate if isinstance(parsed, dict) else None
+
+
 def extract_json(text: str) -> str:
-    """Return the JSON object inside ``text``: fence content if any, else first "{" to last "}"."""
+    """Return the JSON object inside ``text``.
+
+    The whole text is tried first, so a Markdown fence inside a string value is never taken for
+    the wrapper; fence content and the loose "{" to "}" slice are fallbacks.
+    """
+    whole = _object_slice(text)
+    if whole is not None:
+        return whole
     fenced = _FENCE.search(text)
     body = fenced.group(1) if fenced else text
     start, end = body.find("{"), body.rfind("}")

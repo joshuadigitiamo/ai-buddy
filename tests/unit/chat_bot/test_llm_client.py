@@ -10,7 +10,12 @@ import pytest
 from anthropic import AsyncAnthropic
 
 from buddy_bot.config import BotSettings
-from buddy_bot.llm import MERIDIAN_PLACEHOLDER_KEY, AnthropicMessagesClient, build_llm_client
+from buddy_bot.llm import (
+    MERIDIAN_PLACEHOLDER_KEY,
+    AnthropicMessagesClient,
+    build_llm_client,
+    extract_json,
+)
 from buddy_bot.ports import LlmOutputError, LlmUnavailableError
 from buddy_bot.schemas import Reformulation
 
@@ -205,6 +210,23 @@ async def test_json_wrapped_in_prose_and_code_fence_parses() -> None:
     result = await ask(llm)
 
     assert result.standalone_question == VALID_REFORMULATION["standalone_question"]
+    assert len(seen) == 1
+
+
+def test_extract_json_keeps_a_code_fence_inside_a_string_value() -> None:
+    payload = json.dumps({"answer": "Usa:\n```python\nx = {1: 2}\n```\nfine", "n": 1})
+
+    assert json.loads(extract_json(payload)) == json.loads(payload)
+    assert json.loads(extract_json(f"Ecco:\n{payload}\nFine.")) == json.loads(payload)
+
+
+async def test_answer_with_a_code_fence_parses_without_a_repair_call() -> None:
+    value = {**VALID_REFORMULATION, "standalone_question": "Usa ```x``` poi {y}"}
+    llm, seen = direct_client(lambda _r: messages_response(json.dumps(value)))
+
+    result = await ask(llm)
+
+    assert result.standalone_question == value["standalone_question"]
     assert len(seen) == 1
 
 
