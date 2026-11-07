@@ -23,6 +23,9 @@ services:
       MERIDIAN_PORT: "3456"
       MERIDIAN_HOST_ID: meridian-dev
       MERIDIAN_API_KEY: ${MERIDIAN_API_KEY:?set MERIDIAN_API_KEY in .env}
+      # BOT-11: drops Meridian's routine per-request [PROXY] stderr lines (docs/configuration.md).
+      # Meridian has no other option to reduce request logging; debug flags stay unset.
+      MERIDIAN_SILENT: "1"
     volumes:
       - meridian-claude:/home/claude/.claude
 

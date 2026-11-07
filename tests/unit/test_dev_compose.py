@@ -52,6 +52,17 @@ def test_meridian_is_built_from_the_approved_commit() -> None:
     assert context.endswith("cafdcf780f1b40c8f0dee17481132f47b4cbb353"), "03-01 approved SHA"
 
 
+def test_meridian_request_logging_is_silenced() -> None:
+    # BOT-11: no question text in logs. At the approved SHA the per-request `[PROXY] ... msgs=`
+    # line carries only roles and content types, but MERIDIAN_SILENT=1 (src/proxy/types.ts)
+    # removes every routine [PROXY] request line, so a later Meridian change cannot start
+    # printing prompt text unnoticed. MERIDIAN_DEBUG is verbose request/session logging.
+    environment = _environment(_services()["meridian"])
+    assert environment["MERIDIAN_SILENT"] == "1"
+    for debug_flag in ("MERIDIAN_DEBUG", "CLAUDE_PROXY_DEBUG", "OPENCODE_CLAUDE_PROVIDER_DEBUG"):
+        assert debug_flag not in environment
+
+
 def test_meridian_credentials_follow_the_recorded_decision() -> None:
     meridian = _services()["meridian"]
     volumes = meridian["volumes"]
