@@ -8,7 +8,10 @@ dependencies = []
 pythonpath = ["packages/buddy_core", "jobs/sync", "services/mcp_server", "services/chat_bot"]
 testpaths = ["tests"]
 addopts = "-ra --import-mode=importlib"
-markers = ["firestore: needs the Firestore emulator (FIRESTORE_EMULATOR_HOST); run with ./run-unit-tests.sh --emulator"]
+markers = [
+    "firestore: needs the Firestore emulator (FIRESTORE_EMULATOR_HOST); run with ./run-unit-tests.sh --emulator",
+    "pubsub: needs the Pub/Sub emulator (PUBSUB_EMULATOR_HOST); run with ./run-unit-tests.sh --emulator",
+]
 
 [tool.coverage.run]
 source = ["buddy_core", "buddy_sync", "buddy_mcp", "buddy_bot"]
@@ -31,6 +34,11 @@ plugins = ["pydantic.mypy"]
 [[tool.mypy.overrides]]
 # snowballstemmer ships no stubs and no py.typed marker.
 module = "snowballstemmer"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# google-cloud-pubsub ships no py.typed marker; only buddy_bot.intake.pubsub and its test import it.
+module = "google.cloud.pubsub_v1"
 ignore_missing_imports = true
 
 [tool.ruff]

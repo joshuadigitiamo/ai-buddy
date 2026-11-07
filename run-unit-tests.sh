@@ -5,7 +5,7 @@
 #   ./run-unit-tests.sh --all
 #   ./run-unit-tests.sh --single      <test_file> <test_name> <test_directory>
 #   ./run-unit-tests.sh --single-file <test_file> <test_directory>
-#   ./run-unit-tests.sh --emulator   (Firestore emulator via docker compose; tests marked `firestore`)
+#   ./run-unit-tests.sh --emulator   (Firestore and Pub/Sub emulators via docker compose; tests marked `firestore` or `pubsub`)
 
 set -euo pipefail
 
@@ -91,10 +91,10 @@ case "$1" in
     export BUDDY_ENV_FILE="${env_file}" HOST_UID="$(id -u)" HOST_GID="$(id -g)"
     compose=(docker compose -p ai-buddy-test -f "${SCRIPT_DIR}/docker-compose.test.yml")
     trap '"${compose[@]}" down --remove-orphans >/dev/null 2>&1 || true' EXIT
-    log "Starting Firestore emulator ..."
-    "${compose[@]}" up -d --wait firestore
-    log "Running firestore-marked tests (env: $(basename "${env_file}"))"
-    "${compose[@]}" run --rm tests python -m pytest -m firestore tests/integration -v --tb=short \
+    log "Starting Firestore and Pub/Sub emulators ..."
+    "${compose[@]}" up -d --wait firestore pubsub
+    log "Running firestore- and pubsub-marked tests (env: $(basename "${env_file}"))"
+    "${compose[@]}" run --rm tests python -m pytest -m "firestore or pubsub" tests/integration -v --tb=short \
       -o cache_dir=/tmp/.pytest_cache -rs
     ;;
   *)

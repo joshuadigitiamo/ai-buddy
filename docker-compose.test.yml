@@ -1,4 +1,4 @@
-# Firestore emulator plus the test runner for ./run-unit-tests.sh --emulator.
+# Firestore and Pub/Sub emulators plus the test runner for ./run-unit-tests.sh --emulator.
 # Test network only: no published ports, no credentials, demo- project id (emulator-only).
 services:
   firestore:
@@ -10,10 +10,21 @@ services:
       timeout: 3s
       retries: 45
 
+  pubsub:
+    image: google/cloud-sdk:592.0.0-emulators
+    command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=demo-ai-buddy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8085/"]
+      interval: 2s
+      timeout: 3s
+      retries: 45
+
   tests:
     image: ai-buddy-test
     depends_on:
       firestore:
+        condition: service_healthy
+      pubsub:
         condition: service_healthy
     user: "${HOST_UID}:${HOST_GID}"
     env_file: ${BUDDY_ENV_FILE}
@@ -24,6 +35,7 @@ services:
       COVERAGE_FILE: /tmp/.coverage
       RUFF_CACHE_DIR: /tmp/.ruff_cache
       FIRESTORE_EMULATOR_HOST: firestore:8080
+      PUBSUB_EMULATOR_HOST: pubsub:8085
       GOOGLE_CLOUD_PROJECT: demo-ai-buddy
     volumes:
       - .:/app
