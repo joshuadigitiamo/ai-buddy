@@ -113,12 +113,16 @@ These cannot be set from code. Configure them in Google Cloud Console, Google Ch
 - **Visibility: Joshua only.** Share the app with the one person who may use it, and nobody else. This is part of BOT-03; the allowlist is the second layer, not the first.
 - **Connection, development:** Cloud Pub/Sub, with the topic. The bot pulls from a subscription on that topic.
 - **Connection, Cloud Run (Phase 4):** HTTP endpoint URL, with **Authentication Audience = HTTP endpoint URL**. Set `CHAT_JWT_AUDIENCE` to that same URL. Set `CHAT_JWT_ISSUER_EMAIL` to the service account that signs the requests, which depends on the app format: `chat@system.gserviceaccount.com` for the legacy format, the add-on service account `service-<project-number>@gcp-sa-gsuiteaddons.iam.gserviceaccount.com` for the add-on format. Only the endpoint-URL audience mode is supported; the project-number mode is not.
+- **Markup syntax: MARKDOWN** (the default). Chat then renders standard Markdown, where a lone newline is a soft break, so the bot puts a blank line between every Fonte line, the contact line and the referral sentence. Do not switch the app to another syntax without changing `render.py`.
 - **Slash command:** `/aiuto`. Note the command id Chat shows and put it in `HELP_COMMAND_ID`.
-- **Event formats:** apps created after July 2025 default to the add-on format, older ones to the legacy format. The bot accepts both.
+- **Event formats:** apps created after July 2025 default to the add-on format (the "Build this Chat app as a Google Workspace add-on" checkbox, which cannot be undone), older ones to the legacy format. The bot accepts both.
 
 ## Pub/Sub and IAM
 
-- Grant `roles/pubsub.publisher` on the topic **only** to `chat-api-push@system.gserviceaccount.com`. Nobody else may publish: anything on the topic is treated as a Chat event (the allowlist still applies, but publishing rights are the first line).
+- Grant `roles/pubsub.publisher` on the topic **only** to the identity Chat publishes as, which depends on the app format. Nobody else may publish: anything on the topic is treated as a Chat event (the allowlist still applies, but publishing rights are the first line).
+  - **Add-on format** (the default for new apps, and what this project uses): `service-<project-number>@gcp-sa-gsuiteaddons.iam.gserviceaccount.com`, where `<project-number>` is the numeric project number, not the project id. Granting `chat-api-push` here does not work: the live check got `PERMISSION_DENIED` on publish until the add-on service account was the publisher.
+  - **Legacy format** (non-add-on apps only): `chat-api-push@system.gserviceaccount.com`.
+  - The grant is on the topic itself, not on the project, and that single service account is the only publisher. Remove the grant of the format you do not use.
 - Grant `roles/pubsub.subscriber` on the subscription to the bot service account.
 - The bot service-account key stays outside the repository. Its path goes in the `BOT_SA_KEY_FILE` environment variable of your shell and the compose file mounts it read-only. It is never in `.env.example`, this README or the repository.
 
@@ -137,7 +141,8 @@ Meridian is a third-party proxy that lets the bot use Joshua's Claude Max login 
 - It is built only from the source commit approved at 03-01 (pinned in `docker-compose.dev.yml` as a 40-character SHA), with the repository's own Dockerfile.
 - It publishes no port. It is reachable only on the compose network, at `http://meridian:3456`, and every API route requires `MERIDIAN_API_KEY`.
 - Its credentials are the `meridian-claude` volume described above, never an image layer and never the host `~/.claude`.
-- Auth header: the Anthropic SDK sends the key as `Authorization: Bearer`. Meridian's documentation at the pinned commit says it accepts `x-api-key` or `Authorization: Bearer`. [Unknown until the live check.] If Meridian rejects the bearer header, the fix is `default_headers={"x-api-key": key}` in the meridian branch of `build_llm_client`.
+- Auth header: the Anthropic SDK sends the key as `Authorization: Bearer`, and Meridian accepted it at the live check (2026-11-07). No `x-api-key` override is needed.
+- Logging: the compose file sets `MERIDIAN_SILENT=1`, which drops Meridian's routine per-request `[PROXY]` stderr lines. At the pinned commit the `msgs=` field of that line holds only roles and content types (for example `user[string]`), never question text, but the flag keeps a later change from printing prompts unnoticed (BOT-11). Meridian has no other logging option, and `MERIDIAN_DEBUG` must stay unset: it turns on verbose request and session logging.
 - Meridian honours neither sampling controls nor exact output-token caps; structured output is JSON in the prompt.
 
 ## Thread memory and privacy
@@ -163,12 +168,12 @@ The bot logs counters, node names, durations, tool names, modes and exception ty
 
 These are covered by synthetic fixtures and unit tests only. The first live run settles them:
 
-- Which event format arrives (add-on or legacy), and whether `user.email` is present.
+- Which event format arrives (add-on or legacy), and whether `user.email` is present. Settled at the live check: add-on format, `user.email` present.
 - That the message update works with the field mask `text` and `cards_v2`, and that the card and the "Guarda" button render and open the video at the scene offset.
 - That a bare `@AI Buddy` mention in a room, with blank `argumentText`, is handled (it may normalise to the text "Buddy").
 - That a DM follow-up uses the thread memory.
-- That the Meridian auth header is accepted.
-- That the Pub/Sub topic accepts publishes only from the Chat service account.
+- That the Meridian auth header is accepted. Settled: it is.
+- That the Pub/Sub topic accepts publishes only from the Chat service account. For an add-on app that account is `service-<project-number>@gcp-sa-gsuiteaddons.iam.gserviceaccount.com`.
 - With `MCP_AUTH=google_id_token`: a live ID-token call to the MCP server (`MCP_AUDIENCE` equal to the server's `MCP_PUBLIC_BASE_URL`). Not run so far; it is tracked in `.planning/WINDOWS.md`.
 
 ## Prima di un secondo utente

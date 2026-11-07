@@ -50,3 +50,23 @@ def test_readme_documents_the_manual_chat_app_settings() -> None:
     assert "Joshua only" in text
     assert "Authentication Audience" in text
     assert "ttls update expire_at" in text
+
+
+def test_readme_names_the_publisher_for_each_app_format() -> None:
+    # Live check 2026-11-07: an add-on Chat app publishes as the gsuiteaddons service account,
+    # so a grant to chat-api-push alone gave PERMISSION_DENIED.
+    text = _text()
+    section = text.split("## Pub/Sub and IAM", 1)[1].split("\n## ", 1)[0]
+    assert "service-<project-number>@gcp-sa-gsuiteaddons.iam.gserviceaccount.com" in section
+    assert "Add-on format" in section
+    legacy = section.split("**Legacy format**", 1)[1]
+    assert "chat-api-push@system.gserviceaccount.com" in legacy
+    assert "non-add-on apps only" in legacy
+    assert "PERMISSION_DENIED" in section
+
+
+def test_readme_documents_markdown_syntax_and_silent_meridian() -> None:
+    text = _text()
+    assert "Markup syntax: MARKDOWN" in text
+    assert "MERIDIAN_SILENT=1" in text
+    assert "network namespace" in text
