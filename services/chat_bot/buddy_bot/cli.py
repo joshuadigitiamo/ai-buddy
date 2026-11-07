@@ -35,6 +35,11 @@ LOG_FORMAT: Final = "%(levelname)s %(name)s %(message)s"
 # Failures that end startup with one ERROR line and exit code 1.
 _EXPECTED_ERRORS: Final = (EscalationTableError, OSError)
 
+# Libraries that write request content at DEBUG: fastmcp logs tool arguments (the question) and
+# anthropic logs request options (the prompts). FASTMCP_LOG_LEVEL=DEBUG or ANTHROPIC_LOG=debug
+# must not reach the log sink (BOT-11), so startup raises their level to INFO.
+_CONTENT_LOGGERS: Final = ("fastmcp", "anthropic")
+
 RunFn = Callable[[IntakePort, EventHandler], None]
 
 
@@ -58,6 +63,14 @@ def _run_intake(intake: IntakePort, handler: EventHandler) -> None:
         return
 
 
+def floor_content_loggers() -> None:
+    """Raise every library logger that writes request content at DEBUG to INFO."""
+    for name in _CONTENT_LOGGERS:
+        library = logging.getLogger(name)
+        if library.getEffectiveLevel() < logging.INFO:
+            library.setLevel(logging.INFO)
+
+
 def _configure_logging(logger: logging.Logger) -> logging.Handler:
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(logging.Formatter(LOG_FORMAT))
@@ -71,6 +84,7 @@ def main(argv: Sequence[str] | None = None, *, run: RunFn | None = None) -> int:
     del argv  # no command-line options: every setting comes from the environment
     logger = logging.getLogger(LOGGER_NAME)
     handler = _configure_logging(logger)
+    floor_content_loggers()
     try:
         return _run(logger, run or _run_intake)
     except ValidationError as exc:

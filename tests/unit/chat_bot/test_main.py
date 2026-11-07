@@ -1,7 +1,8 @@
 """Composition root: startup failures are loud and safe, a valid config wires the right intake."""
 
+import logging
 import socket
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import Any
 
 import pytest
@@ -78,6 +79,15 @@ def valid_env(monkeypatch: pytest.MonkeyPatch) -> Callable[..., None]:
                 monkeypatch.setenv(name, value)
 
     return apply
+
+
+@pytest.fixture
+def library_loggers() -> Iterator[None]:
+    """Restore the levels of the content-writing libraries after a test lowers them."""
+    saved = {name: logging.getLogger(name).level for name in ("fastmcp", "anthropic")}
+    yield
+    for name, level in saved.items():
+        logging.getLogger(name).setLevel(level)
 
 
 def _error_lines(captured: str) -> list[str]:
@@ -241,3 +251,17 @@ def test_refused_configurations_exit_one_with_one_safe_line(
     for secret in (SECRET_SENTINEL, SHORT_SECRET_SENTINEL, "sentinella-chiave-api"):
         assert secret not in captured
     assert run_stub.calls == 0
+
+
+@pytest.mark.parametrize("library", ["fastmcp", "anthropic"])
+@pytest.mark.usefixtures("library_loggers")
+def test_startup_keeps_content_writing_libraries_above_debug(
+    valid_env: Callable[..., None], run_stub: RunStub, library: str
+) -> None:
+    """FASTMCP_LOG_LEVEL=DEBUG or ANTHROPIC_LOG=debug would log the question and the prompts."""
+    valid_env()
+    logging.getLogger(library).setLevel(logging.DEBUG)
+
+    assert main([], run=run_stub) == 0
+
+    assert logging.getLogger(library).getEffectiveLevel() >= logging.INFO
