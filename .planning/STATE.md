@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Google Chat Bot
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-11-07T11:11:48.153Z"
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-11-07T11:15:30.247Z"
 last_activity: 2026-11-07
 last_activity_desc: Phase 03 execution started
-state_head: 7e96af9969aa67a617e4abe6e4f4ac86c25d2687
+state_head: 2e3273ed372f602e8465a6207b336f7216d26519
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 30
-  completed_plans: 19
+  completed_plans: 20
   percent: 40
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 03 (Google Chat Bot) — EXECUTING
-Plan: 2 of 12
+Plan: 3 of 12
 Status: Ready to execute
 Last activity: 2026-11-07 — Phase 03 execution started
 
@@ -74,6 +74,7 @@ Progress: [████░░░░░░] 40%
 | Phase 02 P06 | 15 min | 3 tasks | 3 files |
 | Phase 02 P07 | n/a | 3 tasks | 9 files |
 | Phase 03 P02 | 6 min | 2 tasks | 3 files |
+| Phase 03 P01 | 2 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,9 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-07: python -m buddy_mcp composition root proven as a real process on the Firestore emulator; mcp_server image runs as uid 10001 and does not bake the index
 - [Phase 02]: 02-07: Google OAuth verified live through a fastmcp OAuth client (DCR, Google login, token, five tools, cited search); MCP-07 marked complete by user decision 2026-11-06 with claude.ai connector and non-digitiamo rejection checks carried to Phase 4
 - [Phase 03]: 03-02: escalation table ids fixed (stipendio, malattia, molestie, disciplinare, contratto, privacy, ferie_personali, rimborsi); ruolo is the role the bot names, referente keeps Skill wording for the drift check
+- [Phase 03]: 03-01: chat-bot pins approved by Joshua (langgraph 1.2.20, anthropic 2.6.0, google-cloud-pubsub 2.43.0, google-apps-chat 0.10.9, requests 2.34.2 pin-only); Meridian source commit cafdcf780f1b40c8f0dee17481132f47b4cbb353
+- [Phase 03]: 03-01: D-16, D-11, D-09 overridden (Meridian credentials in a named volume; DM memory key HMAC(space); HTTP run awaited up to 25 s); BOT-09, D-10, D-07 interpreted; recorded in 03-CONTEXT.md Amendments (03-01 checkpoint)
+- [Phase 03]: 03-01: VIDEO_THUMBNAIL_URL is a required HTTPS setting; the image is supplied by Joshua via .env at the 03-12 live checkpoint (not yet provided)
 
 ### Pending Todos
 
@@ -152,6 +156,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07T11:11:48.059Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-11-07T11:15:30.142Z
+Stopped at: Completed 03-01-PLAN.md
 Resume file: None
