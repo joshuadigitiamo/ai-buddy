@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Google Chat Bot
 status: executing
-stopped_at: Completed 03-08-PLAN.md
-last_updated: "2026-11-07T12:01:11.261Z"
+stopped_at: Completed 03-09-PLAN.md
+last_updated: "2026-11-07T12:10:34.289Z"
 last_activity: 2026-11-07
 last_activity_desc: Phase 03 execution started
-state_head: 2cc6aa46ded3fc878bf9a9af3deb72297c12aa90
+state_head: 218dd2b4a241b7ac790092d8f9c1a5d19a39caba
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 30
-  completed_plans: 26
+  completed_plans: 27
   percent: 40
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 03 (Google Chat Bot) — EXECUTING
-Plan: 9 of 12
+Plan: 10 of 12
 Status: Ready to execute
 Last activity: 2026-11-07 — Phase 03 execution started
 
@@ -81,6 +81,7 @@ Progress: [████░░░░░░] 40%
 | Phase 03 P06 | 7 min | 3 tasks | 4 files |
 | Phase 03 P07 | 4 min | 2 tasks | 3 files |
 | Phase 03 P08 | 12 min | 2 tasks | 2 files |
+| Phase 03 P09 | 8 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -146,6 +147,9 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-07: ThreadMemory adapters hash a caller-supplied key source (DM space name or room thread name, memory_key 3b) with HMAC-SHA256; document shape fixed to turns/updated_at/expire_at; read-side 24h expiry (expire_at <= now reads empty) until Phase 4 Firestore TTL
 - [Phase 03]: 03-08: card sections only for cited Guides sources with an http(s) video_url; non-web schemes get no section or button
 - [Phase 03]: 03-08: sensitive answer order is prose, Fonte lines, contact provenance line, then the fixed referral sentence last; final 4,000-char clamp for any kind
+- [Phase 03]: 03-09: memory_key_source follows 03-01 option b (DM space name, room thread name); no thread means no memory
+- [Phase 03]: 03-09: message-name TTL dedupe (600 s, 1024 entries) marks a name seen on first handling, also when that attempt fails; per process only
+- [Phase 03]: 03-09: run deadline covers history read, workflow and rendering; placeholder creation sits outside it
 
 ### Pending Todos
 
@@ -174,6 +178,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07T12:01:11.162Z
-Stopped at: Completed 03-08-PLAN.md
+Last session: 2026-11-07T12:10:34.188Z
+Stopped at: Completed 03-09-PLAN.md
 Resume file: None
