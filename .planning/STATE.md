@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Google Chat Bot
 status: executing
-stopped_at: Phase 3 context gathered
-last_updated: "2026-11-07T11:07:17.078Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-11-07T11:11:48.153Z"
 last_activity: 2026-11-07
 last_activity_desc: Phase 03 execution started
-state_head: d549fc6544c0482686015ee193dd47a451665962
+state_head: 7e96af9969aa67a617e4abe6e4f4ac86c25d2687
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 30
-  completed_plans: 18
+  completed_plans: 19
   percent: 40
 ---
 
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 03 (Google Chat Bot) — EXECUTING
-Plan: 1 of 12
-Status: Executing Phase 03
+Plan: 2 of 12
+Status: Ready to execute
 Last activity: 2026-11-07 — Phase 03 execution started
 
 Progress: [████░░░░░░] 40%
@@ -73,6 +73,7 @@ Progress: [████░░░░░░] 40%
 | Phase 02 P05 | 8 min | 3 tasks | 10 files |
 | Phase 02 P06 | 15 min | 3 tasks | 3 files |
 | Phase 02 P07 | n/a | 3 tasks | 9 files |
+| Phase 03 P02 | 6 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -122,6 +123,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-06: Skill description must avoid ': ' (breaks unquoted YAML front matter); guarded by safe_load test
 - [Phase 02]: 02-07: python -m buddy_mcp composition root proven as a real process on the Firestore emulator; mcp_server image runs as uid 10001 and does not bake the index
 - [Phase 02]: 02-07: Google OAuth verified live through a fastmcp OAuth client (DCR, Google login, token, five tools, cited search); MCP-07 marked complete by user decision 2026-11-06 with claude.ai connector and non-digitiamo rejection checks carried to Phase 4
+- [Phase 03]: 03-02: escalation table ids fixed (stipendio, malattia, molestie, disciplinare, contratto, privacy, ferie_personali, rimborsi); ruolo is the role the bot names, referente keeps Skill wording for the drift check
 
 ### Pending Todos
 
@@ -150,6 +152,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07T09:55:50.622Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-google-chat-bot/03-CONTEXT.md
+Last session: 2026-11-07T11:11:48.059Z
+Stopped at: Completed 03-02-PLAN.md
+Resume file: None
