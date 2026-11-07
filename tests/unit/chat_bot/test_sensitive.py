@@ -108,12 +108,24 @@ async def test_sensitive_question_without_a_supported_rule_is_a_referral_with_a_
     assert [r.question for r in gaplog.records] == [STANDALONE]
 
 
-async def test_unknown_topic_id_is_treated_as_sensitive_with_the_fallback_role(
+@pytest.mark.parametrize("topic", ["argomento-sconosciuto", "none", "nessuno", "", "  ", "null"])
+async def test_a_topic_that_is_not_a_table_id_is_not_sensitive(
+    connector: RecordingConnector, workflow_config: WorkflowConfig, topic: str
+) -> None:
+    llm = FakeLlm({Reformulation: [_reformulation(topic)], AnswerDraft: [_draft()]})
+
+    reply = await run_workflow("domanda", [], WorkflowDeps(llm, connector, workflow_config))
+
+    assert reply.kind == "answer"
+    assert reply.referente is None
+    answer_call = next(c for c in llm.calls if c.schema is AnswerDraft)
+    assert answer_call.system == prompts.ANSWER_SYSTEM
+
+
+async def test_a_known_topic_id_is_sensitive_whatever_its_case_and_padding(
     connector: RecordingConnector, workflow_config: WorkflowConfig
 ) -> None:
-    llm = FakeLlm(
-        {Reformulation: [_reformulation("argomento-sconosciuto")], AnswerDraft: [_draft()]}
-    )
+    llm = FakeLlm({Reformulation: [_reformulation(" Malattia ")], AnswerDraft: [_draft()]})
 
     reply = await run_workflow("domanda", [], WorkflowDeps(llm, connector, workflow_config))
 
@@ -121,6 +133,25 @@ async def test_unknown_topic_id_is_treated_as_sensitive_with_the_fallback_role(
     assert reply.referente.role == "HR"
     answer_call = next(c for c in llm.calls if c.schema is AnswerDraft)
     assert answer_call.system == prompts.ANSWER_SENSITIVE_SYSTEM
+
+
+async def test_a_known_topic_whose_role_is_unmapped_falls_back_to_the_fallback_role(
+    connector: RecordingConnector, workflow_config: WorkflowConfig
+) -> None:
+    table = EscalationTable(
+        version=1,
+        fallback_role="Ufficio Persone",
+        topics=(EscalationTopic("salute", "Salute", "Ufficio Persone", "Medico competente"),),
+    )
+    assert table.referente_role("sconosciuto") == "Ufficio Persone"
+    llm = FakeLlm({Reformulation: [_reformulation("salute")], AnswerDraft: [_draft()]})
+
+    reply = await run_workflow(
+        "domanda", [], WorkflowDeps(llm, connector, workflow_config, escalation=table)
+    )
+
+    assert reply.referente is not None
+    assert reply.referente.role == "Medico competente"
 
 
 async def test_a_custom_escalation_table_decides_the_role(

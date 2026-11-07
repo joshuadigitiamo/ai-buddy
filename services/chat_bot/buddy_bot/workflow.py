@@ -102,7 +102,16 @@ async def reformulate(state: State, runtime: Runtime[RunContext]) -> dict[str, A
     except LlmError:
         # No standalone question exists, so there is nothing to retrieve and nothing to log.
         return {"reply": BotReply(kind="error")}
-    return {"reformulation": reformulation}
+    return {"reformulation": _known_topic_only(reformulation, ctx.escalation)}
+
+
+def _known_topic_only(reformulation: Reformulation, table: EscalationTable) -> Reformulation:
+    """Keep `sensitive_topic` only when it is a table id; "", "none" or a made-up id is not."""
+    topic = reformulation.sensitive_topic
+    if topic is None:
+        return reformulation
+    known = table.topic(topic.strip().lower())
+    return reformulation.model_copy(update={"sensitive_topic": known.id if known else None})
 
 
 async def smalltalk(state: State, runtime: Runtime[RunContext]) -> dict[str, Any]:
