@@ -48,8 +48,11 @@ Campi / fields:
 - keywords_en: da 1 a 5 parole chiave inglesi per cercare nelle Guide tecniche. \
 Usa questo ponte italiano -> inglese quando un termine corrisponde:
 {_BRIDGE_LINES}
-- intent: "question" (domanda su regole aziendali o Guide tecniche), "chitchat" (saluti, \
-ringraziamenti) oppure "off_topic" (qualsiasi altro argomento).
+- intent: "question" (domanda su regole aziendali, vita in ufficio o Guide tecniche: anche \
+logistica e strumenti di lavoro come parcheggio, accesso agli uffici, badge, wifi, \
+attrezzatura, sale, orari, trasferte; è "question" anche se la risposta potrebbe non essere \
+nelle fonti, e nel dubbio scegli "question"), "chitchat" (saluti, ringraziamenti) oppure \
+"off_topic" (solo argomenti non legati al lavoro, per esempio meteo, sport, ricette).
 - sensitive_topic: l'id della riga seguente che corrisponde all'argomento della domanda, \
 oppure null quando la domanda riguarda regole generali che non toccano il caso personale \
 di chi scrive. Righe `id: argomento`:
