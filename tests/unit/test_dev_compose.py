@@ -137,3 +137,10 @@ def test_key_file_and_required_variables_have_no_default() -> None:
     assert "${BOT_SA_KEY_FILE:?" in text
     assert "${MERIDIAN_API_KEY:?" in text
     assert "${GOOGLE_CLOUD_PROJECT:?" in text
+
+
+def test_env_example_mcp_url_matches_the_dev_wiring() -> None:
+    # IN-02: the compose-style host name got 421 Misdirected Request in the live check.
+    lines = (ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
+    values = dict(line.split("=", 1) for line in lines if line and not line.startswith("#"))
+    assert values["MCP_URL"] == _environment(_services()["chat_bot"])["MCP_URL"]
