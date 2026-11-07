@@ -274,3 +274,39 @@ def test_a_source_url_that_is_not_http_gets_no_video_section() -> None:
     ]["sections"]
     assert [section["header"] for section in sections] == ["Sezione B"]
     assert "javascript:" not in json.dumps(sections)
+
+
+@pytest.mark.parametrize(
+    ("raw", "kept", "gone"),
+    [
+        ("Apri www.evil.example ora", "Apri ora", "evil"),
+        ("Vai su evil.example.com/login subito", "Vai su subito", "evil"),
+        ("Vai su Evil.COM subito", "Vai su subito", "Evil"),
+        ("Scrivi a mailto:x@y.invalid per info", "Scrivi a per info", "mailto"),
+        ("Scarica ftp://files.example.invalid/a.zip qui", "Scarica qui", "ftp"),
+        ("Scrivi a mario.rossi@azienda.example.org oggi", "Scrivi a oggi", "@"),
+        ("Leggi [il portale](https://evil.example/x) ora", "Leggi il portale ora", "evil"),
+        ("Leggi ![logo](https://evil.example/i.png) ora", "Leggi logo ora", "evil"),
+        ("Apri https://evil.example/x.", "Apri.", "evil"),
+    ],
+)
+def test_sanitize_prose_removes_every_link_form(raw: str, kept: str, gone: str) -> None:
+    cleaned = sanitize_prose(raw)
+
+    assert cleaned == kept
+    assert gone not in cleaned
+
+
+@pytest.mark.parametrize(
+    "prose",
+    [
+        "Es. e.g. i.e. vale per tutti.",
+        "Il bonus e 3.5 giorni, circa 12.50 euro.",
+        "Usa la versione v1.2.3 del manuale.",
+        "Apri il file main.py o config.yaml.",
+        "Dalle 9.30 alle 17.45, Dr. Rossi risponde.",
+        "Scrivi al responsabile diretto (HR) entro venerdi.",
+    ],
+)
+def test_sanitize_prose_leaves_normal_prose_alone(prose: str) -> None:
+    assert sanitize_prose(prose) == prose

@@ -18,17 +18,37 @@ MAX_ANSWER_CHARS: Final = 3500
 MAX_MESSAGE_CHARS: Final = 4000
 MAX_VIDEO_SECTIONS: Final = 3
 
-# The prompt forbids URLs in the answer; any the model wrote anyway is removed here.
-_URL_TOKEN: Final = re.compile(r"(?:https?|handbook)://\S+", re.IGNORECASE)
+# The prompt forbids links in the answer; any the model wrote anyway is removed here. A Markdown
+# link keeps its label; a URL, mailto:, www. host, e-mail address or bare domain is dropped whole,
+# except the sentence punctuation that follows it.
+_MARKDOWN_LINK: Final = re.compile(r"!?\[([^\]]*)\]\([^)\s]*\)")
+_URL_TOKEN: Final = re.compile(
+    r"(?:\b(?:https?|ftps?|file|handbook)://|\bmailto:|\bwww\.)\S*[^\s.,;:!?)\]'\"]",
+    re.IGNORECASE,
+)
+_EMAIL: Final = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+_COMMON_TLDS: Final = (
+    "com|org|net|edu|gov|int|info|biz|io|ai|app|dev|co|me|xyz|online|site|tech|cloud|"
+    "it|eu|de|fr|es|uk|us|ch|nl|be|at|pt|ru|cn|jp|invalid|example|test|local"
+)
+_BARE_DOMAIN: Final = re.compile(
+    rf"\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:{_COMMON_TLDS})\b(?![\w@-])"
+    r"(?:/\S*[^\s.,;:!?)\]'\"])?",
+    re.IGNORECASE,
+)
 _SPACE_RUN: Final = re.compile(r"[ \t]{2,}")
+_SPACE_BEFORE_PUNCT: Final = re.compile(r"[ \t]+([.,;:!?])")
 _WEB_SCHEMES: Final = ("http://", "https://")
 
 
 def sanitize_prose(text: str) -> str:
     """Strip model-written links and neutralise angle brackets so it cannot form Chat markup."""
-    without_links = _URL_TOKEN.sub("", text)
+    without_links = _MARKDOWN_LINK.sub(r"\1", text)
+    for pattern in (_URL_TOKEN, _EMAIL, _BARE_DOMAIN):
+        without_links = pattern.sub("", without_links)
     neutral = without_links.replace("<", "‹").replace(">", "›")
-    return _SPACE_RUN.sub(" ", neutral).strip()
+    tidy = _SPACE_BEFORE_PUNCT.sub(r"\1", neutral)
+    return _SPACE_RUN.sub(" ", tidy).strip()
 
 
 @dataclass(frozen=True, slots=True)
