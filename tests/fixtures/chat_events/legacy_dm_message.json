@@ -1,0 +1,32 @@
+{
+  "type": "MESSAGE",
+  "eventTime": "2026-11-03T10:00:00.000000Z",
+  "space": {
+    "name": "spaces/AAAAsyntheticDM",
+    "type": "DM",
+    "singleUserBotDm": true
+  },
+  "message": {
+    "name": "spaces/AAAAsyntheticDM/messages/msg-1.msg-1",
+    "sender": {
+      "name": "users/111111111111111111111",
+      "displayName": "Utente Sintetico",
+      "type": "HUMAN"
+    },
+    "text": "Come richiedo le ferie?",
+    "argumentText": " Come richiedo le ferie?",
+    "thread": {
+      "name": "spaces/AAAAsyntheticDM/threads/thr-1"
+    },
+    "space": {
+      "name": "spaces/AAAAsyntheticDM",
+      "type": "DM"
+    }
+  },
+  "user": {
+    "name": "users/111111111111111111111",
+    "displayName": "Utente Sintetico",
+    "email": "utente@example.invalid",
+    "type": "HUMAN"
+  }
+}

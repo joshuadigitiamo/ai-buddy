@@ -1,0 +1,109 @@
+"""Tracer: a recorded DM becomes a placeholder, then a cited answer over the real MCP server.
+
+Also pins the citation gate contract (D-01, D-02).
+"""
+
+import re
+from typing import Any
+
+import pytest
+from tests.unit.chat_bot.conftest import (
+    ALLOWED,
+    FakeChatApi,
+    FakeLlm,
+    RecordingConnector,
+    load_event,
+)
+
+from buddy_bot.schemas import AnswerDraft, Reformulation
+from buddy_bot.service import PLACEHOLDER_TEXT, BotService
+from buddy_bot.workflow import WorkflowConfig, WorkflowDeps
+
+pytestmark = pytest.mark.anyio
+
+REFORMULATION = Reformulation(
+    standalone_question="Come richiedo le ferie?",
+    keywords_it=["ferie"],
+    keywords_en=["chunking"],
+    intent="question",
+    sensitive_topic=None,
+)
+GOOD_DRAFT = AnswerDraft(
+    answer="Invia la richiesta al responsabile con due settimane di anticipo.",
+    citations=["handbook://02-ferie"],
+    grounded=True,
+    confidence=0.9,
+)
+
+
+def make_service(
+    llm: FakeLlm, connector: RecordingConnector, config: WorkflowConfig, chat: FakeChatApi
+) -> BotService:
+    return BotService(
+        allowed_users=ALLOWED,
+        chat=chat,
+        deps=WorkflowDeps(llm=llm, mcp=connector, config=config),
+        video_thumbnail_url=None,
+    )
+
+
+async def test_dm_gets_placeholder_then_cited_answer(
+    connector: RecordingConnector, workflow_config: WorkflowConfig
+) -> None:
+    llm = FakeLlm({Reformulation: [REFORMULATION], AnswerDraft: [GOOD_DRAFT]})
+    chat = FakeChatApi()
+    service = make_service(llm, connector, workflow_config, chat)
+
+    await service.handle(load_event("legacy_dm_message"))
+
+    assert len(chat.created) == 1
+    created = chat.created[0]
+    assert created.text == PLACEHOLDER_TEXT == "Sto cercando nelle fonti…"
+    assert created.space == "spaces/AAAAsyntheticDM"
+    assert created.thread == "spaces/AAAAsyntheticDM/threads/thr-1"
+    assert len(chat.updated) == 1
+    updated = chat.updated[0]
+    assert updated.name == f"{created.space}/messages/placeholder-1"
+    assert GOOD_DRAFT.answer in updated.text
+    assert "handbook://02-ferie" in updated.text
+    assert "revisione 2026-10-03" in updated.text
+
+    answer_call = llm.calls[-1]
+    assert answer_call.schema is AnswerDraft
+    assert answer_call.model == "test-sonnet"
+    assert '<fonte id="handbook://02-ferie"' in answer_call.user
+    prompt_ids = set(re.findall(r'<fonte id="([^"]+)"', answer_call.user))
+    assert prompt_ids
+    assert prompt_ids <= set(connector.returned_urls)
+    assert set(connector.calls) == {"handbook_search", "guides_search"}
+
+
+async def test_forged_citation_is_refused(
+    connector: RecordingConnector, workflow_config: WorkflowConfig
+) -> None:
+    forged = GOOD_DRAFT.model_copy(update={"citations": ["handbook://99-inventata"]})
+    llm = FakeLlm({Reformulation: [REFORMULATION], AnswerDraft: [forged]})
+    chat = FakeChatApi()
+
+    await make_service(llm, connector, workflow_config, chat).handle(
+        load_event("legacy_dm_message")
+    )
+
+    assert len(chat.updated) == 1
+    assert chat.updated[0].text == "Non lo so, chiedi a HR."
+    assert GOOD_DRAFT.answer not in chat.updated[0].text
+
+
+async def test_stranger_reaches_nothing(
+    connector: RecordingConnector, workflow_config: WorkflowConfig
+) -> None:
+    event: dict[str, Any] = load_event("legacy_dm_message")
+    event["user"] = {"name": "users/999", "email": "altro@example.invalid", "type": "HUMAN"}
+    llm = FakeLlm({Reformulation: [REFORMULATION], AnswerDraft: [GOOD_DRAFT]})
+    chat = FakeChatApi()
+
+    await make_service(llm, connector, workflow_config, chat).handle(event)
+
+    assert llm.calls == []
+    assert connector.calls == []
+    assert chat.created == [] and chat.updated == []
