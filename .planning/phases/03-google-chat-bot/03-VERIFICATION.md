@@ -1,8 +1,9 @@
 ---
 phase: 03-google-chat-bot
 verified: 2026-11-07T15:00:00Z
-status: human_needed
-score: 7/8 must-haves verified
+status: passed
+score: 8/8 must-haves verified
+score_note: "Human items resolved by live check 2026-11-07 or explicitly accepted/deferred by Joshua; the video-hosting issue (Guarda button downloads the mp4) is accepted for M1 and deferred to Phase 4"
 covered_files:
   - ".env.example"
   - ".planning/phases/03-google-chat-bot/03-01-PLAN.md"
@@ -84,7 +85,7 @@ human_verification:
 
 **Phase Goal:** Joshua can ask the bot a question in Google Chat and get a cited, grounded answer (or an honest refusal or escalation) with a video card when one exists.
 **Verified:** 2026-11-07
-**Status:** human_needed
+**Status:** passed
 **Re-verification:** No, initial verification
 
 ## Goal Achievement
@@ -214,3 +215,28 @@ No gaps. Every roadmap success criterion has implementation, wiring and test evi
 
 _Verified: 2026-11-07_
 _Verifier: Claude (gsd-verifier)_
+
+## Human verification (2026-11-07)
+
+Live checks run by the orchestrator in Google Chat, in a private space "AI Buddy test" (only Joshua and the bot, deleted afterwards).
+
+| Item | Result |
+|------|--------|
+| Room @mention "come richiedo le ferie?" | PASS. Answer posted in the message's thread, answer-first, with a Fonte line (BOT-01 room path). |
+| Bare "@AI Buddy" | PASS. Usage text returned (the IN-01 fix works live). |
+| Intro on add to space | PASS. "Ciao, sono AI Buddy..." posted. |
+| Guides Fonte line as Markdown link | PASS. Renders as a clickable title. |
+| Guarda button | ISSUE, accepted and deferred. Joshua clicked it and the browser downloaded the mp4 instead of playing it. |
+| Live bot-to-MCP google_id_token call; real Chat-signed HTTP JWT | Still unverified until the Phase 4 deploy (both unit-tested). |
+
+### Guarda button: root causes
+
+The bot builds the button correctly from the index. The problem is hosting and index data:
+
+1. GitHub release assets are served as attachments, so the browser downloads them and the `#t=` offset never applies.
+2. The joshuadigitiamo/Guides repo is private. All 17 distinct video URLs and the repo page return 404 anonymously; the video worked for Joshua only because he was signed in.
+3. Only 238 of 2524 video_map rows have `start_seconds` (source=scene). The other 2286 are `readme_fallback` rows with no offset.
+
+### Decision
+
+Joshua accepts this as a known issue for M1 and defers the fix to Phase 4 (hosting). Recommended path: Cloud Storage serving `video/mp4` inline with access control (the Guides are private, so not public), plus better timestamp coverage in the Phase 2 index. Recorded as a Phase 4 success criterion in ROADMAP.md and in WINDOWS.md.

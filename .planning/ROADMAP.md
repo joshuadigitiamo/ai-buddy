@@ -142,6 +142,7 @@ Plans:
   2. Applying the Kustomize dev overlay to a local kind cluster brings the services up, and a health check plus one MCP tool call succeed in-cluster; base and overlays pass manifest validation.
   3. Cloud Run YAMLs for `mcp_server`, `chat_bot` and the sync job target europe-west8 with scale-to-zero and request-based billing, a nightly Cloud Scheduler trigger exists for sync, and the SYNC-07 handoff mechanism is wired in.
   4. A change under `services/mcp_server` triggers only that service's workflow, which runs `run-unit-tests.sh --all` (ruff, mypy, pytest with coverage) and blocks the image push on failure; on success it pushes to Artifact Registry and deploys, authenticating through Workload Identity Federation with no key file in the repo or secrets.
+  5. Guide videos play inline in the browser from access-controlled hosting (not GitHub release downloads) and the Guarda button opens at the section's timestamp; timestamp coverage in the guides index improved beyond the 238/2524 scene-mapped rows. (Carried over from the Phase 3 live check, deferred by Joshua; recommended path: Cloud Storage with video/mp4 served inline, access-controlled because the Guides are private.)
 **Plans**: TBD
 **Note**: Live deploy needs a GCP project with an active billing account (Admin Google). Without it, criteria 3 and 4 are verified statically (YAML schema validation, workflow lint, dry runs) and the live deploy check is recorded as pending.
 
