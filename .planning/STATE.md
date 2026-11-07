@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Google Chat Bot
 status: executing
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-11-07T11:29:14.046Z"
+stopped_at: Completed 03-05-PLAN.md
+last_updated: "2026-11-07T11:39:13.826Z"
 last_activity: 2026-11-07
 last_activity_desc: Phase 03 execution started
-state_head: 8b44e49445ba4454328d0c694ead85d16447f3ad
+state_head: 8566d6b5eaba2329b3c27528fb5b810726598a3c
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 30
-  completed_plans: 22
+  completed_plans: 23
   percent: 40
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 03 (Google Chat Bot) — EXECUTING
-Plan: 5 of 12
+Plan: 6 of 12
 Status: Ready to execute
 Last activity: 2026-11-07 — Phase 03 execution started
 
@@ -77,6 +77,7 @@ Progress: [████░░░░░░] 40%
 | Phase 03 P01 | 2 min | 3 tasks | 8 files |
 | Phase 03 P03 | 5 min | 2 tasks | 12 files |
 | Phase 03 P04 | 10 min | 2 tasks | 13 files |
+| Phase 03 P05 | 25 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -134,6 +135,9 @@ Recent decisions affecting current work:
 - [Phase 03]: render strips URL tokens from model prose so only bot-built Fonte lines carry links (T-03-01)
 - [Phase 03]: normalize_event takes object and returns None for malformed shapes (mistyped slashCommand, messagePayload without message, bool or missing command id) instead of degrading the event
 - [Phase 03]: Mention fallback removes one leading @word token when argumentText is absent; a two-word display name leaves a residue; argumentText is the primary path and 03-12 confirms RESEARCH A13
+- [Phase 03]: 03-05: only LlmOutputError skips the retry plan; LlmUnavailableError propagates (error text, no gap); LlmError at reformulate gives the error reply
+- [Phase 03]: 03-05: a non-null sensitive_topic (even empty or unknown id) is sensitive; role from shared table, HR fallback; final failure is kind referral plus gap
+- [Phase 03]: 03-05: referente contact kept only as verbatim substring of a handbook page returned in the run; gap logs the standalone question plus tried queries of both attempts
 
 ### Pending Todos
 
@@ -162,6 +166,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07T11:29:13.950Z
-Stopped at: Completed 03-04-PLAN.md
+Last session: 2026-11-07T11:39:13.730Z
+Stopped at: Completed 03-05-PLAN.md
 Resume file: None
