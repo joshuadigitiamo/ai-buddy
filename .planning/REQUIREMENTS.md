@@ -40,7 +40,7 @@ Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requireme
 - [ ] **BOT-02**: The same bot exposes an HTTP endpoint that verifies the Google JWT on every request (reject missing or invalid tokens) for Cloud Run; event intake sits behind one interface so the workflow is identical for both transports.
 - [ ] **BOT-03**: An allowlist guard (`ALLOWED_USERS`) rejects any sender not on the list before any MCP or LLM call; the Chat app is visible to Joshua only (documented manual setting).
 - [x] **BOT-04**: Answers come from a LangGraph 2-step RAG workflow (query reformulation, retrieval via the MCP server's tools over HTTP as an MCP client, answer with citations, confidence gate); the bot holds no duplicate retrieval logic.
-- [ ] **BOT-05**: Every citation in an answer must point to text the MCP tools returned in that run; an answer with an unsupported citation, or below the confidence gate, is replaced by "non lo so, chiedi a ..." and the question is reported via `buddy_report_gap`.
+- [x] **BOT-05**: Every citation in an answer must point to text the MCP tools returned in that run; an answer with an unsupported citation, or below the confidence gate, is replaced by "non lo so, chiedi a ..." and the question is reported via `buddy_report_gap`.
 - [x] **BOT-06**: Sensitive topics (illness, disputes, pay, health, conflicts) get at most the general written rule plus referral to a person; no substantive answer on an individual situation.
 - [ ] **BOT-07**: One LLM client module, selected by `LLM_BACKEND` (`meridian | api`; Vertex configuration present but not enabled); Meridian sits behind the Anthropic Messages implementation via `base_url`; switching backend changes configuration only.
 - [ ] **BOT-08**: The bot refuses to start with `LLM_BACKEND=meridian` when `ALLOWED_USERS` holds more than one user (enforces D1a single-user guard).
@@ -132,7 +132,7 @@ Each requirement maps to exactly one phase. Updated during roadmap creation.
 | BOT-02 | Phase 3 | Pending |
 | BOT-03 | Phase 3 | Pending |
 | BOT-04 | Phase 3 | Complete |
-| BOT-05 | Phase 3 | Pending |
+| BOT-05 | Phase 3 | Complete |
 | BOT-06 | Phase 3 | Complete |
 | BOT-07 | Phase 3 | Pending |
 | BOT-08 | Phase 3 | Pending |
