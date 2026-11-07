@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Google Chat Bot
 status: executing
-stopped_at: Completed 03-09-PLAN.md
-last_updated: "2026-11-07T12:10:34.289Z"
+stopped_at: Completed 03-10-PLAN.md
+last_updated: "2026-11-07T12:23:22.792Z"
 last_activity: 2026-11-07
 last_activity_desc: Phase 03 execution started
-state_head: 218dd2b4a241b7ac790092d8f9c1a5d19a39caba
+state_head: bb6cd94f892e75385ee83c647339d82857943dec
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 30
-  completed_plans: 27
+  completed_plans: 28
   percent: 40
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 03 (Google Chat Bot) — EXECUTING
-Plan: 10 of 12
+Plan: 11 of 12
 Status: Ready to execute
 Last activity: 2026-11-07 — Phase 03 execution started
 
@@ -82,6 +82,7 @@ Progress: [████░░░░░░] 40%
 | Phase 03 P07 | 4 min | 2 tasks | 3 files |
 | Phase 03 P08 | 12 min | 2 tasks | 2 files |
 | Phase 03 P09 | 8 min | 2 tasks | 6 files |
+| Phase 03 P10 | 12 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -150,6 +151,8 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-09: memory_key_source follows 03-01 option b (DM space name, room thread name); no thread means no memory
 - [Phase 03]: 03-09: message-name TTL dedupe (600 s, 1024 entries) marks a name seen on first handling, also when that attempt fails; per process only
 - [Phase 03]: 03-09: run deadline covers history read, workflow and rendering; placeholder creation sits outside it
+- [Phase 03]: 03-10: ChatTokenVerifier refuses an empty audience (google-auth skips the audience check when None); http_ack (b) implemented as ACK_SECONDS=25.0, 0 gives option (a)
+- [Phase 03]: 03-10: Chat API errors re-raised as ChatApiError(type name) with from None; GoogleChatApi factory typed to a two-method ChatClient protocol
 
 ### Pending Todos
 
@@ -178,6 +181,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07T12:10:34.188Z
-Stopped at: Completed 03-09-PLAN.md
+Last session: 2026-11-07T12:23:22.683Z
+Stopped at: Completed 03-10-PLAN.md
 Resume file: None
