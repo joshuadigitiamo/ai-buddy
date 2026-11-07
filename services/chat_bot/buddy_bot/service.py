@@ -8,8 +8,8 @@ import logging
 from collections.abc import Mapping
 from typing import Any, Final
 
-from buddy_bot.events import normalize_event
-from buddy_bot.ports import ChatApi
+from buddy_bot.events import ChatEvent, normalize_event
+from buddy_bot.ports import ChatApi, ThreadMemory, Turn
 from buddy_bot.render import render_reply
 from buddy_bot.schemas import BotReply
 from buddy_bot.workflow import WorkflowDeps, run_workflow
@@ -17,6 +17,17 @@ from buddy_bot.workflow import WorkflowDeps, run_workflow
 PLACEHOLDER_TEXT: Final = "Sto cercando nelle fonti…"
 
 _LOGGER = logging.getLogger("buddy_bot")
+
+_REMEMBERED_KINDS: Final = frozenset({"answer", "refusal", "referral", "smalltalk"})
+
+
+def memory_key_source(event: ChatEvent) -> str | None:
+    """Conversation identity for thread memory (D-11 as amended by 03-01 memory_key b).
+
+    A DM is one conversation per space; a room conversation is one thread. The adapter hashes
+    the returned value, so no raw id is stored.
+    """
+    return event.space_name if event.is_dm else event.thread_name
 
 
 class BotService:
@@ -26,11 +37,15 @@ class BotService:
         allowed_users: frozenset[str],
         chat: ChatApi,
         deps: WorkflowDeps,
+        memory: ThreadMemory,
+        memory_turns: int,
         video_thumbnail_url: str | None,
     ) -> None:
         self._allowed = frozenset(user.lower() for user in allowed_users)
         self._chat = chat
         self._deps = deps
+        self._memory = memory
+        self._memory_turns = memory_turns
         self._video_thumbnail_url = video_thumbnail_url
 
     async def handle(self, payload: Mapping[str, Any]) -> None:
@@ -57,10 +72,33 @@ class BotService:
         name = await self._chat.create_message(
             space=event.space_name, thread=event.thread_name, text=PLACEHOLDER_TEXT
         )
+        key = memory_key_source(event)
+        history = await self._recent(key)
         try:
-            reply = await run_workflow(event.text, [], self._deps)
+            reply = await run_workflow(event.text, history, self._deps)
             rendered = render_reply(reply, video_thumbnail_url=self._video_thumbnail_url)
         except Exception as exc:
             _LOGGER.error("workflow failed: %s", type(exc).__name__)
-            rendered = render_reply(BotReply(kind="error"), video_thumbnail_url=None)
+            reply = BotReply(kind="error")
+            rendered = render_reply(reply, video_thumbnail_url=None)
         await self._chat.update_message(name=name, text=rendered.text, cards_v2=rendered.cards_v2)
+        if key is not None and reply.kind in _REMEMBERED_KINDS:
+            await self._remember(
+                key, Turn(question=event.text, answer=reply.answer or rendered.text)
+            )
+
+    async def _recent(self, key: str | None) -> list[Turn]:
+        """History for the reformulation step only; a failing store means no history."""
+        if key is None:
+            return []
+        try:
+            return await self._memory.recent(key, self._memory_turns)
+        except Exception as exc:
+            _LOGGER.error("memory read failed: %s", type(exc).__name__)
+            return []
+
+    async def _remember(self, key: str, turn: Turn) -> None:
+        try:
+            await self._memory.append(key, turn)
+        except Exception as exc:
+            _LOGGER.error("memory write failed: %s", type(exc).__name__)

@@ -1,7 +1,7 @@
 """Synthetic fixtures only: no handbook text, no names, no credentials."""
 
 import json
-from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
+from collections.abc import AsyncIterator, Callable, Iterator, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,8 +13,10 @@ from pydantic import BaseModel
 from tests.unit.mcp_server.conftest import NOW, WEB_BASE, make_content, make_page, write_index
 
 from buddy_bot.mcp_client import FastMcpConnector
-from buddy_bot.ports import LlmOutputError, M, McpTools
-from buddy_bot.workflow import WorkflowConfig
+from buddy_bot.ports import LlmOutputError, M, McpTools, ThreadMemory, Turn
+from buddy_bot.schemas import AnswerDraft, Reformulation
+from buddy_bot.service import BotService
+from buddy_bot.workflow import WorkflowConfig, WorkflowDeps
 from buddy_mcp.config import McpSettings
 from buddy_mcp.gaplog import InMemoryGapLog
 from buddy_mcp.models import GapReportOutput, GuidesSearchOutput, HandbookSearchOutput
@@ -23,6 +25,20 @@ from buddy_mcp.snapshot import load_snapshot
 
 ALLOWED = frozenset({"users/111111111111111111111"})
 EVENTS_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "chat_events"
+
+REFORMULATION = Reformulation(
+    standalone_question="Come richiedo le ferie?",
+    keywords_it=["ferie"],
+    keywords_en=["chunking"],
+    intent="question",
+    sensitive_topic=None,
+)
+GOOD_DRAFT = AnswerDraft(
+    answer="Invia la richiesta al responsabile con due settimane di anticipo.",
+    citations=["handbook://02-ferie"],
+    grounded=True,
+    confidence=0.9,
+)
 
 CONTACTS_PAGE = make_page(
     "05-contatti",
@@ -93,6 +109,33 @@ class FakeChatApi:
         self, *, name: str, text: str, cards_v2: Sequence[Mapping[str, Any]]
     ) -> None:
         self.updated.append(UpdatedMessage(name, text, tuple(cards_v2)))
+
+
+class DictThreadMemory:
+    """Thread memory in a dict; records calls and can be told to fail."""
+
+    def __init__(self) -> None:
+        self.turns: dict[str, list[Turn]] = {}
+        self.recent_calls: list[tuple[str, int]] = []
+        self.append_calls: list[tuple[str, Turn]] = []
+        self.fail_recent = False
+        self.fail_append = False
+
+    @property
+    def calls(self) -> int:
+        return len(self.recent_calls) + len(self.append_calls)
+
+    async def recent(self, key_source: str, n: int) -> list[Turn]:
+        self.recent_calls.append((key_source, n))
+        if self.fail_recent:
+            raise RuntimeError("memory read failed")
+        return self.turns.get(key_source, [])[-n:]
+
+    async def append(self, key_source: str, turn: Turn) -> None:
+        self.append_calls.append((key_source, turn))
+        if self.fail_append:
+            raise RuntimeError("memory write failed")
+        self.turns.setdefault(key_source, []).append(turn)
 
 
 class _RecordingTools:
@@ -173,3 +216,31 @@ def workflow_config() -> WorkflowConfig:
     return WorkflowConfig(
         reformulate_model="test-haiku", answer_model="test-sonnet", confidence_threshold=0.7
     )
+
+
+ServiceFactory = Callable[..., BotService]
+
+
+@pytest.fixture
+def make_service(connector: RecordingConnector, workflow_config: WorkflowConfig) -> ServiceFactory:
+    """Build a BotService over the real MCP server; keyword overrides replace any argument."""
+
+    def build(
+        llm: FakeLlm,
+        *,
+        chat: FakeChatApi | None = None,
+        memory: ThreadMemory | None = None,
+        **overrides: Any,
+    ) -> BotService:
+        arguments: dict[str, Any] = {
+            "allowed_users": ALLOWED,
+            "chat": chat if chat is not None else FakeChatApi(),
+            "deps": WorkflowDeps(llm=llm, mcp=connector, config=workflow_config),
+            "memory": memory if memory is not None else DictThreadMemory(),
+            "memory_turns": 3,
+            "video_thumbnail_url": "https://example.invalid/thumb.png",
+        }
+        arguments.update(overrides)
+        return BotService(**arguments)
+
+    return build
