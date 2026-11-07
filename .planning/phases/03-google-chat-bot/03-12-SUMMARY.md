@@ -167,3 +167,24 @@ None. The thumbnail placeholder is a configuration value, tracked above.
 None beyond the plan threat model. Secrets (key file, `.env`) were never read or recorded.
 
 ## Self-Check: PASSED
+
+## Follow-up: tone and length (2026-11-07)
+
+Trigger: after live use the answers were too long and had no persona. Source: `03-TONE-RESEARCH.md`; Joshua's decision: register **tu**, `answer` cap **600 characters**. Commits on `main`, not pushed:
+
+| Commit | What |
+|--------|------|
+| 3929fce | test: Guides Markdown link and three-source Fonte cap (RED) |
+| 57765dc | feat: `render.py` links Guides sources by title and caps Fonte lines at 3 |
+| 8a3bef4 | test: persona, tu, 600 cap, answer-first rules and style examples in the answer prompts (RED) |
+| b3c2402 | feat: `prompts.py` persona, answer-first rules, 600 cap, two style examples |
+| 467e232 | docs: the research report and decision |
+
+What changed:
+- **Prompts** (`ANSWER_SYSTEM`, `ANSWER_SENSITIVE_SYSTEM`): open with the persona "Sei AI Buddy, il collega di Digitiamo ... Dai del tu."; the first sentence answers, then at most 4 short points or one condition sentence; the key condition, exception or deadline stays; no preamble, no question echo, no unasked detail. The cap went from 1200 to 600 characters. Two invented positive examples (a procedure in 3 points, a single fact) are labelled as style only, not citable and not facts. The sensitive variant keeps its scope rules (general rule only, no case assessment, no referral text) and adds a warmer tone line. JSON contract and injection guards unchanged.
+- **Length enforcement:** prompt only. A schema `max_length` would turn a grounded but verbose answer into a repair or refusal, which is worse than a long answer; render's 3,500-character prose cap still bounds the message.
+- **Fonte lines:** they already list only cited sources (`gate.cited_sources`); now at most 3 distinct ones (`MAX_FONTE_LINES`). Handbook format is unchanged (03-01 decision 2a): `Fonte: Manuale – <title> (handbook://<page_id>), revisione <date>`. Guides: `Fonte: Guida – [<title>](<permalink>), indicizzata il <date>`. Label brackets and newlines are neutralised, link-target parentheses, spaces and angle brackets are percent-encoded, and a non-web permalink is shown by title with no link. Bot-built, so exempt from `sanitize_prose`.
+- **Chat Markdown link support:** verified read-only on Google's "Format messages" page (developers.google.com/workspace/chat/format-messages): with `MARKUP_SYNTAX_MARKDOWN` a hyperlink is `[display text](hyperlink)`; the Chat app is configured MARKDOWN (see above). Not yet seen rendered live: confirm at the next live check.
+- **Tests:** `test_prompts.py` and `test_render.py` extended; one existing render assertion (raw URL in the Guides line) was replaced because it pinned the format this change removes. Gate: `./run-unit-tests.sh --all` 1018 passed, 26 skipped (local-only live tests); ruff and mypy --strict clean.
+
+Note for Phase 5 (evals): brevity is model behaviour and is judged there, not by unit tests. Add a minimal reference answer per golden item; track excess length (YapScore, YapBench arXiv 2601.00624) and concise accuracy at 600 characters (HCA(600)) next to correctness and "conditions preserved"; pair any LLM judge with a length metric (judges prefer longer answers).
