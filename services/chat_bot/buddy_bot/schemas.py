@@ -41,6 +41,24 @@ class Reformulation(BaseModel):
     sensitive_topic: str | None = None
 
 
+class RetryPlan(BaseModel):
+    """Output of the retry step: different keywords for the single retrieval retry (D-03)."""
+
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    keywords_it: list[str] = Field(min_length=1, max_length=5)
+    keywords_en: list[str] = Field(min_length=1, max_length=5)
+
+
+class ContactExtraction(BaseModel):
+    """Output of the contact step: a contact copied from a handbook page, or null (D-04)."""
+
+    model_config = ConfigDict(extra="ignore", frozen=True)
+
+    contact: str | None = None
+    source_url: str | None = None
+
+
 class AnswerDraft(BaseModel):
     """Output of the answer step (Sonnet): untrusted until the gate has checked the citations."""
 
