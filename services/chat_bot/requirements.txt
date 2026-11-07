@@ -1,0 +1,8 @@
+# Chat bot runtime dependencies (Phase 3); new pins approved at the 03-01 legitimacy gate.
+langgraph==1.2.20
+anthropic==2.6.0
+google-cloud-pubsub==2.43.0
+google-apps-chat==0.10.9
+requests==2.34.2
+fastmcp==4.1.6  # shared pin; owner: services/mcp_server/requirements.txt
+google-cloud-firestore==2.34.1  # shared pin; owner: services/mcp_server/requirements.txt

@@ -1,5 +1,6 @@
 """Repository layout, dependency pinning and public-repo hygiene assertions."""
 
+import importlib.metadata
 import tomllib
 from pathlib import Path
 
@@ -77,6 +78,7 @@ def test_requirements_are_pinned() -> None:
         "requirements.txt",
         "requirements-dev.txt",
         "services/mcp_server/requirements.txt",
+        "services/chat_bot/requirements.txt",
     ):
         for line in _lines(name):
             if not line or line.startswith(("#", "-r")):
@@ -84,6 +86,43 @@ def test_requirements_are_pinned() -> None:
             if "==" not in line:
                 unpinned.append(f"{name}:{line.split('=')[0]}")
     assert unpinned == []
+
+
+def _pins(name: str) -> dict[str, str]:
+    """name==version pairs of one requirements file; trailing comments stripped."""
+    pins: dict[str, str] = {}
+    for line in _lines(name):
+        spec = line.split("#", 1)[0].strip()
+        if "==" in spec:
+            package, version = spec.split("==", 1)
+            pins[package.strip().lower()] = version.strip()
+    return pins
+
+
+def test_shared_pins_agree() -> None:
+    seen: dict[str, dict[str, str]] = {}
+    for name in (
+        "requirements.txt",
+        "requirements-dev.txt",
+        "services/mcp_server/requirements.txt",
+        "services/chat_bot/requirements.txt",
+    ):
+        for package, version in _pins(name).items():
+            seen.setdefault(package, {})[name] = version
+    disagreeing = {p: v for p, v in seen.items() if len(set(v.values())) > 1}
+    assert disagreeing == {}
+
+
+def test_chat_bot_pins_installed() -> None:
+    import buddy_bot
+
+    assert buddy_bot.__version__ == "0.1.0"
+    mismatched = {
+        package: (version, importlib.metadata.version(package))
+        for package, version in _pins("services/chat_bot/requirements.txt").items()
+        if importlib.metadata.version(package) != version
+    }
+    assert mismatched == {}
 
 
 def test_gitignore_protects_public_repo() -> None:

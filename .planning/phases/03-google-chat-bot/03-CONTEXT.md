@@ -128,6 +128,17 @@ Out of this phase: Cloud Run deploy, CI, kind manifests (Phase 4); golden set, M
 
 </deferred>
 
+<amendments>
+## Amendments (03-01 checkpoint)
+
+- D-16 overridden by 03-01 checkpoint: meridian_credentials (b) — dedicated Docker named volume seeded once by copying the host credentials file, writable only by the Meridian container, never baked into an image, host ~/.claude untouched
+- D-11 overridden by 03-01 checkpoint: memory_key (b) — DM spaces use HMAC(space name), rooms use HMAC(thread name); still HMAC with THREAD_KEY_SECRET, no raw id stored, same 24 h TTL and N turns
+- D-09 overridden by 03-01 checkpoint: http_ack (b) — await the run inside the request for up to 25 s, then return `{}` and let any remainder continue in the background
+- BOT-09 interpreted by 03-01 checkpoint: bot09_rendering (2a+2c) — handbook source link is a text citation `Manuale – <title> (handbook://<page_id>), revisione <YYYY-MM-DD>` until CONT-01 gives a URL; `VIDEO_THUMBNAIL_URL` is a required HTTPS setting (value supplied via .env at the 03-12 live checkpoint)
+- D-10 interpreted by 03-01 checkpoint: dev_firestore (a) — dev compose uses the Firestore emulator for thread memory and the gap log; Firestore EU stays the deployed store
+- D-07 interpreted by 03-01 checkpoint: gap_question (b) — the gap log stores the standalone question from the reformulation step, not the raw message text
+</amendments>
+
 ---
 
 *Phase: 03-google-chat-bot*

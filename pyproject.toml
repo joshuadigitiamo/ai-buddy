@@ -5,23 +5,24 @@ requires-python = ">=3.12"
 dependencies = []
 
 [tool.pytest.ini_options]
-pythonpath = ["packages/buddy_core", "jobs/sync", "services/mcp_server"]
+pythonpath = ["packages/buddy_core", "jobs/sync", "services/mcp_server", "services/chat_bot"]
 testpaths = ["tests"]
 addopts = "-ra --import-mode=importlib"
 markers = ["firestore: needs the Firestore emulator (FIRESTORE_EMULATOR_HOST); run with ./run-unit-tests.sh --emulator"]
 
 [tool.coverage.run]
-source = ["buddy_core", "buddy_sync", "buddy_mcp"]
+source = ["buddy_core", "buddy_sync", "buddy_mcp", "buddy_bot"]
 branch = true
 
 [tool.mypy]
 strict = true
 python_version = "3.12"
-mypy_path = "packages/buddy_core:jobs/sync:services/mcp_server"
+mypy_path = "packages/buddy_core:jobs/sync:services/mcp_server:services/chat_bot"
 files = [
     "packages/buddy_core/buddy_core",
     "jobs/sync/buddy_sync",
     "services/mcp_server/buddy_mcp",
+    "services/chat_bot/buddy_bot",
     "tests",
 ]
 explicit_package_bases = true
@@ -35,7 +36,7 @@ ignore_missing_imports = true
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-src = ["packages/buddy_core", "jobs/sync", "services/mcp_server", "tests"]
+src = ["packages/buddy_core", "jobs/sync", "services/mcp_server", "services/chat_bot", "tests"]
 # Planning/research markdown embeds illustrative Python; ruff must not gate it.
 extend-exclude = [".planning", "docs"]
 
@@ -43,4 +44,4 @@ extend-exclude = [".planning", "docs"]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["buddy_core", "buddy_sync", "buddy_mcp"]
+known-first-party = ["buddy_core", "buddy_sync", "buddy_mcp", "buddy_bot"]
