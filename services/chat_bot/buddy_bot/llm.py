@@ -12,11 +12,12 @@ import json
 import re
 from typing import TYPE_CHECKING
 
-from anthropic import AsyncAnthropic
+from anthropic import APIError, AsyncAnthropic
 from anthropic.types import TextBlock
+from pydantic import ValidationError
 
 from buddy_bot.config import BotSettings
-from buddy_bot.ports import M
+from buddy_bot.ports import LlmOutputError, LlmUnavailableError, M
 
 if TYPE_CHECKING:
     import httpx2
@@ -43,6 +44,18 @@ def _json_instruction(schema: type[M]) -> str:
     )
 
 
+def _repair_note(error: ValidationError) -> str:
+    """Name where and why the output failed, never what it said (it may echo user text)."""
+    problems = "; ".join(
+        f"{'.'.join(str(part) for part in err['loc']) or 'JSON'} ({err['type']})"
+        for err in error.errors()
+    )
+    return (
+        "La risposta precedente non era valida. Rispondi di nuovo con un solo oggetto JSON "
+        f"conforme allo schema. Errori: {problems}."
+    )
+
+
 class AnthropicMessagesClient:
     """Implements the LlmClient port over one AsyncAnthropic; keeps no per-call state."""
 
@@ -52,21 +65,31 @@ class AnthropicMessagesClient:
     async def structured(
         self, schema: type[M], *, model: str, system: str, user: str, max_tokens: int
     ) -> M:
-        text = await self._complete(
-            model=model,
-            system=f"{system}\n\n{_json_instruction(schema)}",
-            user=user,
-            max_tokens=max_tokens,
-        )
-        return schema.model_validate_json(extract_json(text))
+        full_system = f"{system}\n\n{_json_instruction(schema)}"
+        text = await self._complete(model, full_system, user, max_tokens)
+        try:
+            return schema.model_validate_json(extract_json(text))
+        except ValidationError as first:
+            repair_user = f"{user}\n\n{_repair_note(first)}"
+        # One repair, capped (each retry costs a full model call).
+        text = await self._complete(model, full_system, repair_user, max_tokens)
+        try:
+            return schema.model_validate_json(extract_json(text))
+        except ValidationError:
+            # `from None`: the chained error would carry the model output into tracebacks.
+            raise LlmOutputError(f"{schema.__name__} output invalid after one repair") from None
 
-    async def _complete(self, *, model: str, system: str, user: str, max_tokens: int) -> str:
-        response = await self._client.messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            system=system,
-            messages=[{"role": "user", "content": user}],
-        )
+    async def _complete(self, model: str, system: str, user: str, max_tokens: int) -> str:
+        try:
+            response = await self._client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                system=system,
+                messages=[{"role": "user", "content": user}],
+            )
+        except APIError as exc:
+            # Type name only: the message may carry a host name or a response body.
+            raise LlmUnavailableError(type(exc).__name__) from None
         return "".join(block.text for block in response.content if isinstance(block, TextBlock))
 
 
