@@ -8,6 +8,7 @@ from tests.unit.mcp_server.conftest import FILE, SHA, WEB_BASE
 
 from buddy_bot.render import (
     MAX_ANSWER_CHARS,
+    MAX_FONTE_LINES,
     MAX_MESSAGE_CHARS,
     MAX_VIDEO_SECTIONS,
     render_reply,
@@ -118,9 +119,64 @@ def test_guides_source_without_video_has_a_fonte_line_and_no_card() -> None:
 
     rendered = render_reply(reply, video_thumbnail_url=THUMBNAIL)
 
-    assert "Fonte: Guida – Sezione A (" in rendered.text
-    assert rendered.text.endswith("), indicizzata il 2026-11-03")
+    # The section title is a Markdown link (Chat app markup is MARKDOWN), not a raw URL in
+    # parentheses: tone follow-up 2026-11-07, shorter and clickable.
+    permalink = f"{WEB_BASE}/blob/{SHA}/{FILE}#L1-L5"
+    assert rendered.text.endswith(
+        f"Fonte: Guida – [Sezione A]({permalink}), indicizzata il 2026-11-03"
+    )
     assert rendered.cards_v2 == []
+
+
+def test_guides_fonte_title_cannot_break_out_of_the_markdown_link() -> None:
+    source = _guide("A", title="Uso di [chunk] e (overlap)\nsu due righe")
+
+    text = render_reply(_answer([source]), video_thumbnail_url=None).text
+    fonte = text.split("\n\n")[1]
+
+    assert fonte.startswith("Fonte: Guida – [Uso di (chunk) e (overlap) su due righe](")
+    assert fonte.count("](") == 1
+    assert "\n" not in fonte
+
+
+def test_guides_permalink_with_parentheses_or_spaces_is_encoded_inside_the_link() -> None:
+    source = _guide("A").model_copy(update={"source_url": f"{WEB_BASE}/blob/{SHA}/a (b).md#L1"})
+
+    fonte = render_reply(_answer([source]), video_thumbnail_url=None).text.split("\n\n")[1]
+
+    assert "](" + f"{WEB_BASE}/blob/{SHA}/a%20%28b%29.md#L1" + ")," in fonte
+
+
+def test_guides_source_with_a_non_web_url_is_cited_by_title_without_any_link() -> None:
+    source = _guide("A").model_copy(update={"source_url": "file:///etc/passwd"})
+
+    text = render_reply(_answer([source]), video_thumbnail_url=None).text
+
+    assert "file://" not in text
+    assert "Fonte: Guida – Sezione A, indicizzata il 2026-11-03" in text
+
+
+def test_at_most_three_fonte_lines_are_shown_in_citation_order() -> None:
+    sources = [_handbook(f"{n:02d}-pagina", f"Pagina {n}") for n in range(5)]
+
+    text = render_reply(_answer(sources), video_thumbnail_url=None).text
+
+    assert text.count("Fonte:") == MAX_FONTE_LINES == 3
+    for n in range(3):
+        assert f"handbook://{n:02d}-pagina" in text
+    assert "handbook://03-pagina" not in text
+    assert "handbook://04-pagina" not in text
+
+
+def test_the_fonte_cap_counts_distinct_sources_not_repeated_citations() -> None:
+    first = _handbook("00-a", "A")
+    others = [_handbook(f"0{n}-x", f"X{n}") for n in range(1, 4)]
+
+    text = render_reply(_answer([first, first, first, *others]), video_thumbnail_url=None).text
+
+    assert text.count("Fonte:") == 3
+    assert "handbook://02-x" in text
+    assert "handbook://03-x" not in text
 
 
 def test_refusal_with_handbook_contact_names_the_page_the_contact_came_from() -> None:
