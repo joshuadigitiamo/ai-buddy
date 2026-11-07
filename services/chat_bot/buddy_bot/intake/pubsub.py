@@ -2,8 +2,10 @@
 
 The subscriber library calls the callback on its own worker threads; the callback hands each
 decoded event to the bot's event loop and blocks until the handler returns, so the lease keeps
-being extended while a slow run is in flight. Every message is acked afterwards, undecodable ones
-included, so a poison message cannot loop (the service's `handle` never raises). Log lines carry
+being extended while a slow run is in flight. A message is acked once the handler ran, whatever
+it raised, and when it is undecodable, so a poison message cannot loop (the service's `handle`
+never raises). It is nacked when the handler could not run (loop closed, run cancelled at
+shutdown), so Pub/Sub redelivers it after a restart. Log lines carry
 fixed text and exception type names only, never message content (BOT-11).
 """
 
@@ -11,6 +13,7 @@ import asyncio
 import json
 import logging
 from collections.abc import Callable
+from concurrent.futures import CancelledError
 from typing import Any, Protocol
 
 from google.cloud.pubsub_v1 import SubscriberClient, types
@@ -30,40 +33,59 @@ class PubSubMessage(Protocol):
 
     def ack(self) -> None: ...
 
+    def nack(self) -> None: ...
+
 
 def make_callback(
     handler: EventHandler, loop: asyncio.AbstractEventLoop
 ) -> Callable[[PubSubMessage], None]:
-    """Build the subscriber callback: decode, run `handler` on `loop`, always ack."""
+    """Build the subscriber callback: decode, run `handler` on `loop`, ack (or nack, see above)."""
 
     def callback(message: PubSubMessage) -> None:
         try:
-            _dispatch(message, handler, loop)
-        finally:
+            delivered = _dispatch(message, handler, loop)
+        except BaseException:
+            message.nack()
+            raise
+        if delivered:
             message.ack()
+        else:
+            message.nack()
 
     return callback
 
 
 def _dispatch(
     message: PubSubMessage, handler: EventHandler, loop: asyncio.AbstractEventLoop
-) -> None:
+) -> bool:
+    """Run the handler; False means it could not run and the message must be redelivered."""
     try:
         event: Any = json.loads(message.data)
     except ValueError as exc:
         _LOGGER.warning("pubsub message ignored: %s", type(exc).__name__)
-        return
+        return True
     if not isinstance(event, dict):
         _LOGGER.warning("pubsub message ignored: not an object")
-        return
+        return True
 
     async def run_handler() -> None:
         await handler(event)
 
+    coroutine = run_handler()
     try:
-        asyncio.run_coroutine_threadsafe(run_handler(), loop).result()
+        future = asyncio.run_coroutine_threadsafe(coroutine, loop)
+    except RuntimeError as exc:  # the loop is closed
+        coroutine.close()
+        _LOGGER.error("pubsub handler not run: %s", type(exc).__name__)
+        return False
+    try:
+        future.result()
+    except (CancelledError, asyncio.CancelledError) as exc:
+        _LOGGER.error("pubsub handler not run: %s", type(exc).__name__)
+        return False
     except Exception as exc:
         _LOGGER.error("pubsub handler failed: %s", type(exc).__name__)
+    return True
 
 
 class PubSubIntake:

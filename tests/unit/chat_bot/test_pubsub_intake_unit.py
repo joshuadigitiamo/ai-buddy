@@ -19,9 +19,13 @@ class FakeMessage:
     def __init__(self, data: bytes) -> None:
         self.data = data
         self.acks = 0
+        self.nacks = 0
 
     def ack(self) -> None:
         self.acks += 1
+
+    def nack(self) -> None:
+        self.nacks += 1
 
 
 class FakeSubscriber:
@@ -159,3 +163,44 @@ async def test_a_stream_failure_propagates_and_still_closes_the_subscriber() -> 
         await task
 
     assert subscriber.closed
+
+
+async def test_a_closed_loop_nacks_so_pubsub_redelivers(caplog: pytest.LogCaptureFixture) -> None:
+    handler = Recorder()
+    loop = asyncio.new_event_loop()
+    loop.close()
+    callback = make_callback(handler, loop)
+    message = FakeMessage(b'{"k": "v"}')
+
+    with caplog.at_level(logging.DEBUG):
+        await _deliver(callback, message)
+
+    assert handler.events == []
+    assert (message.acks, message.nacks) == (0, 1)
+    assert "pubsub handler not run" in caplog.text
+
+
+async def test_a_run_cancelled_at_shutdown_nacks() -> None:
+    async def cancelled_mid_run(event: Mapping[str, Any]) -> None:
+        task = asyncio.current_task()
+        assert task is not None
+        task.cancel()
+        await asyncio.sleep(30)
+
+    callback = make_callback(cancelled_mid_run, asyncio.get_running_loop())
+    message = FakeMessage(b'{"k": "v"}')
+
+    await _deliver(callback, message)
+
+    assert (message.acks, message.nacks) == (0, 1)
+
+
+async def test_handled_and_undecodable_messages_are_never_nacked() -> None:
+    callback = make_callback(Recorder(fail=True), asyncio.get_running_loop())
+    handled, undecodable = FakeMessage(b'{"k": "v"}'), FakeMessage(b"not json")
+
+    await _deliver(callback, handled)
+    await _deliver(callback, undecodable)
+
+    assert (handled.acks, handled.nacks) == (1, 0)
+    assert (undecodable.acks, undecodable.nacks) == (1, 0)
