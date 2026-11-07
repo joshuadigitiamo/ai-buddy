@@ -223,9 +223,7 @@ async def test_model_unavailable_during_reformulation_gives_the_error_reply(
 async def test_model_unavailable_during_answer_propagates_without_a_gap(
     connector: RecordingConnector, workflow_config: WorkflowConfig, gaplog: InMemoryGapLog
 ) -> None:
-    llm = FakeLlm(
-        {Reformulation: [_reformulation()], AnswerDraft: [LlmUnavailableError("down")]}
-    )
+    llm = FakeLlm({Reformulation: [_reformulation()], AnswerDraft: [LlmUnavailableError("down")]})
 
     with pytest.raises(LlmUnavailableError):
         await _run(llm, connector, workflow_config)
@@ -267,4 +265,4 @@ def _skill_bridge_rows() -> tuple[tuple[str, str], ...]:
 
 
 def test_keyword_bridge_equals_the_skill_table() -> None:
-    assert KEYWORD_BRIDGE == _skill_bridge_rows()
+    assert _skill_bridge_rows() == KEYWORD_BRIDGE

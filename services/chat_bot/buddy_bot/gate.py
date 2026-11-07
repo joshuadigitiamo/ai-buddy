@@ -22,6 +22,8 @@ def check(evidence: Mapping[str, Evidence], draft: AnswerDraft, threshold: float
     """Apply the checks in a fixed order; the first failure names the reason."""
     if not evidence:
         return GateResult(False, "no_evidence")
+    if not draft.answer.strip():
+        return GateResult(False, "blank_answer")
     if not draft.citations:
         return GateResult(False, "no_citation")
     if any(citation.strip() not in evidence for citation in draft.citations):

@@ -18,7 +18,7 @@ from langgraph.runtime import Runtime
 
 from buddy_bot.gate import check, cited_sources
 from buddy_bot.mcp_client import McpToolError, evidence_from
-from buddy_bot.ports import LlmClient, LlmOutputError, McpConnector, McpTools, Turn
+from buddy_bot.ports import LlmClient, LlmError, LlmOutputError, McpConnector, McpTools, Turn
 from buddy_bot.prompts import (
     ANSWER_SYSTEM,
     REFORMULATE_SYSTEM,
@@ -83,14 +83,23 @@ async def reformulate(state: State, runtime: Runtime[RunContext]) -> dict[str, A
     ctx = runtime.context
     history = format_history(state["history"])
     user = f"{history}\n\nMessaggio: {state['question']}" if history else state["question"]
-    reformulation = await ctx.llm.structured(
-        Reformulation,
-        model=ctx.config.reformulate_model,
-        system=REFORMULATE_SYSTEM,
-        user=user,
-        max_tokens=REFORMULATE_MAX_TOKENS,
-    )
+    try:
+        reformulation = await ctx.llm.structured(
+            Reformulation,
+            model=ctx.config.reformulate_model,
+            system=REFORMULATE_SYSTEM,
+            user=user,
+            max_tokens=REFORMULATE_MAX_TOKENS,
+        )
+    except LlmError:
+        # No standalone question exists, so there is nothing to retrieve and nothing to log.
+        return {"reply": BotReply(kind="error")}
     return {"reformulation": reformulation}
+
+
+async def smalltalk(state: State, runtime: Runtime[RunContext]) -> dict[str, Any]:
+    """Chit-chat and off-topic messages get the fixed reply: no retrieval, no gap (D-14)."""
+    return {"reply": BotReply(kind="smalltalk")}
 
 
 async def retrieve(state: State, runtime: Runtime[RunContext]) -> dict[str, Any]:
@@ -187,6 +196,12 @@ async def refuse(state: State, runtime: Runtime[RunContext]) -> dict[str, Any]:
     return {"reply": reply}
 
 
+def _after_reformulate(state: State) -> str:
+    if "reply" in state:
+        return END
+    return "retrieve" if state["reformulation"].intent == "question" else "smalltalk"
+
+
 def _decide(state: State) -> str:
     """After a failed or skipped attempt: the first failure retries, the second refuses."""
     if state["gate_reason"] == "ok":
@@ -206,6 +221,7 @@ def build_graph() -> Any:
     """Compile the graph once; nodes read their dependencies from `runtime.context`."""
     graph = StateGraph(State, context_schema=RunContext)
     graph.add_node("reformulate", reformulate)
+    graph.add_node("smalltalk", smalltalk)
     graph.add_node("retrieve", retrieve)
     graph.add_node("retry_plan", retry_plan)
     graph.add_node("answer", answer)
@@ -213,11 +229,12 @@ def build_graph() -> Any:
     graph.add_node("finish", finish)
     graph.add_node("refuse", refuse)
     graph.add_edge(START, "reformulate")
-    graph.add_edge("reformulate", "retrieve")
+    graph.add_conditional_edges("reformulate", _after_reformulate, ["retrieve", "smalltalk", END])
     graph.add_conditional_edges("retrieve", _after_retrieve, ["answer", "retry_plan", "refuse"])
     graph.add_edge("answer", "gate")
     graph.add_conditional_edges("gate", _decide, ["finish", "retry_plan", "refuse"])
     graph.add_conditional_edges("retry_plan", _after_retry_plan, ["retrieve", "refuse"])
+    graph.add_edge("smalltalk", END)
     graph.add_edge("finish", END)
     graph.add_edge("refuse", END)
     return graph.compile()
