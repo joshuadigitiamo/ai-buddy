@@ -1,0 +1,15 @@
+{
+  "type": "REMOVED_FROM_SPACE",
+  "eventTime": "2026-11-03T10:20:00.000000Z",
+  "space": {
+    "name": "spaces/AAAAsyntheticRoom",
+    "type": "ROOM",
+    "displayName": "Stanza Sintetica"
+  },
+  "user": {
+    "name": "users/111111111111111111111",
+    "displayName": "Utente Sintetico",
+    "email": "utente@example.invalid",
+    "type": "HUMAN"
+  }
+}

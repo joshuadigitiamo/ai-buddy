@@ -1,0 +1,31 @@
+{
+  "type": "MESSAGE",
+  "eventTime": "2026-11-03T10:30:00.000000Z",
+  "space": {
+    "name": "spaces/AAAAsyntheticRoom",
+    "type": "ROOM",
+    "displayName": "Stanza Sintetica"
+  },
+  "message": {
+    "name": "spaces/AAAAsyntheticRoom/messages/m-4.m-4",
+    "sender": {
+      "name": "users/222222222222222222222",
+      "displayName": "Bot Sintetico",
+      "type": "BOT"
+    },
+    "text": "Messaggio automatico",
+    "argumentText": " Messaggio automatico",
+    "thread": {
+      "name": "spaces/AAAAsyntheticRoom/threads/t-4"
+    },
+    "space": {
+      "name": "spaces/AAAAsyntheticRoom",
+      "type": "ROOM"
+    }
+  },
+  "user": {
+    "name": "users/222222222222222222222",
+    "displayName": "Bot Sintetico",
+    "type": "BOT"
+  }
+}

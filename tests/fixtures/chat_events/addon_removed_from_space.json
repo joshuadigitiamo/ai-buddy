@@ -1,0 +1,23 @@
+{
+  "commonEventObject": {
+    "hostApp": "CHAT",
+    "platform": "WEB",
+    "userLocale": "it"
+  },
+  "chat": {
+    "user": {
+      "name": "users/111111111111111111111",
+      "displayName": "Utente Sintetico",
+      "email": "utente@example.invalid",
+      "type": "HUMAN"
+    },
+    "eventTime": "2026-11-03T10:45:00.000000Z",
+    "removedFromSpacePayload": {
+      "space": {
+        "name": "spaces/AAAAsyntheticRoom",
+        "spaceType": "SPACE",
+        "displayName": "Stanza Sintetica"
+      }
+    }
+  }
+}

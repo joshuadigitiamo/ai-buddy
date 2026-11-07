@@ -1,0 +1,44 @@
+{
+  "commonEventObject": {
+    "hostApp": "CHAT",
+    "platform": "WEB",
+    "userLocale": "it"
+  },
+  "chat": {
+    "user": {
+      "name": "users/111111111111111111111",
+      "displayName": "Utente Sintetico",
+      "email": "utente@example.invalid",
+      "type": "HUMAN"
+    },
+    "eventTime": "2026-11-03T10:50:00.000000Z",
+    "appCommandPayload": {
+      "appCommandMetadata": {
+        "appCommandId": 1,
+        "appCommandType": "SLASH_COMMAND"
+      },
+      "space": {
+        "name": "spaces/AAAAsyntheticDM",
+        "spaceType": "DIRECT_MESSAGE",
+        "singleUserBotDm": true
+      },
+      "message": {
+        "name": "spaces/AAAAsyntheticDM/messages/msg-6.msg-6",
+        "sender": {
+          "name": "users/111111111111111111111",
+          "displayName": "Utente Sintetico",
+          "type": "HUMAN"
+        },
+        "text": "/aiuto",
+        "argumentText": " ",
+        "thread": {
+          "name": "spaces/AAAAsyntheticDM/threads/thr-6"
+        },
+        "space": {
+          "name": "spaces/AAAAsyntheticDM",
+          "spaceType": "DIRECT_MESSAGE"
+        }
+      }
+    }
+  }
+}
