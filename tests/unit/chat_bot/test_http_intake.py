@@ -21,6 +21,8 @@ from tests.unit.chat_bot.conftest import load_event
 
 from buddy_bot.intake.http import (
     ACK_SECONDS,
+    CERT_FETCH_TIMEOUT,
+    CERT_TTL_SECONDS,
     MAX_BODY_BYTES,
     ChatTokenVerifier,
     HttpIntake,
@@ -59,6 +61,8 @@ class _CertsRequest(Request):
     def __init__(self, key: RSAKeyPair) -> None:
         self._certs = {KEY_ID: key.public_key}
         self.urls: list[str] = []
+        self.timeouts: list[float | None] = []
+        self.fail = False
 
     def __call__(
         self,
@@ -70,6 +74,9 @@ class _CertsRequest(Request):
         **kwargs: Any,
     ) -> Response:
         self.urls.append(url)
+        self.timeouts.append(timeout)
+        if self.fail:
+            raise OSError("certs unreachable")
         return _CertsResponse(self._certs)
 
 
@@ -396,3 +403,59 @@ def test_http_intake_turns_access_logging_off(verifier: ChatTokenVerifier) -> No
     )
     assert config.access_log is False
     assert config.port == 8080
+
+
+async def test_certificates_are_fetched_once_and_cached(
+    verifier: ChatTokenVerifier, sign: Callable[..., str], certs: _CertsRequest
+) -> None:
+    results = [await verifier.verify(sign()) for _ in range(5)]
+
+    assert results == [True] * 5
+    assert len(certs.urls) == 1
+
+
+async def test_certificate_fetch_is_bounded_by_a_short_timeout(
+    verifier: ChatTokenVerifier, sign: Callable[..., str], certs: _CertsRequest
+) -> None:
+    await verifier.verify(sign())
+
+    assert certs.timeouts == [CERT_FETCH_TIMEOUT]
+    assert CERT_FETCH_TIMEOUT <= 10
+
+
+async def test_cached_certificates_expire_after_the_ttl(
+    key: RSAKeyPair, certs: _CertsRequest, sign: Callable[..., str]
+) -> None:
+    now = [1000.0]
+    verifier = ChatTokenVerifier(AUDIENCE, CHAT_EMAIL, request=certs, clock=lambda: now[0])
+
+    await verifier.verify(sign())
+    now[0] += CERT_TTL_SECONDS - 1
+    await verifier.verify(sign())
+    assert len(certs.urls) == 1
+    now[0] += 2
+    await verifier.verify(sign())
+    assert len(certs.urls) == 2
+
+
+async def test_a_failed_certificate_fetch_is_not_cached(
+    verifier: ChatTokenVerifier, sign: Callable[..., str], certs: _CertsRequest
+) -> None:
+    certs.fail = True
+    assert await verifier.verify(sign()) is False
+    certs.fail = False
+
+    assert await verifier.verify(sign()) is True
+    assert len(certs.urls) == 2
+
+
+@pytest.mark.parametrize(
+    "token",
+    ["x", "a.b", "a.b.c.d", "a..c", "a b.c.d", "a.b.c\n", "é.b.c", "a." + "b" * 9000 + ".c"],
+    ids=["one", "two", "four", "empty-part", "space", "newline", "non-ascii", "huge"],
+)
+async def test_a_token_that_is_not_jwt_shaped_never_reaches_the_network(
+    verifier: ChatTokenVerifier, certs: _CertsRequest, token: str
+) -> None:
+    assert await verifier.verify(token) is False
+    assert certs.urls == []

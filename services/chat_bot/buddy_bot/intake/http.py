@@ -13,11 +13,15 @@ the placeholder. ack_seconds 0 returns at once (option a).
 import asyncio
 import json
 import logging
-from collections.abc import Mapping
+import re
+import threading
+import time
+from collections.abc import Callable, Mapping
 from typing import Any, Final
 
 import uvicorn
 from google.auth.transport import Request
+from google.auth.transport import Response as GoogleResponse
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from starlette.applications import Starlette
@@ -29,22 +33,108 @@ from buddy_bot.ports import EventHandler
 
 ACK_SECONDS: Final = 25.0
 MAX_BODY_BYTES: Final = 1_048_576
+CERT_TTL_SECONDS: Final = 3600.0
+CERT_FETCH_TIMEOUT: Final = 5.0
+MAX_TOKEN_CHARS: Final = 8192
+
+# A JWT is three non-empty base64url parts joined by dots; anything else cannot verify, so it is
+# rejected before a thread or the network is used.
+_JWT_SHAPE: Final = re.compile(r"[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+")
 
 _LOGGER = logging.getLogger("buddy_bot")
+
+
+class _CachedResponse(GoogleResponse):
+    """A snapshot of a successful response, replayable from the cache."""
+
+    def __init__(self, status: int, headers: Mapping[str, str], data: bytes) -> None:
+        self._status = status
+        self._headers = dict(headers)
+        self._data = data
+
+    @property
+    def status(self) -> int:
+        return self._status
+
+    @property
+    def headers(self) -> Mapping[str, str]:
+        return self._headers
+
+    @property
+    def data(self) -> bytes:
+        return self._data
+
+
+class _CachingRequest(Request):
+    """google-auth Request that caches successful GETs for a TTL and bounds every fetch.
+
+    google-auth refetches Google's certificate map on every verification; without this a flood
+    of requests becomes a flood of outbound calls. Only a 200 is cached, so an outage is retried.
+    """
+
+    def __init__(self, inner: Request, *, ttl: float, timeout: float, clock: Callable[[], float]):
+        self._inner = inner
+        self._ttl = ttl
+        self._timeout = timeout
+        self._clock = clock
+        self._lock = threading.Lock()
+        self._cache: dict[str, tuple[float, _CachedResponse]] = {}
+
+    def __call__(
+        self,
+        url: str,
+        method: str = "GET",
+        body: bytes | None = None,
+        headers: Mapping[str, str] | None = None,
+        timeout: float | None = None,
+        **kwargs: Any,
+    ) -> GoogleResponse:
+        if method.upper() != "GET":
+            passthrough: GoogleResponse = self._inner(
+                url, method=method, body=body, headers=headers, timeout=self._timeout, **kwargs
+            )
+            return passthrough
+        with self._lock:  # concurrent misses wait for one fetch instead of starting their own
+            hit = self._cache.get(url)
+            if hit is not None and self._clock() - hit[0] < self._ttl:
+                cached: GoogleResponse = hit[1]
+                return cached
+            response: GoogleResponse = self._inner(
+                url, method=method, body=body, headers=headers, timeout=self._timeout, **kwargs
+            )
+            if response.status == 200:
+                snapshot = _CachedResponse(response.status, response.headers, response.data)
+                self._cache[url] = (self._clock(), snapshot)
+                return snapshot
+            return response
 
 
 class ChatTokenVerifier:
     """Accepts a bearer token only when Google signed it for this endpoint and for Chat."""
 
-    def __init__(self, audience: str, issuer_email: str, *, request: Request | None = None) -> None:
+    def __init__(
+        self,
+        audience: str,
+        issuer_email: str,
+        *,
+        request: Request | None = None,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
         if not audience:
             # An empty audience would make google-auth skip the audience check altogether.
             raise ValueError("audience must not be empty")
         self._audience = audience
         self._issuer_email = issuer_email.strip().lower()
-        self._request: Request = request if request is not None else google_requests.Request()
+        self._request: Request = _CachingRequest(
+            request if request is not None else google_requests.Request(),
+            ttl=CERT_TTL_SECONDS,
+            timeout=CERT_FETCH_TIMEOUT,
+            clock=clock,
+        )
 
     async def verify(self, token: str) -> bool:
+        if len(token) > MAX_TOKEN_CHARS or _JWT_SHAPE.fullmatch(token) is None:
+            return False
         try:
             claims = await asyncio.to_thread(self._decode, token)
         except Exception:
