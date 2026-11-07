@@ -58,7 +58,7 @@ Compose reads `MERIDIAN_API_KEY` and `GOOGLE_CLOUD_PROJECT` from `.env` and refu
 | `ARTIFACTS_DIR` | `./artifacts` | Host directory with the published index. Mounted read-only into the MCP server. |
 | `BOT_UID`, `BOT_GID` | `1000`, `1000` | User the bot container runs as in dev. The image's own user (10001) cannot read a key file kept at mode 600, so dev uses the host user instead. |
 
-The compose file sets these for the bot itself: `INTAKE=pubsub`, `LLM_BACKEND=meridian`, `LLM_BASE_URL=http://meridian:3456`, `MCP_URL=http://mcp_server:8000/mcp`, `MCP_AUTH=none`, `PORT=8080`, `FIRESTORE_EMULATOR_HOST=firestore:8080`, `LANGSMITH_TRACING=false`.
+The compose file sets these for the bot itself: `INTAKE=pubsub`, `LLM_BACKEND=meridian`, `LLM_BASE_URL=http://meridian:3456`, `MCP_URL=http://localhost:8000/mcp` (the bot shares the MCP server's network namespace, because the server admits plain http only for loopback hosts), `MCP_AUTH=none`, `PORT=8080`, `FIRESTORE_EMULATOR_HOST=firestore:8080`, `LANGSMITH_TRACING=false`.
 
 `PORT` matters: `.env.example` has `PORT=8000`, which is the MCP server's port. The compose file sets the bot's `PORT` explicitly so that value does not leak in.
 

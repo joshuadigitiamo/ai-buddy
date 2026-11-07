@@ -94,6 +94,15 @@ def test_mcp_server_artifacts_are_read_only() -> None:
     assert str(artifacts[0]).endswith(":/artifacts:ro")
 
 
+def test_mcp_server_admits_the_bot_host() -> None:
+    # Live check 2026-11-07: without this the Host guard answered every bot call with 421.
+    # The server admits plain http only for loopback hosts, so the bot must share its network
+    # namespace and call it on localhost.
+    bot = _services()["chat_bot"]
+    assert bot["network_mode"] == "service:mcp_server"
+    assert _environment(bot)["MCP_URL"] == "http://localhost:8000/mcp"
+
+
 def test_emulator_wiring_is_consistent() -> None:
     services = _services()
     for name in ("mcp_server", "chat_bot"):
