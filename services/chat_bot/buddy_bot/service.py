@@ -5,7 +5,8 @@ fields or question text (BOT-11).
 """
 
 import logging
-from collections.abc import Mapping
+import time
+from collections.abc import Callable, Mapping
 from typing import Any, Final
 
 from buddy_bot.events import ChatEvent, normalize_event
@@ -15,6 +16,8 @@ from buddy_bot.schemas import BotReply
 from buddy_bot.workflow import WorkflowDeps, run_workflow
 
 PLACEHOLDER_TEXT: Final = "Sto cercando nelle fonti…"
+INTRO_TEXT: Final = ""
+USAGE_TEXT: Final = ""
 
 _LOGGER = logging.getLogger("buddy_bot")
 
@@ -40,6 +43,9 @@ class BotService:
         memory: ThreadMemory,
         memory_turns: int,
         video_thumbnail_url: str | None,
+        help_command_id: str | None = None,
+        run_deadline_seconds: float = 120.0,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._allowed = frozenset(user.lower() for user in allowed_users)
         self._chat = chat
@@ -47,6 +53,9 @@ class BotService:
         self._memory = memory
         self._memory_turns = memory_turns
         self._video_thumbnail_url = video_thumbnail_url
+        self._help_command_id = help_command_id
+        self._run_deadline_seconds = run_deadline_seconds
+        self._clock = clock
 
     async def handle(self, payload: Mapping[str, Any]) -> None:
         """Answer one Chat event; any failure is logged by type and never propagates."""

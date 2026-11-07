@@ -1,5 +1,6 @@
 """Synthetic fixtures only: no handbook text, no names, no credentials."""
 
+import copy
 import json
 from collections.abc import AsyncIterator, Callable, Iterator, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
@@ -181,6 +182,20 @@ def load_event(name: str) -> dict[str, Any]:
     """Load a recorded Chat event fixture by file stem."""
     loaded: dict[str, Any] = json.loads((EVENTS_DIR / f"{name}.json").read_text(encoding="utf-8"))
     return loaded
+
+
+def with_message(
+    base: Mapping[str, Any], *, name: str | None = None, text: str | None = None
+) -> dict[str, Any]:
+    """A copy of a message event (either shape) with another message name and/or text."""
+    event: dict[str, Any] = copy.deepcopy(dict(base))
+    message = event["chat"]["messagePayload"]["message"] if "chat" in event else event["message"]
+    if name is not None:
+        message["name"] = name
+    if text is not None:
+        message["text"] = text
+        message["argumentText"] = text
+    return event
 
 
 @pytest.fixture
