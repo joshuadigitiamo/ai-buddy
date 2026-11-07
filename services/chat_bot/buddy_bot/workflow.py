@@ -20,14 +20,22 @@ from buddy_bot.gate import check, cited_sources
 from buddy_bot.mcp_client import McpToolError, evidence_from
 from buddy_bot.ports import LlmClient, LlmError, LlmOutputError, McpConnector, McpTools, Turn
 from buddy_bot.prompts import (
+    ANSWER_SENSITIVE_SYSTEM,
     ANSWER_SYSTEM,
-    REFORMULATE_SYSTEM,
     RETRY_SYSTEM,
+    build_reformulate_system,
     format_evidence,
     format_history,
 )
 from buddy_bot.referral import resolve_referente
-from buddy_bot.schemas import AnswerDraft, BotReply, Evidence, Reformulation, RetryPlan
+from buddy_bot.schemas import (
+    AnswerDraft,
+    BotReply,
+    Evidence,
+    Referente,
+    Reformulation,
+    RetryPlan,
+)
 from buddy_core.escalation import EscalationTable, load_escalation_table
 
 REFORMULATE_MAX_TOKENS: Final = 600
@@ -87,7 +95,7 @@ async def reformulate(state: State, runtime: Runtime[RunContext]) -> dict[str, A
         reformulation = await ctx.llm.structured(
             Reformulation,
             model=ctx.config.reformulate_model,
-            system=REFORMULATE_SYSTEM,
+            system=build_reformulate_system(ctx.escalation),
             user=user,
             max_tokens=REFORMULATE_MAX_TOKENS,
         )
@@ -148,6 +156,7 @@ async def retry_plan(state: State, runtime: Runtime[RunContext]) -> dict[str, An
 
 async def answer(state: State, runtime: Runtime[RunContext]) -> dict[str, Any]:
     ctx = runtime.context
+    sensitive = state["reformulation"].sensitive_topic is not None
     user = (
         f"Domanda: {state['reformulation'].standalone_question}\n\n"
         f"{format_evidence(list(state['evidence'].values()))}"
@@ -156,7 +165,7 @@ async def answer(state: State, runtime: Runtime[RunContext]) -> dict[str, Any]:
         draft = await ctx.llm.structured(
             AnswerDraft,
             model=ctx.config.answer_model,
-            system=ANSWER_SYSTEM,
+            system=ANSWER_SENSITIVE_SYSTEM if sensitive else ANSWER_SYSTEM,
             user=user,
             max_tokens=ANSWER_MAX_TOKENS,
         )
@@ -176,23 +185,36 @@ async def gate(state: State, runtime: Runtime[RunContext]) -> dict[str, Any]:
     return {"gate_reason": result.reason}
 
 
+async def _referente(state: State, ctx: RunContext) -> Referente:
+    topic = state["reformulation"].sensitive_topic
+    return await resolve_referente(
+        ctx.escalation.referente_role(topic),
+        tools=ctx.tools,
+        llm=ctx.llm,
+        model=ctx.config.reformulate_model,
+    )
+
+
 async def finish(state: State, runtime: Runtime[RunContext]) -> dict[str, Any]:
     draft = state["draft"]
+    sensitive = state["reformulation"].sensitive_topic is not None
     reply = BotReply(
-        kind="answer", answer=draft.answer, sources=cited_sources(state["evidence"], draft)
+        kind="answer",
+        answer=draft.answer,
+        sources=cited_sources(state["evidence"], draft),
+        referente=await _referente(state, runtime.context) if sensitive else None,
     )
     return {"reply": reply}
 
 
 async def refuse(state: State, runtime: Runtime[RunContext]) -> dict[str, Any]:
-    ctx = runtime.context
-    referente = await resolve_referente(
-        ctx.escalation.referente_role(None),
-        tools=ctx.tools,
-        llm=ctx.llm,
-        model=ctx.config.reformulate_model,
+    """Sensitive questions end as a referral (D-06), everything else as the refusal (D-03)."""
+    sensitive = state["reformulation"].sensitive_topic is not None
+    reply = BotReply(
+        kind="referral" if sensitive else "refusal",
+        referente=await _referente(state, runtime.context),
+        gate_reason=state.get("gate_reason"),
     )
-    reply = BotReply(kind="refusal", referente=referente, gate_reason=state.get("gate_reason"))
     return {"reply": reply}
 
 
