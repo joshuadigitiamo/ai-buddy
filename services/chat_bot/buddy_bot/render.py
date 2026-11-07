@@ -12,6 +12,8 @@ SMALLTALK_TEXT: Final = (
     "Prova a chiedermi qualcosa su questi temi."
 )
 ERROR_TEXT: Final = "Non riesco a rispondere in questo momento. Riprova tra poco."
+VIDEO_CARD_ID: Final = "video-sources"
+VIDEO_CARD_TITLE: Final = "Video della guida"
 
 # The prompt forbids URLs in the answer; any the model wrote anyway is removed here.
 _URL_TOKEN: Final = re.compile(r"(?:https?|handbook)://\S+", re.IGNORECASE)
@@ -45,12 +47,48 @@ def _role_text(reply: BotReply) -> str:
     return role
 
 
+def _link_button(text: str, url: str) -> dict[str, Any]:
+    return {"text": text, "onClick": {"openLink": {"url": url}}}
+
+
+def _video_section(source: Evidence, video_url: str, thumbnail_url: str | None) -> dict[str, Any]:
+    widgets: list[dict[str, Any]] = []
+    if thumbnail_url:
+        alt_text = f"Anteprima del video: {source.title}"
+        widgets.append({"image": {"imageUrl": thumbnail_url, "altText": alt_text}})
+    widgets.append({"textParagraph": {"text": f"Indicizzata il {_date(source.revision_date)}"}})
+    widgets.append(
+        {
+            "buttonList": {
+                "buttons": [
+                    _link_button("Fonte", source.source_url),
+                    _link_button("Guarda", video_url),
+                ]
+            }
+        }
+    )
+    return {"header": source.title, "widgets": widgets}
+
+
+def _video_card(sources: list[Evidence], thumbnail_url: str | None) -> list[dict[str, Any]]:
+    """One card, one section per cited Guides source that has a mapped video (D15, BOT-09)."""
+    videos = [(s, s.video_url) for s in sources if s.kind == "guides" and s.video_url]
+    if not videos:
+        return []
+    sections = [_video_section(source, url, thumbnail_url) for source, url in videos]
+    header = {"title": VIDEO_CARD_TITLE, "subtitle": videos[0][0].title}
+    return [{"cardId": VIDEO_CARD_ID, "card": {"header": header, "sections": sections}}]
+
+
 def render_reply(reply: BotReply, *, video_thumbnail_url: str | None) -> RenderedMessage:
-    """Render a reply; `video_thumbnail_url` is used by the card in 03-08."""
+    """Render a reply; `video_thumbnail_url` is the static image shown on video cards."""
     if reply.kind == "answer":
         prose = _URL_TOKEN.sub("", reply.answer).strip()
         lines = [_source_line(source) for source in reply.sources]
-        return RenderedMessage(text="\n\n".join([prose, "\n".join(lines)]) if lines else prose)
+        return RenderedMessage(
+            text="\n\n".join([prose, "\n".join(lines)]) if lines else prose,
+            cards_v2=_video_card(reply.sources, video_thumbnail_url),
+        )
     if reply.kind == "refusal":
         return RenderedMessage(text=f"Non lo so, chiedi a {_role_text(reply)}.")
     if reply.kind == "referral":
