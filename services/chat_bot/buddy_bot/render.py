@@ -14,9 +14,16 @@ SMALLTALK_TEXT: Final = (
 ERROR_TEXT: Final = "Non riesco a rispondere in questo momento. Riprova tra poco."
 VIDEO_CARD_ID: Final = "video-sources"
 VIDEO_CARD_TITLE: Final = "Video della guida"
+MAX_ANSWER_CHARS: Final = 3500
+MAX_MESSAGE_CHARS: Final = 4000
+MAX_VIDEO_SECTIONS: Final = 3
 
 # The prompt forbids URLs in the answer; any the model wrote anyway is removed here.
 _URL_TOKEN: Final = re.compile(r"(?:https?|handbook)://\S+", re.IGNORECASE)
+
+
+def sanitize_prose(text: str) -> str:
+    return text
 
 
 @dataclass(frozen=True, slots=True)
