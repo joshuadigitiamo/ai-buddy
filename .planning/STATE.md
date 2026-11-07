@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Google Chat Bot
 status: executing
-stopped_at: Completed 03-06-PLAN.md
-last_updated: "2026-11-07T11:49:04.380Z"
+stopped_at: Completed 03-07-PLAN.md
+last_updated: "2026-11-07T11:55:01.075Z"
 last_activity: 2026-11-07
 last_activity_desc: Phase 03 execution started
-state_head: 5cc6c57d60174d9242a1a7bff3b8d1d1318ff7eb
+state_head: fd9573368c129b4cf6e253c8bc66e089832653d5
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 30
-  completed_plans: 24
+  completed_plans: 25
   percent: 40
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 03 (Google Chat Bot) — EXECUTING
-Plan: 7 of 12
+Plan: 8 of 12
 Status: Ready to execute
 Last activity: 2026-11-07 — Phase 03 execution started
 
@@ -79,6 +79,7 @@ Progress: [████░░░░░░] 40%
 | Phase 03 P04 | 10 min | 2 tasks | 13 files |
 | Phase 03 P05 | 25 min | 3 tasks | 9 files |
 | Phase 03 P06 | 7 min | 3 tasks | 4 files |
+| Phase 03 P07 | 4 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -141,6 +142,7 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-05: referente contact kept only as verbatim substring of a handbook page returned in the run; gap logs the standalone question plus tried queries of both attempts
 - [Phase 03]: 03-06: anthropic 2.6.0 sends the API key as Authorization: Bearer (no x-api-key); Meridian gate header compatibility to confirm at the 03-12 live check
 - [Phase 03]: 03-06: 'more than one user' under LLM_BACKEND=meridian counts distinct normalized ALLOWED_USERS entries; list exactly one form of the identifier
+- [Phase 03]: 03-07: ThreadMemory adapters hash a caller-supplied key source (DM space name or room thread name, memory_key 3b) with HMAC-SHA256; document shape fixed to turns/updated_at/expire_at; read-side 24h expiry (expire_at <= now reads empty) until Phase 4 Firestore TTL
 
 ### Pending Todos
 
@@ -169,6 +171,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07T11:49:04.280Z
-Stopped at: Completed 03-06-PLAN.md
+Last session: 2026-11-07T11:55:00.977Z
+Stopped at: Completed 03-07-PLAN.md
 Resume file: None
