@@ -1,0 +1,47 @@
+# Escalation topics -> referral role, shared by the Google Chat bot and the Skill (D-08).
+#
+# This file is the source of truth the bot reads. skills/digitiamo-buddy/SKILL.md keeps the
+# same table as text for the Skill; tests/unit/buddy_core/test_escalation.py fails when the
+# two drift apart. Edit both sides together.
+#
+# Roles only. Names, e-mail addresses and phone numbers never go here (public repository):
+# the bot looks the actual contact up in the handbook at answer time (D-04).
+#   id        stable key the reformulation step returns as `sensitive_topic` (D-05)
+#   tema      topic wording, copied character for character from SKILL.md
+#   referente referral wording, copied character for character from SKILL.md
+#   ruolo     role the bot searches for and names
+version: 1
+fallback_role: HR
+topics:
+  - id: stipendio
+    tema: "Stipendio, busta paga, straordinari retribuiti, buoni pasto su un caso personale"
+    referente: "HR"
+    ruolo: "HR"
+  - id: malattia
+    tema: "Malattia, salute, certificati medici, infortuni"
+    referente: "HR"
+    ruolo: "HR"
+  - id: molestie
+    tema: "Molestie, discriminazione, conflitti con colleghi o con il responsabile"
+    referente: "HR (se HR è coinvolta: un'altra figura indicata nel manuale)"
+    ruolo: "HR"
+  - id: disciplinare
+    tema: "Provvedimenti disciplinari, contestazioni, condotta"
+    referente: "HR"
+    ruolo: "HR"
+  - id: contratto
+    tema: "Modifiche del contratto: orario, part-time, ruolo, dimissioni, cessazione"
+    referente: "HR"
+    ruolo: "HR"
+  - id: privacy
+    tema: "Dati personali e privacy, liberatoria immagini"
+    referente: "HR"
+    ruolo: "HR"
+  - id: ferie_personali
+    tema: "Ferie e permessi su un caso personale (approvazione, saldo residuo)"
+    referente: "responsabile diretto, poi HR"
+    ruolo: "responsabile diretto"
+  - id: rimborsi
+    tema: "Rimborsi spese e trasferte su un caso personale"
+    referente: "HR"
+    ruolo: "HR"
