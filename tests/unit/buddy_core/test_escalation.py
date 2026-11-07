@@ -53,7 +53,7 @@ def test_default_table_loads() -> None:
 
 def first_drift(yaml_rows: list[tuple[str, str]], skill_rows: list[tuple[str, str]]) -> int | None:
     """Return the 1-based number of the first row that differs, or None when equal."""
-    for number, (from_yaml, from_skill) in enumerate(zip(yaml_rows, skill_rows), 1):
+    for number, (from_yaml, from_skill) in enumerate(zip(yaml_rows, skill_rows, strict=False), 1):
         if from_yaml != from_skill:
             return number
     if len(yaml_rows) != len(skill_rows):
@@ -116,7 +116,7 @@ def test_ids_are_eight_unique_items() -> None:
 
 def valid_table() -> dict[str, Any]:
     loaded = yaml.safe_load(DEFAULT_TABLE_PATH.read_text(encoding="utf-8"))
-    return copy.deepcopy(loaded)  # type: ignore[no-any-return]
+    return copy.deepcopy(loaded)
 
 
 def duplicate_id(table: dict[str, Any]) -> None:
