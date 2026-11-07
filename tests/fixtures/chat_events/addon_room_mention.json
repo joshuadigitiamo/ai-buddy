@@ -1,0 +1,40 @@
+{
+  "commonEventObject": {
+    "hostApp": "CHAT",
+    "platform": "WEB",
+    "userLocale": "it"
+  },
+  "chat": {
+    "user": {
+      "name": "users/111111111111111111111",
+      "displayName": "Utente Sintetico",
+      "email": "utente@example.invalid",
+      "type": "HUMAN"
+    },
+    "eventTime": "2026-11-03T10:05:00.000000Z",
+    "messagePayload": {
+      "space": {
+        "name": "spaces/AAAAsyntheticRoom",
+        "spaceType": "SPACE",
+        "displayName": "Stanza Sintetica"
+      },
+      "message": {
+        "name": "spaces/AAAAsyntheticRoom/messages/m-1.m-1",
+        "sender": {
+          "name": "users/111111111111111111111",
+          "displayName": "Utente Sintetico",
+          "type": "HUMAN"
+        },
+        "text": "@AI Buddy Come richiedo le ferie?",
+        "argumentText": " Come richiedo le ferie?",
+        "thread": {
+          "name": "spaces/AAAAsyntheticRoom/threads/t-1"
+        },
+        "space": {
+          "name": "spaces/AAAAsyntheticRoom",
+          "spaceType": "SPACE"
+        }
+      }
+    }
+  }
+}

@@ -89,6 +89,32 @@ async def test_dm_gets_placeholder_then_cited_answer(
     assert set(connector.calls) == {"handbook_search", "guides_search"}
 
 
+async def test_addon_room_mention_gets_placeholder_in_thread_then_answer(
+    connector: RecordingConnector, workflow_config: WorkflowConfig
+) -> None:
+    llm = FakeLlm({Reformulation: [REFORMULATION], AnswerDraft: [GOOD_DRAFT]})
+    chat = FakeChatApi()
+
+    await make_service(llm, connector, workflow_config, chat).handle(
+        load_event("addon_room_mention")
+    )
+
+    assert len(chat.created) == 1
+    created = chat.created[0]
+    assert created.text == PLACEHOLDER_TEXT
+    assert created.space == "spaces/AAAAsyntheticRoom"
+    assert created.thread == "spaces/AAAAsyntheticRoom/threads/t-1"
+    assert len(chat.updated) == 1
+    updated = chat.updated[0]
+    assert updated.name == f"{created.space}/messages/placeholder-1"
+    assert GOOD_DRAFT.answer in updated.text
+    assert "handbook://02-ferie" in updated.text
+    reformulate_call = llm.calls[0]
+    assert reformulate_call.schema is Reformulation
+    assert "Come richiedo le ferie?" in reformulate_call.user
+    assert "@AI Buddy" not in reformulate_call.user
+
+
 async def test_forged_citation_is_refused(
     connector: RecordingConnector, workflow_config: WorkflowConfig
 ) -> None:
