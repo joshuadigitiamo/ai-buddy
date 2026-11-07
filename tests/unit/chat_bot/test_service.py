@@ -59,9 +59,10 @@ def _assert_untouched(
     assert llm.calls == [] and connector.calls == [] and memory.calls == 0
 
 
-def test_canned_texts_are_italian_and_distinct() -> None:
+def test_canned_texts_name_the_bot_and_the_sources() -> None:
     assert "/aiuto" in INTRO_TEXT
-    assert INTRO_TEXT != USAGE_TEXT
+    assert "AI Buddy" in INTRO_TEXT
+    assert "Guide" in USAGE_TEXT and "manuale" in USAGE_TEXT
     assert "?" in USAGE_TEXT
 
 
@@ -157,6 +158,20 @@ async def test_redelivered_event_is_handled_once(make_service: ServiceFactory) -
     assert len(chat.created) == 1 and len(chat.updated) == 1
     assert len([c for c in llm.calls if c.schema is Reformulation]) == 1
     assert len(memory.append_calls) == 1
+
+
+async def test_event_without_message_name_has_no_idempotency_key(
+    make_service: ServiceFactory,
+) -> None:
+    llm, chat = _llm(), FakeChatApi()
+    service = make_service(llm, chat=chat)
+    event: dict[str, Any] = load_event("legacy_dm_message")
+    del event["message"]["name"]
+
+    await service.handle(event)
+    await service.handle(event)
+
+    assert len(chat.created) == 2
 
 
 async def test_same_message_name_is_handled_again_after_the_ttl(
