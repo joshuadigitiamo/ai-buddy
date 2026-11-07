@@ -170,6 +170,7 @@ None yet.
 - [Phase 4] GCP project + active billing account needed for live Cloud Run deploy and Workload Identity Federation (Admin Google); region europe-west8 still "da confermare" (D7)
 - [Phase 4] Cost of chat_bot service, Pub/Sub, CI and kind is not covered by research 07; ~0 EUR/month holds for the MCP server only
 - [Later] Videos must move to Google Drive before any non-dev user (D15); `LLM_BACKEND` must move to API key before any second user (D1a)
+- [Later] Re-check the thread-memory privacy posture (D-11: HMAC key, N turns, 24 h TTL) before any second user, together with the LLM_BACKEND switch (D1a)
 - [Later] Open: real team chat channel, Team license budget, CCNL, official handbook owner, which Guides go company-wide, formal data-sovereignty constraint
 - [Phase 4] claude.ai connector live check (02-UAT test 10, deferred): org owner likely unreachable; try a member-level personal custom connector once hosted
 - [Phase 4] non-digitiamo account rejection not yet tested live (02-UAT test 9 passed by user decision; Internal consent screen blocks external accounts at Google)
