@@ -37,7 +37,7 @@ Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requireme
 ### Google Chat Bot
 
 - [ ] **BOT-01**: In development the bot receives Google Chat events (DM and @mention) through a Pub/Sub subscription and replies in chat.
-- [ ] **BOT-02**: The same bot exposes an HTTP endpoint that verifies the Google JWT on every request (reject missing or invalid tokens) for Cloud Run; event intake sits behind one interface so the workflow is identical for both transports.
+- [x] **BOT-02**: The same bot exposes an HTTP endpoint that verifies the Google JWT on every request (reject missing or invalid tokens) for Cloud Run; event intake sits behind one interface so the workflow is identical for both transports.
 - [ ] **BOT-03**: An allowlist guard (`ALLOWED_USERS`) rejects any sender not on the list before any MCP or LLM call; the Chat app is visible to Joshua only (documented manual setting).
 - [x] **BOT-04**: Answers come from a LangGraph 2-step RAG workflow (query reformulation, retrieval via the MCP server's tools over HTTP as an MCP client, answer with citations, confidence gate); the bot holds no duplicate retrieval logic.
 - [x] **BOT-05**: Every citation in an answer must point to text the MCP tools returned in that run; an answer with an unsupported citation, or below the confidence gate, is replaced by "non lo so, chiedi a ..." and the question is reported via `buddy_report_gap`.
@@ -46,7 +46,7 @@ Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requireme
 - [ ] **BOT-08**: The bot refuses to start with `LLM_BACKEND=meridian` when `ALLOWED_USERS` holds more than one user (enforces D1a single-user guard).
 - [ ] **BOT-09**: Answers sourced from a Guides section with a mapped video render as a card with the source link, a thumbnail and a "Guarda" button opening the scene clip (or full video); handbook answers show the source link.
 - [ ] **BOT-10**: The bot answers within Google Chat's event window (~30 s) or sends the answer as an asynchronous follow-up message.
-- [ ] **BOT-11**: Logs and traces do not persist user identifiers alongside question text (Statuto dei Lavoratori art. 4 posture).
+- [x] **BOT-11**: Logs and traces do not persist user identifiers alongside question text (Statuto dei Lavoratori art. 4 posture).
 
 ### Infrastructure and CI/CD
 
@@ -129,7 +129,7 @@ Each requirement maps to exactly one phase. Updated during roadmap creation.
 | MCP-07 | Phase 2 | Complete |
 | MCP-08 | Phase 2 | Complete |
 | BOT-01 | Phase 3 | Pending |
-| BOT-02 | Phase 3 | Pending |
+| BOT-02 | Phase 3 | Complete |
 | BOT-03 | Phase 3 | Pending |
 | BOT-04 | Phase 3 | Complete |
 | BOT-05 | Phase 3 | Complete |
@@ -138,7 +138,7 @@ Each requirement maps to exactly one phase. Updated during roadmap creation.
 | BOT-08 | Phase 3 | Pending |
 | BOT-09 | Phase 3 | Pending |
 | BOT-10 | Phase 3 | Pending |
-| BOT-11 | Phase 3 | Pending |
+| BOT-11 | Phase 3 | Complete |
 | INFRA-01 | Phase 4 | Pending |
 | INFRA-02 | Phase 4 | Pending |
 | INFRA-03 | Phase 4 | Pending |
