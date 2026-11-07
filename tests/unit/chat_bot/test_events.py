@@ -125,6 +125,47 @@ def test_mention_is_removed_from_text_when_argument_text_is_absent() -> None:
     assert event is not None and event.text == "Come richiedo le ferie?"
 
 
+def _bot_mention(length: int, start_index: int | None = None) -> dict[str, Any]:
+    mention: dict[str, Any] = {
+        "type": "USER_MENTION",
+        "length": length,
+        "userMention": {"type": "MENTION", "user": {"name": "users/999", "type": "BOT"}},
+    }
+    if start_index is not None:  # proto3 JSON omits a zero startIndex
+        mention["startIndex"] = start_index
+    return mention
+
+
+def test_two_word_bot_mention_is_removed_whole_using_the_annotation() -> None:
+    payload = load_event("addon_room_mention")
+    message = payload["chat"]["messagePayload"]["message"]
+    del message["argumentText"]
+    message["text"] = "@AI Buddy Come richiedo le ferie?"
+    message["annotations"] = [_bot_mention(length=9)]
+    event = normalize_event(payload)
+    assert event is not None and event.text == "Come richiedo le ferie?"
+
+
+def test_bot_mention_in_the_middle_of_the_text_is_removed_too() -> None:
+    payload = load_event("legacy_room_mention")
+    message = payload["message"]
+    del message["argumentText"]
+    message["text"] = "Ciao @AI Buddy come richiedo le ferie?"
+    message["annotations"] = [_bot_mention(length=9, start_index=5)]
+    event = normalize_event(payload)
+    assert event is not None and event.text == "Ciao come richiedo le ferie?"
+
+
+def test_annotation_that_does_not_point_at_an_at_sign_is_ignored() -> None:
+    payload = load_event("legacy_room_mention")
+    message = payload["message"]
+    del message["argumentText"]
+    message["text"] = "@AI Buddy Come richiedo le ferie?"
+    message["annotations"] = [_bot_mention(length=4, start_index=3), {"type": "SLASH_COMMAND"}]
+    event = normalize_event(payload)
+    assert event is not None and event.text == "Buddy Come richiedo le ferie?"
+
+
 def test_dm_text_without_argument_text_is_kept_whole() -> None:
     payload = load_event("legacy_dm_message")
     del payload["message"]["argumentText"]

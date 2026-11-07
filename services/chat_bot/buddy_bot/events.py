@@ -47,12 +47,34 @@ _LEGACY_LIFECYCLE: Final[dict[str, _LifecycleKind]] = {
 }
 
 
+def _without_bot_mention(text: str, message: Mapping[str, Any]) -> str | None:
+    """Cut the bot's own @mention (any length, so a two-word name goes whole) using annotations."""
+    annotations = message.get("annotations")
+    if not isinstance(annotations, list):
+        return None
+    for annotation in annotations:
+        note = _mapping(annotation)
+        user = _mapping(_mapping(note.get("userMention")).get("user"))
+        if note.get("type") != "USER_MENTION" or user.get("type") != "BOT":
+            continue
+        start, length = note.get("startIndex", 0), note.get("length")
+        if not (isinstance(start, int) and isinstance(length, int) and length > 0 and start >= 0):
+            continue
+        if text[start : start + 1] == "@":
+            return f"{text[:start].rstrip()} {text[start + length :].lstrip()}".strip()
+    return None
+
+
 def _message_text(message: Mapping[str, Any]) -> str:
-    """argumentText is the text without the @mention; else strip a leading `@word` from text."""
+    """argumentText is the text without the @mention; else cut the bot mention from text."""
     argument_text = (_string(message.get("argumentText")) or "").strip()
     if argument_text:
         return argument_text
-    return _LEADING_MENTION.sub("", (_string(message.get("text")) or "").strip(), count=1).strip()
+    text = _string(message.get("text")) or ""
+    stripped = _without_bot_mention(text, message)
+    if stripped is not None:
+        return stripped
+    return _LEADING_MENTION.sub("", text.strip(), count=1).strip()
 
 
 def _command_id(value: object) -> str | None:
