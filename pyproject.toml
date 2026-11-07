@@ -41,6 +41,11 @@ ignore_missing_imports = true
 module = "google.cloud.pubsub_v1"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# protobuf ships no stubs here; only buddy_bot.chat_api (FieldMask, json_format) and its test use it.
+module = "google.protobuf"
+ignore_missing_imports = true
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100

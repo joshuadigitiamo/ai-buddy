@@ -3,13 +3,13 @@
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+import google.auth
 import pytest
 from google.api_core import exceptions as api_exceptions
 from google.apps import chat_v1
 from google.auth.credentials import AnonymousCredentials
 from google.protobuf import field_mask_pb2
 
-from buddy_bot import chat_api
 from buddy_bot.chat_api import CHAT_BOT_SCOPE, ChatApiError, GoogleChatApi, build_chat_client
 from buddy_bot.render import render_reply
 from buddy_bot.schemas import BotReply, Evidence
@@ -135,7 +135,8 @@ async def test_google_api_errors_become_chat_api_error_naming_only_the_type(
     operation: str,
 ) -> None:
     secret = "token ya29.SECRET in the message"
-    api = GoogleChatApi(lambda: FakeChatClient(error=api_exceptions.PermissionDenied(secret)))
+    failure = api_exceptions.PermissionDenied(secret)  # type: ignore[no-untyped-call]
+    api = GoogleChatApi(lambda: FakeChatClient(error=failure))
 
     with pytest.raises(ChatApiError) as raised:
         if operation == "create":
@@ -164,9 +165,9 @@ async def test_build_chat_client_uses_app_credentials_with_the_chat_bot_scope(
 
     def fake_default(*, scopes: list[str]) -> tuple[AnonymousCredentials, str]:
         seen["scopes"] = scopes
-        return AnonymousCredentials(), "demo-project"
+        return AnonymousCredentials(), "demo-project"  # type: ignore[no-untyped-call]
 
-    monkeypatch.setattr(chat_api.google.auth, "default", fake_default)
+    monkeypatch.setattr(google.auth, "default", fake_default)
 
     client = build_chat_client()
 
