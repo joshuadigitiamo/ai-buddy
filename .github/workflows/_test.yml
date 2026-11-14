@@ -27,3 +27,18 @@ jobs:
           persist-credentials: false
       - name: Lint, type check and unit tests
         run: ./run-unit-tests.sh --all
+
+  # Static checks (D-02): kustomize and kubeconform over the manifests, actionlint over the workflows,
+  # and a build of the sync image. kubectl and Docker ship on the GitHub-hosted runner.
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate manifests, workflows and the sync image
+        run: scripts/validate-infra.sh
