@@ -5,7 +5,7 @@ requires-python = ">=3.12"
 dependencies = []
 
 [tool.pytest.ini_options]
-pythonpath = ["packages/buddy_core", "jobs/sync", "services/mcp_server", "services/chat_bot"]
+pythonpath = ["packages/buddy_core", "jobs/sync", "services/mcp_server", "services/chat_bot", "deploy/compose"]
 testpaths = ["tests"]
 addopts = "-ra --import-mode=importlib"
 markers = [
@@ -20,12 +20,13 @@ branch = true
 [tool.mypy]
 strict = true
 python_version = "3.12"
-mypy_path = "packages/buddy_core:jobs/sync:services/mcp_server:services/chat_bot"
+mypy_path = "packages/buddy_core:jobs/sync:services/mcp_server:services/chat_bot:deploy/compose"
 files = [
     "packages/buddy_core/buddy_core",
     "jobs/sync/buddy_sync",
     "services/mcp_server/buddy_mcp",
     "services/chat_bot/buddy_bot",
+    "deploy/compose",
     "tests",
 ]
 explicit_package_bases = true
@@ -54,7 +55,7 @@ ignore_missing_imports = true
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-src = ["packages/buddy_core", "jobs/sync", "services/mcp_server", "services/chat_bot", "tests"]
+src = ["packages/buddy_core", "jobs/sync", "services/mcp_server", "services/chat_bot", "deploy/compose", "tests"]
 # Planning/research markdown embeds illustrative Python; ruff must not gate it.
 extend-exclude = [".planning", "docs"]
 

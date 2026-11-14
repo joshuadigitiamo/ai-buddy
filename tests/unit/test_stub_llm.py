@@ -7,10 +7,10 @@ from typing import Any
 
 import httpx2
 import pytest
-import stub_llm
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel
 
+import stub_llm
 from buddy_bot.llm import AnthropicMessagesClient, _json_instruction
 from buddy_bot.prompts import format_evidence
 from buddy_bot.schemas import (
@@ -95,7 +95,7 @@ async def test_each_workflow_schema_gets_one_text_block_the_real_class_accepts(
 async def test_reformulation_keeps_the_last_line_and_up_to_five_keywords(
     http: httpx2.AsyncClient,
 ) -> None:
-    user = "Domanda: altra\nRisposta: x\n\nMessaggio: Come richiedo le ferie estive per favore adesso?"
+    user = "Domanda: altra\nRisposta: x\n\nMessaggio: Come richiedo le ferie estive per favore?"
     reformulation = Reformulation.model_validate_json(
         await _text(http, _request(Reformulation, user))
     )
