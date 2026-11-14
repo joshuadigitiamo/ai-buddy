@@ -126,6 +126,14 @@ Not in this phase: golden set, Recall@5, MLflow scoring and the milestone gate (
 
 </deferred>
 
+<amendments>
+## Amendments (04-01 checkpoint)
+
+- D-17 interpreted by 04-01 checkpoint: video_fetch (a) — Joshua downloads the missing mp4 files with `gh release download videos --repo <owner>/Guides --dir .cache/videos` on the host with his own login; `upload-videos` reads both `Guides/videos/*/out/` and `.cache/videos`
+- D-18 interpreted by 04-01 checkpoint: sections_authoring (a) — Claude drafts five `sections.yaml` (a2a-protocol, airflow, big-data-frameworks, deep-agents, langsmith) in the local Guides working tree; Joshua reviews and commits them with the five `durations.json` in the Guides repo; "every section whose guide has a video" is read as "whose guide has scene durations", and the eight guides without `durations.json` stay at the 0-offset fallback and are listed as "no durations" in the coverage report
+
+</amendments>
+
 ---
 
 *Phase: 04-infrastructure-and-ci-cd*
