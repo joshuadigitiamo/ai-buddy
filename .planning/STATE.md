@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Infrastructure and CI/CD
 status: executing
-stopped_at: Completed 04-10-PLAN.md
-last_updated: "2026-11-14T13:17:57.105Z"
+stopped_at: Completed 04-09-PLAN.md
+last_updated: "2026-11-14T13:29:13.320Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 04 execution started
-state_head: 446ec540960bbff2017f471952a2e14e4ee97b40
+state_head: 50e5c778b17981ee76ce0e90528342c20217bbb2
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 44
-  completed_plans: 39
+  completed_plans: 40
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 04 (Infrastructure and CI/CD) — EXECUTING
-Plan: 10 of 14
+Plan: 11 of 14
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 04 execution started
 
@@ -95,6 +95,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P07 | 17 min | 3 tasks | 16 files |
 | Phase 04 P08 | 12 min | 3 tasks | 7 files |
 | Phase 04 P10 | 14 min | 3 tasks | 10 files |
+| Phase 04 P09 | 6 min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -190,6 +191,8 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-08: no age-based lifecycle rule on the index bucket (it would delete the build the pointer names after a month without a sync); 04-10 docs must not promise one
 - [Phase 04]: 04-08: chat-bot leaves DEPLOY_ENV unset (04-03 hand-off), mcp-server sets DEPLOY_ENV production; both fail closed
 - [Phase 04]: 04-10: publish reports unchanged from the bucket pointer content_hash before any upload; old builds are never pruned and no age-based delete exists (it would remove the build the pointer names), so rollback means rewriting the pointer
+- [Phase 04]: 04-09: deploy and Meridian jobs mask project identifiers with add-mask first; gcloud stdout to /dev/null, stderr printed only on failure (public Actions logs)
+- [Phase 04]: 04-09: path filters equal the Dockerfile COPY sources per runtime stage, enforced by a drift test importing the 04-05 COPY parser; no required-check gate job until pull requests exist
 
 ### Pending Todos
 
@@ -219,6 +222,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T13:17:56.921Z
-Stopped at: Completed 04-10-PLAN.md
+Last session: 2026-11-14T13:29:13.137Z
+Stopped at: Completed 04-09-PLAN.md
 Resume file: None
