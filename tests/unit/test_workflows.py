@@ -12,11 +12,15 @@ from typing import Any
 
 import pytest
 import yaml
+from tests.unit.test_dockerfile_stages import RUNTIME_STAGES, _copy_sources
 from tests.unit.test_repo_layout import ROOT
 
 WORKFLOW_DIR = ROOT / ".github" / "workflows"
 CALLERS = sorted(p.name for p in WORKFLOW_DIR.glob("*.yml") if not p.name.startswith("_"))
 ALL_WORKFLOWS = sorted(p.name for p in WORKFLOW_DIR.glob("*.yml"))
+STAGE_WORKFLOWS = {"mcp_server": "mcp-server.yml", "chat_bot": "chat-bot.yml", "sync": "sync.yml"}
+SERVICE_WORKFLOWS = tuple(STAGE_WORKFLOWS.values())
+DEPLOYING = ["mcp-server.yml", "chat-bot.yml"]
 PINNED = re.compile(r"^[\w.-]+/[\w./-]+@[0-9a-f]{40}$")
 TRACING = re.compile(
     r"\bset\s+-[a-z]*x|xtrace|\bbash\s+-[a-z]*x|ACTIONS_STEP_DEBUG|ACTIONS_RUNNER_DEBUG"
@@ -105,7 +109,7 @@ def test_only_deploy_jobs_may_write_id_tokens() -> None:
                 )
 
 
-@pytest.mark.parametrize("name", ["mcp-server.yml"])
+@pytest.mark.parametrize("name", DEPLOYING)
 def test_deploy_job_needs_the_test_job(name: str) -> None:
     jobs = _load(name)["jobs"]
     assert jobs["test"]["uses"] == "./.github/workflows/_test.yml"
@@ -188,8 +192,164 @@ def test_deploy_workflow_never_prints_a_rendered_file() -> None:
         assert not re.search(printing, text)
 
 
-@pytest.mark.parametrize("name", ["mcp-server.yml"])
+@pytest.mark.parametrize("name", [*DEPLOYING, "meridian.yml"])
 def test_deploy_concurrency_group_never_cancels(name: str) -> None:
     concurrency = _load(name)["concurrency"]
     assert concurrency["group"] == f"deploy-{name.removesuffix('.yml')}"
     assert concurrency["cancel-in-progress"] is False
+
+
+def _push_paths(name: str) -> list[str]:
+    paths = _triggers(_load(name))["push"]["paths"]
+    assert isinstance(paths, list) and paths, f"{name}: no push paths"
+    return paths
+
+
+def _matches(path: str, patterns: list[str]) -> bool:
+    """GitHub path filter, restricted to the forms used here: `dir/**` prefix, exact, and a `*`
+    inside the last segment (which never crosses a `/`)."""
+    for pattern in patterns:
+        if pattern.endswith("/**"):
+            if path == pattern.removesuffix("/**") or path.startswith(pattern.removesuffix("**")):
+                return True
+        elif "*" in pattern:
+            if re.fullmatch(re.escape(pattern).replace(r"\*", "[^/]*"), path):
+                return True
+        elif path == pattern:
+            return True
+    return False
+
+
+def test_matcher_handles_prefix_and_exact_paths() -> None:
+    assert _matches("a/b/c.py", ["a/**"])
+    assert _matches("a", ["a/**"])
+    assert not _matches("ab/c.py", ["a/**"])
+    assert _matches("Dockerfile", ["Dockerfile"])
+    assert not _matches("Dockerfile.dev", ["Dockerfile"])
+    assert _matches("docker-compose.test.yml", ["docker-compose*.yml"])
+    assert not _matches("deploy/docker-compose.yml", ["docker-compose*.yml"])
+
+
+@pytest.mark.parametrize("name", [*SERVICE_WORKFLOWS, "meridian.yml", "tests.yml"])
+def test_push_paths_use_only_prefix_and_exact_patterns(name: str) -> None:
+    for pattern in _push_paths(name):
+        head, _, last = pattern.removesuffix("/**").rpartition("/")
+        assert "*" not in head, f"{name}: unsupported pattern {pattern}"
+        assert "**" not in last, f"{name}: unsupported pattern {pattern}"
+        assert not pattern.startswith("/"), f"{name}: absolute pattern {pattern}"
+
+
+@pytest.mark.parametrize("stage", RUNTIME_STAGES)
+def test_workflow_paths_do_not_drift_from_dockerfile_copy_sources(stage: str) -> None:
+    patterns = _push_paths(STAGE_WORKFLOWS[stage])
+    uncovered = [s for s in _copy_sources(stage) if not _matches(s, patterns)]
+    assert uncovered == [], f"{STAGE_WORKFLOWS[stage]} would not rebuild {stage} on {uncovered}"
+
+
+@pytest.mark.parametrize("name", SERVICE_WORKFLOWS)
+def test_service_workflow_paths_name_their_own_files_and_the_dockerfile(name: str) -> None:
+    patterns = _push_paths(name)
+    assert _matches("Dockerfile", patterns)
+    assert _matches(f".github/workflows/{name}", patterns)
+    assert _matches(".github/workflows/_test.yml", patterns)
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("services/mcp_server/buddy_mcp/server.py", {"mcp-server.yml"}),
+        ("services/mcp_server/buddy_mcp/models.py", {"mcp-server.yml", "chat-bot.yml"}),
+        ("services/mcp_server/buddy_mcp/__init__.py", {"mcp-server.yml", "chat-bot.yml"}),
+        ("services/chat_bot/buddy_bot/service.py", {"chat-bot.yml"}),
+        ("jobs/sync/buddy_sync/cli.py", {"sync.yml"}),
+        ("packages/buddy_core/buddy_core/models.py", set(SERVICE_WORKFLOWS)),
+    ],
+)
+def test_a_changed_file_triggers_only_the_workflows_that_copy_it(
+    path: str, expected: set[str]
+) -> None:
+    assert (ROOT / path).is_file(), f"{path} no longer exists, update the example"
+    triggered = {name for name in SERVICE_WORKFLOWS if _matches(path, _push_paths(name))}
+    assert triggered == expected
+
+
+def test_chat_bot_deploy_fails_early_when_the_meridian_image_is_missing() -> None:
+    deploy = _load("_deploy.yml")
+    steps = [step for _, step in _steps(deploy)]
+    check = next(s for s in steps if "meridian.version" in s.get("run", ""))
+    assert check["if"] == "inputs.service == 'chat-bot'"
+    assert "gcloud artifacts docker images describe" in check["run"]
+    assert "Meridian image ${MERIDIAN_TAG} missing: run the meridian workflow" in check["run"]
+    build = _step_index(deploy, lambda s: s.get("uses", "").startswith("docker/build-push-action@"))
+    assert steps.index(check) < build, "the Meridian check must run before the build and push"
+
+
+def test_sync_workflow_tests_and_builds_the_image_without_push_or_deploy() -> None:
+    workflow = _load("sync.yml")
+    jobs = workflow["jobs"]
+    assert set(jobs) == {"test", "build"}
+    assert jobs["test"]["uses"] == "./.github/workflows/_test.yml"
+    assert jobs["build"]["needs"] == "test"
+    build = _uses_step(workflow, "docker/build-push-action")
+    assert build["with"]["target"] == "sync"
+    assert build["with"]["push"] is False
+    text = (WORKFLOW_DIR / "sync.yml").read_text()
+    assert "services replace" not in text
+    assert "_deploy.yml" not in text
+    assert "id-token" not in text
+
+
+def test_meridian_workflow_triggers_on_the_version_file_and_on_dispatch() -> None:
+    triggers = _triggers(_load("meridian.yml"))
+    assert triggers["push"]["branches"] == ["main"]
+    assert triggers["push"]["paths"] == [
+        "deploy/meridian.version",
+        ".github/workflows/meridian.yml",
+    ]
+    assert "workflow_dispatch" in triggers
+
+
+def test_meridian_workflow_builds_only_the_reviewed_commit_after_the_test_gate() -> None:
+    workflow = _load("meridian.yml")
+    jobs = workflow["jobs"]
+    assert jobs["test"]["uses"] == "./.github/workflows/_test.yml"
+    assert jobs["push"]["needs"] == "test"
+    assert jobs["push"]["if"] == "vars.GCP_PROJECT_ID != ''"
+    read = next(s for _, s in _steps(workflow) if "meridian.version" in s.get("run", ""))
+    assert read["id"] == "version"
+    assert "[0-9a-f]{40}" in read["run"], "the version file must be validated as a full commit"
+    build = _uses_step(workflow, "docker/build-push-action")
+    assert build["with"]["context"] == (
+        "https://github.com/rynfar/meridian.git#${{ steps.version.outputs.sha }}"
+    )
+    assert build["with"]["push"] is True
+    assert build["with"]["tags"].endswith("/ai-buddy/meridian:${{ steps.version.outputs.sha }}")
+    assert "target" not in build["with"]
+
+
+def test_test_only_workflow_covers_the_files_no_service_image_copies() -> None:
+    workflow = _load("tests.yml")
+    assert set(workflow["jobs"]) == {"test"}
+    assert workflow["jobs"]["test"]["uses"] == "./.github/workflows/_test.yml"
+    patterns = _push_paths("tests.yml")
+    for path in (
+        "tests/unit/test_workflows.py",
+        "pyproject.toml",
+        "requirements-dev.txt",
+        "run-unit-tests.sh",
+        "docker-compose.yml",
+        "docker-compose.test.yml",
+        "deploy/k8s/base/kustomization.yaml",
+        "deploy/compose/__init__.py",
+        "scripts/validate-infra.sh",
+    ):
+        assert _matches(path, patterns), f"tests.yml would miss a change to {path}"
+
+
+def test_dependabot_bumps_the_pinned_actions_weekly() -> None:
+    data = yaml.safe_load((ROOT / ".github" / "dependabot.yml").read_text())
+    assert data["version"] == 2
+    [update] = data["updates"]
+    assert update["package-ecosystem"] == "github-actions"
+    assert update["directory"] == "/"
+    assert update["schedule"]["interval"] == "weekly"
