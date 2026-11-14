@@ -1,15 +1,21 @@
 """Composition root: startup failures are loud and safe, a valid config builds the server."""
 
 import asyncio
+import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
 from fastmcp import Client, FastMCP
+from google.api_core.exceptions import Forbidden
 from google.cloud import firestore
-from tests.unit.mcp_server.conftest import WEB_BASE
+from tests.unit.buddy_core.conftest import FakeBucket
+from tests.unit.mcp_server.conftest import NOW, WEB_BASE, make_content
 
+from buddy_core.gcs_bucket import GcsBucket
+from buddy_core.index_writer import build_index
+from buddy_core.store import GcsArtifactStore
 from buddy_mcp.cli import main
 from buddy_mcp.config import McpSettings
 
@@ -283,3 +289,139 @@ def test_default_serve_runs_stateless_json_http(
     assert seen["json_response"] is True
     assert seen["host_origin_protection"] is True
     assert "localhost" in seen["allowed_hosts"]
+
+
+# --- ARTIFACT_STORE=gcs: the same startup, the index read from a bucket ---------------------------
+
+
+def _published_fake_bucket(tmp_path: Path) -> FakeBucket:
+    bucket = FakeBucket()
+    store = GcsArtifactStore(bucket, "idx/", tmp_path / "publisher")
+    staged = store.staging_path()
+    meta = build_index(make_content(), staged, now=NOW)
+    store.publish(staged, meta)
+    return bucket
+
+
+def test_gcs_store_serves_the_bucket_index_and_names_no_bucket(
+    valid_env: Callable[..., None],
+    monkeypatch: pytest.MonkeyPatch,
+    no_firestore_client: list[str],
+    serve_stub: ServeStub,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    valid_env(
+        ARTIFACT_STORE="gcs",
+        ARTIFACT_BUCKET="bucket-x",
+        ARTIFACT_PREFIX="idx/",
+        ARTIFACT_DIR=str(tmp_path / "server-cache"),
+    )
+    bucket = _published_fake_bucket(tmp_path)
+    names: list[str] = []
+
+    def factory(name: str) -> FakeBucket:
+        names.append(name)
+        return bucket
+
+    assert main([], serve=serve_stub, bucket_factory=factory) == 0
+
+    assert names == ["bucket-x"]
+    assert serve_stub.calls == 1
+    assert no_firestore_client == []
+    err = capsys.readouterr().err
+    assert _error_lines(err) == []
+    assert "4 handbook pages" in err
+
+
+def test_gcs_store_with_an_empty_bucket_exits_one_with_one_error_line(
+    valid_env: Callable[..., None],
+    serve_stub: ServeStub,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    valid_env(
+        ARTIFACT_STORE="gcs",
+        ARTIFACT_BUCKET="bucket-x",
+        ARTIFACT_DIR=str(tmp_path / "server-cache"),
+    )
+
+    assert main([], serve=serve_stub, bucket_factory=lambda _name: FakeBucket()) == 1
+
+    err = capsys.readouterr().err
+    errors = _error_lines(err)
+    assert len(errors) == 1
+    assert "artifact store" in errors[0]
+    assert "bucket-x" not in err
+    assert "Traceback" not in err
+    assert serve_stub.calls == 0
+
+
+def test_gcs_store_with_a_tampered_pointer_exits_one_without_serving(
+    valid_env: Callable[..., None],
+    serve_stub: ServeStub,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    valid_env(
+        ARTIFACT_STORE="gcs",
+        ARTIFACT_BUCKET="bucket-x",
+        ARTIFACT_PREFIX="idx/",
+        ARTIFACT_DIR=str(tmp_path / "server-cache"),
+    )
+    bucket = _published_fake_bucket(tmp_path)
+    pointer = json.loads(bucket.objects["idx/index.manifest.json"])
+    pointer["sha256"] = "0" * 64
+    bucket.objects["idx/index.manifest.json"] = json.dumps(pointer).encode("utf-8")
+
+    assert main([], serve=serve_stub, bucket_factory=lambda _name: bucket) == 1
+
+    errors = _error_lines(capsys.readouterr().err)
+    assert len(errors) == 1
+    assert "index checksum mismatch" in errors[0]
+    assert serve_stub.calls == 0
+
+
+def test_a_storage_failure_ends_startup_with_the_type_name_only(
+    valid_env: Callable[..., None],
+    serve_stub: ServeStub,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    valid_env(
+        ARTIFACT_STORE="gcs",
+        ARTIFACT_BUCKET="bucket-x",
+        ARTIFACT_DIR=str(tmp_path / "server-cache"),
+    )
+
+    def broken(name: str) -> GcsBucket:
+        def client() -> Any:
+            # api_core exception constructors carry no type hints
+            raise Forbidden("token=secret-value https://storage.example/x")  # type: ignore[no-untyped-call]
+
+        return GcsBucket(name, client_factory=client)
+
+    assert main([], serve=serve_stub, bucket_factory=broken) == 1
+
+    err = capsys.readouterr().err
+    errors = _error_lines(err)
+    assert len(errors) == 1
+    assert "BucketError: Forbidden" in errors[0]
+    assert "secret-value" not in err
+    assert "https://" not in err
+    assert serve_stub.calls == 0
+
+
+def test_gcs_store_without_a_bucket_exits_one_naming_the_variable(
+    valid_env: Callable[..., None],
+    serve_stub: ServeStub,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    valid_env(ARTIFACT_STORE="gcs")
+
+    assert main([], serve=serve_stub) == 1
+
+    errors = _error_lines(capsys.readouterr().err)
+    assert len(errors) == 1
+    assert "ARTIFACT_BUCKET" in errors[0]
+    assert serve_stub.calls == 0

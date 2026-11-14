@@ -17,6 +17,9 @@ from buddy_mcp.config import McpSettings
 
 _ENV_VARIABLES = (
     "ARTIFACT_DIR",
+    "ARTIFACT_STORE",
+    "ARTIFACT_BUCKET",
+    "ARTIFACT_PREFIX",
     "GUIDES_WEB_BASE",
     "MCP_HOST",
     "PORT",
@@ -343,3 +346,97 @@ def test_signing_key_of_32_characters_is_accepted(index_dir: Path) -> None:
 def test_signing_key_length_is_not_checked_when_auth_is_off(index_dir: Path) -> None:
     config = McpSettings(**_off_values(index_dir, deploy_env="local", oauth_jwt_signing_key="k"))
     assert config.auth_mode == "off"
+
+
+# --- ARTIFACT_STORE: the index comes from a directory or a bucket by configuration (D-06, D-10) ---
+
+
+def _gcs_values(**overrides: Any) -> dict[str, Any]:
+    values: dict[str, Any] = {
+        "artifact_store": "gcs",
+        "artifact_bucket": "bucket-x",
+        "guides_web_base": WEB_BASE,
+        "auth_mode": "off",
+        "deploy_env": "local",
+    }
+    values.update(overrides)
+    return {key: value for key, value in values.items() if value is not None}
+
+
+def test_artifact_store_defaults_to_local_with_no_bucket(index_dir: Path) -> None:
+    config = McpSettings(**_values(index_dir))
+    assert (config.artifact_store, config.artifact_bucket, config.artifact_prefix) == (
+        "local",
+        None,
+        "",
+    )
+
+
+def test_gcs_store_needs_a_bucket_but_no_directory() -> None:
+    config = McpSettings(**_gcs_values())
+    assert (config.artifact_store, config.artifact_bucket, config.artifact_dir) == (
+        "gcs",
+        "bucket-x",
+        None,
+    )
+
+
+def test_gcs_store_without_a_bucket_names_artifact_bucket() -> None:
+    with pytest.raises(ValidationError) as raised:
+        McpSettings(**_gcs_values(artifact_bucket=None))
+    assert "ARTIFACT_BUCKET" in str(raised.value)
+
+
+def test_local_store_without_a_directory_names_artifact_dir() -> None:
+    with pytest.raises(ValidationError) as raised:
+        McpSettings(guides_web_base=WEB_BASE, auth_mode="off", deploy_env="local")
+    assert "ARTIFACT_DIR" in str(raised.value)
+
+
+def test_unknown_artifact_store_is_refused(index_dir: Path) -> None:
+    with pytest.raises(ValidationError, match="artifact_store"):
+        McpSettings(**_values(index_dir, artifact_store="s3"))
+
+
+@pytest.mark.parametrize("prefix", ["../", "/a/", "A/", "a", "a//", "a/../"])
+def test_artifact_prefix_refuses_what_is_not_lowercase_slash_terminated(prefix: str) -> None:
+    with pytest.raises(ValidationError) as raised:
+        McpSettings(**_gcs_values(artifact_prefix=prefix))
+    assert "ARTIFACT_PREFIX".lower() in str(raised.value).lower()
+    assert f"'{prefix}'" not in str(raised.value)
+
+
+@pytest.mark.parametrize("prefix", ["index/", "a/b/", ""])
+def test_artifact_prefix_accepts_lowercase_segments(prefix: str) -> None:
+    assert McpSettings(**_gcs_values(artifact_prefix=prefix)).artifact_prefix == prefix
+
+
+@pytest.mark.parametrize("bucket", ["Upper", "ab", "a b c", "gs://x", "-abc", "../x"])
+def test_artifact_bucket_refuses_what_is_not_a_bucket_name_without_echo(bucket: str) -> None:
+    with pytest.raises(ValidationError) as raised:
+        McpSettings(**_gcs_values(artifact_bucket=bucket))
+    assert "artifact_bucket" in str(raised.value)
+    assert f"'{bucket}'" not in str(raised.value)
+
+
+def test_artifact_store_settings_are_read_from_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ARTIFACT_STORE", "gcs")
+    monkeypatch.setenv("ARTIFACT_BUCKET", "bucket-env")
+    monkeypatch.setenv("ARTIFACT_PREFIX", "idx/")
+    config = McpSettings(guides_web_base=WEB_BASE, auth_mode="off", deploy_env="local")
+    assert (config.artifact_store, config.artifact_bucket, config.artifact_prefix) == (
+        "gcs",
+        "bucket-env",
+        "idx/",
+    )
+
+
+def test_empty_artifact_bucket_and_prefix_mean_unset(
+    index_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ARTIFACT_BUCKET", "")
+    monkeypatch.setenv("ARTIFACT_PREFIX", "")
+    config = McpSettings(**_values(index_dir))
+    assert (config.artifact_bucket, config.artifact_prefix) == (None, "")

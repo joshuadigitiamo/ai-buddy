@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 from fastmcp import Client
-from tests.unit.buddy_core.conftest import FakeBucket, FakeBucketError
+from tests.unit.buddy_core.conftest import FakeBucket, SimulatedUploadError
 from tests.unit.mcp_server.conftest import NOW as SERVER_NOW
 from tests.unit.mcp_server.conftest import WEB_BASE, make_content
 
@@ -213,7 +213,7 @@ def test_interrupted_db_upload_keeps_readers_on_the_previous_build(
     bucket.fail_next_upload = True
     staged = writer.staging_path()
     meta = build_index(sample_content, staged, now=LATER)
-    with pytest.raises(FakeBucketError):
+    with pytest.raises(SimulatedUploadError):
         writer.publish(staged, meta)
 
     assert bucket.objects[POINTER] == pointer_before
@@ -233,7 +233,7 @@ def test_interrupted_pointer_write_keeps_readers_on_the_previous_build(
     bucket.fail_uploads_matching = MANIFEST_NAME
     staged = writer.staging_path()
     meta = build_index(sample_content, staged, now=LATER)
-    with pytest.raises(FakeBucketError):
+    with pytest.raises(SimulatedUploadError):
         writer.publish(staged, meta)
 
     # The new db object is orphaned, never referenced: a reader still resolves the old build.

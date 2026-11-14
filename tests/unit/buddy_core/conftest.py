@@ -62,7 +62,7 @@ def sample_content() -> IndexContent:
     )
 
 
-class FakeBucketError(Exception):
+class SimulatedUploadError(Exception):
     """Stands in for a storage failure raised by an upload."""
 
 
@@ -86,9 +86,9 @@ class FakeBucket:
     def _check_upload(self, name: str) -> None:
         if self.fail_next_upload:
             self.fail_next_upload = False
-            raise FakeBucketError("simulated upload failure")
+            raise SimulatedUploadError("simulated upload failure")
         if self.fail_uploads_matching and self.fail_uploads_matching in name:
-            raise FakeBucketError("simulated upload failure")
+            raise SimulatedUploadError("simulated upload failure")
 
     def _store(self, name: str, data: bytes, meta: dict[str, str | None]) -> None:
         if self.corrupt_uploads_matching and self.corrupt_uploads_matching in name:
