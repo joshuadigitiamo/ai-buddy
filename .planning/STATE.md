@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Infrastructure and CI/CD
 status: executing
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-11-14T11:25:53.655Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-11-14T11:47:06.081Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 04 execution started
-state_head: 69828bdd9ec34280baaa2812ca5b931db390789a
+state_head: d4ae2bc633c1bc51d857a57b5ec94a72bb0c7340
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 44
-  completed_plans: 31
+  completed_plans: 32
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 04 (Infrastructure and CI/CD) — EXECUTING
-Plan: 2 of 14
+Plan: 3 of 14
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 04 execution started
 
@@ -87,6 +87,7 @@ Progress: [██████░░░░] 60%
 | Phase 03 P11 | 25 min | 3 tasks | 10 files |
 | Phase 03 P12 | n/a | 3 tasks | 11 files |
 | Phase 04 P02 | 15 min | 3 tasks | 15 files |
+| Phase 04 P01 | 25 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -162,6 +163,12 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-12: add-on Chat apps publish to Pub/Sub as the gsuiteaddons service agent (not chat-api-push); bot shares the MCP server network namespace for the loopback Host guard; live check approved 2026-11-07
 - [Phase 04]: DEPLOY_ENV (default production) is the explicit marker for auth-off guards; AUTH_MODE=off only with DEPLOY_ENV=local, and local is refused whenever K_SERVICE is set — K_SERVICE-only guard failed open on kind and any non-Cloud-Run host (audit warning 4, WR-01)
 - [Phase 04]: MCP_ALLOWED_HOSTS widens the Host guard by exact-match bare hostnames only; /healthz is a FastMCP custom route outside the auth provider, Host-guarded — Pod-to-pod Service names got 421; guard must stay on (INFRA-03); AUTH_MODE=on test proved route is unauthenticated
+- [Phase 04]: billing_mode (a): request-based on both services; 04-13 measures a slow question and re-asks Joshua on a stall (keeps INFRA-04)
+- [Phase 04]: coverage_inheritance (a): literal D-18 fallback, no-entry sections start at 0 (keeps D-18)
+- [Phase 04]: sections_authoring (a): Claude drafts five sections.yaml; Joshua commits them with five durations.json; eight guides stay at 0 offset (interprets D-18)
+- [Phase 04]: video_fetch (a): Joshua downloads release videos to .cache/videos; upload-videos reads both directories (interprets D-17)
+- [Phase 04]: token_chain (b): fresh separate claude login seeds the Cloud Run bucket; local volume keeps its own chain (keeps D-12)
+- [Phase 04]: org_policy (yes): project ai-buddy-dev under digitiamo.com, billing linked; org policies may apply to 04-08 and 04-13 (information)
 
 ### Pending Todos
 
@@ -191,6 +198,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T11:25:53.484Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-11-14T11:47:05.896Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None
