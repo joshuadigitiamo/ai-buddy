@@ -1,0 +1,4 @@
+# Sync job runtime dependencies (Phase 4). The version below is the one approved at the 04-01
+# legitimacy gate; publish (04-10) and the video upload use it. Install together with the root
+# requirements.txt.
+google-cloud-storage==3.17.1  # shared pin; owner: services/mcp_server/requirements.txt
