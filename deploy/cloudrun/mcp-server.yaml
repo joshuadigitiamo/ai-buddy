@@ -1,0 +1,92 @@
+# Cloud Run service definition for the MCP server (INFRA-04, D-01, D-03, D-06).
+#
+# This is a template: scripts/render-cloudrun.sh replaces the dollar-brace placeholders from
+# environment variables (PROJECT_ID, PROJECT_NUMBER, IMAGE_TAG, GOOGLE_CLIENT_ID, GUIDES_WEB_BASE)
+# and refuses to leave one behind. The comments hold no placeholder marker, so a leftover is a bug.
+# No project id, project number or secret value is committed. Deploy the rendered file with
+# `gcloud run services replace` (see deploy/cloudrun/README.md).
+#
+# Stateless by design (MCP_SERVERS_GUIDE 11.6): no volume, no sticky state. The index is read from the
+# private index bucket at cold start through the gcs artifact store (04-04), so scale to zero is safe.
+# maxScale '1' caps cost and abuse while there is one user; the server stays stateless, so the cap can
+# be raised without a code change.
+#
+# Billing: request-based (04-01 billing_mode (a)), so there is deliberately no
+# run.googleapis.com/cpu-throttling annotation. The server does no work after a response.
+#
+# PORT is injected by Cloud Run from containerPort; it must not be set here.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: mcp-server
+  annotations:
+    # Callers are claude.ai and the chat bot, which are not Google IAM principals. The server verifies
+    # every token itself (AUTH_MODE on), and this also works when an org policy blocks allUsers
+    # (RESEARCH Pitfall 6).
+    run.googleapis.com/invoker-iam-disabled: 'true'
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: '0'
+        autoscaling.knative.dev/maxScale: '1'
+        run.googleapis.com/startup-cpu-boost: 'true'
+    spec:
+      serviceAccountName: "sa-mcp-server@${PROJECT_ID}.iam.gserviceaccount.com"
+      containers:
+        - name: mcp-server
+          image: "europe-west8-docker.pkg.dev/${PROJECT_ID}/ai-buddy/mcp-server:${IMAGE_TAG}"
+          ports:
+            - containerPort: 8000
+          # TCP only: /healthz sits behind the server's Host guard, and a startup probe must not
+          # depend on a Host header. Nothing here touches Firestore or the bucket.
+          startupProbe:
+            tcpSocket:
+              port: 8000
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 20
+          resources:
+            limits:
+              cpu: '1'
+              memory: 512Mi
+          env:
+            - name: DEPLOY_ENV
+              value: production
+            - name: AUTH_MODE
+              value: 'on'
+            - name: MCP_HOST
+              value: 0.0.0.0
+            - name: ARTIFACT_STORE
+              value: gcs
+            - name: ARTIFACT_BUCKET
+              value: "${PROJECT_ID}-ai-buddy-index"
+            - name: ARTIFACT_PREFIX
+              value: index/
+            - name: MCP_PUBLIC_BASE_URL
+              value: "https://mcp-server-${PROJECT_NUMBER}.europe-west8.run.app"
+            - name: GUIDES_WEB_BASE
+              value: "${GUIDES_WEB_BASE}"
+            - name: GOOGLE_CLOUD_PROJECT
+              value: "${PROJECT_ID}"
+            - name: GOOGLE_CLIENT_ID
+              value: "${GOOGLE_CLIENT_ID}"
+            - name: OAUTH_STORAGE
+              value: firestore
+            - name: BOT_SA_EMAILS
+              value: "sa-chat-bot@${PROJECT_ID}.iam.gserviceaccount.com"
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: google-client-secret
+                  key: latest
+            - name: OAUTH_JWT_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: oauth-jwt-signing-key
+                  key: latest
+            - name: OAUTH_STORAGE_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: oauth-storage-encryption-key
+                  key: latest
