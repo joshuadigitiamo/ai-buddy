@@ -186,6 +186,11 @@ class GcsArtifactStore:
         self._prefix = check_object_prefix(prefix)
         self._cache_dir = cache_dir
 
+    @property
+    def prefix(self) -> str:
+        """The validated object prefix every object of this store sits under."""
+        return self._prefix
+
     def latest_path(self) -> Path | None:
         raw = self._bucket.read_bytes(self._prefix + MANIFEST_NAME)
         if raw is None:

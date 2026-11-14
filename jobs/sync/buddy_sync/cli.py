@@ -1,8 +1,8 @@
-"""Command line for the sync job: ``python -m buddy_sync <run|guides-index|search>``.
+"""Command line for the sync job: ``python -m buddy_sync <run|guides-index|search|publish>``.
 
-This is the only place real adapters (git, the local artifact directory) are built. Output
-is limited to counts, ids, redacted titles and source locations; page content and matched
-secrets are never printed (SYNC-03).
+This is the only place real adapters (git, the local artifact directory, the GCS bucket) are
+built. Output is limited to counts, ids, redacted titles and source locations; page content and
+matched secrets are never printed (SYNC-03).
 """
 
 from __future__ import annotations
@@ -12,16 +12,27 @@ import logging
 import os
 import sqlite3
 import sys
+import tempfile
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
 
-from pydantic import ValidationError
+from pydantic import ValidationError, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from buddy_core.gcs_bucket import BucketError, GcsBucket
 from buddy_core.index_reader import IndexFormatError, open_index
 from buddy_core.models import video_link
-from buddy_core.store import INDEX_NAME, LocalDirArtifactStore
+from buddy_core.store import (
+    INDEX_NAME,
+    ArtifactIntegrityError,
+    BucketPort,
+    GcsArtifactStore,
+    LocalDirArtifactStore,
+    check_bucket_name,
+    check_object_prefix,
+)
 from buddy_sync.chunker import heading_outline
 from buddy_sync.config import SyncSettings
 from buddy_sync.guides import select_guide_files
@@ -30,6 +41,7 @@ from buddy_sync.guides_index import GuidesIndexDriftError, write_guides_index
 from buddy_sync.handbook import EmptyDenylistError, EmptyHandbookError
 from buddy_sync.handbook_files import HandbookFilesError
 from buddy_sync.pipeline import run_sync
+from buddy_sync.publish import PublishError, publish_index
 from buddy_sync.redaction import Redactor
 from buddy_sync.video_map import VideoMapError
 
@@ -47,11 +59,44 @@ _EXPECTED_ERRORS: Final = (
     VideoMapError,
     GuidesIndexDriftError,
     IndexFormatError,
+    PublishError,
+    ArtifactIntegrityError,
+    BucketError,
     OSError,
     sqlite3.Error,
 )
 
 NowFn = Callable[[], datetime]
+BucketFactory = Callable[[str], BucketPort]
+
+
+class PublishSettings(BaseSettings):
+    """Environment of ``publish``: where the local index is and which bucket receives it.
+
+    ADC for the bucket comes from GOOGLE_APPLICATION_CREDENTIALS and is read by the storage
+    client, never here. Errors name variables, never values.
+    """
+
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        env_ignore_empty=True,
+        extra="ignore",
+        hide_input_in_errors=True,
+    )
+
+    artifact_dir: Path
+    artifact_bucket: str
+    artifact_prefix: str = ""
+
+    @field_validator("artifact_bucket")
+    @classmethod
+    def _check_bucket(cls, value: str) -> str:
+        return check_bucket_name(value)
+
+    @field_validator("artifact_prefix")
+    @classmethod
+    def _check_prefix(cls, value: str) -> str:
+        return check_object_prefix(value)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -67,6 +112,8 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="run although REDACT_PAGE_FILES is empty",
     )
+
+    sub.add_parser("publish", help="publish the local index.db to the private bucket (D-06)")
 
     index = sub.add_parser("guides-index", help="write GUIDES_INDEX.md into a Guides checkout")
     index.add_argument("--checkout", required=True, type=Path, help="Guides checkout directory")
@@ -106,6 +153,16 @@ def _run(args: argparse.Namespace, logger: logging.Logger, now: NowFn) -> int:
     return 0
 
 
+def _publish(bucket_factory: BucketFactory) -> int:
+    settings = PublishSettings()
+    bucket = bucket_factory(settings.artifact_bucket)
+    with tempfile.TemporaryDirectory(prefix="buddy-publish-") as cache:
+        store = GcsArtifactStore(bucket, settings.artifact_prefix, Path(cache))
+        result = publish_index(settings.artifact_dir, store, bucket)
+    print(f"{result.status} build_id={result.build_id}")
+    return 0
+
+
 def _guides_index(checkout: Path) -> int:
     outline = {
         relpath: heading_outline((checkout / relpath).read_text(encoding="utf-8"))
@@ -140,6 +197,7 @@ def main(
     argv: Sequence[str] | None = None,
     *,
     now: NowFn | None = None,
+    bucket_factory: BucketFactory | None = None,
 ) -> int:
     """Run one subcommand; return 0 on success, 1 on a reported failure, 2 on bad arguments."""
     try:
@@ -154,6 +212,8 @@ def main(
         match args.command:
             case "run":
                 return _run(args, logger, clock)
+            case "publish":
+                return _publish(bucket_factory or GcsBucket)
             case "guides-index":
                 return _guides_index(args.checkout)
             case _:
