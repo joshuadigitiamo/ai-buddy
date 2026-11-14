@@ -1,0 +1,184 @@
+# Reusable build, push and deploy of one Cloud Run service (INFRA-05, D-04).
+#
+# Order: image build and push, then a server-side dry run of the rendered service definition, then the
+# real replace, then a check of the live service. The caller declares the test gate in front of this
+# workflow, so nothing here runs on a red test job.
+#
+# Keyless: the runner trades its GitHub OIDC token for a short-lived Google token through Workload
+# Identity Federation and impersonates the ci-deployer account. No key file exists anywhere.
+#
+# The repository is public, so its Actions logs are public. This workflow never traces shell commands,
+# never prints a rendered file, passes every GitHub expression to a script through env, and masks the
+# project identifiers before the first step that could print them. Ids come from repository variables.
+#
+# The job is skipped while the variable GCP_PROJECT_ID is unset (before the bootstrap in 04-13), so a
+# push made before the project is wired up still runs the tests and then stops without an auth error.
+name: _deploy
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: Cloud Run service and image name (mcp-server or chat-bot)
+        required: true
+        type: string
+      target:
+        description: Dockerfile stage that holds the runtime image (mcp_server or chat_bot)
+        required: true
+        type: string
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    if: vars.GCP_PROJECT_ID != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Mask the project identifiers in the public log
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+          DEPLOYER_SA: ${{ vars.GCP_DEPLOYER_SA }}
+          WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          OAUTH_CLIENT_ID: ${{ vars.GCP_OAUTH_CLIENT_ID }}
+        run: |
+          for value in "${PROJECT_ID}" "${PROJECT_NUMBER}" "${DEPLOYER_SA}" "${WIF_PROVIDER}" "${OAUTH_CLIENT_ID}"; do
+            if [ -n "${value}" ]; then
+              echo "::add-mask::${value}"
+            fi
+          done
+
+      - name: Authenticate to Google Cloud with Workload Identity Federation
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+          token_format: access_token
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
+      - name: Check that the Meridian image exists (chat-bot only)
+        if: inputs.service == 'chat-bot'
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: europe-west8
+        run: |
+          MERIDIAN_TAG="$(tr -d '[:space:]' < deploy/meridian.version)"
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/ai-buddy/meridian:${MERIDIAN_TAG}"
+          if ! gcloud artifacts docker images describe "${IMAGE}" --project "${PROJECT_ID}" >/dev/null 2>"${RUNNER_TEMP}/meridian-check.err"; then
+            echo "::error::Meridian image ${MERIDIAN_TAG} missing: run the meridian workflow"
+            cat "${RUNNER_TEMP}/meridian-check.err" >&2
+            exit 1
+          fi
+
+      - name: Log in to Artifact Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: europe-west8-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build and push the image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: ${{ inputs.target }}
+          push: true
+          tags: europe-west8-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/ai-buddy/${{ inputs.service }}:${{ github.sha }}
+
+      - name: Render the Cloud Run service definition
+        env:
+          SERVICE: ${{ inputs.service }}
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+          IMAGE_TAG: ${{ github.sha }}
+          GOOGLE_CLIENT_ID: ${{ vars.GCP_OAUTH_CLIENT_ID }}
+          GUIDES_WEB_BASE: ${{ vars.GUIDES_WEB_BASE }}
+          CHAT_JWT_ISSUER_EMAIL: ${{ vars.CHAT_JWT_ISSUER_EMAIL }}
+          VIDEO_THUMBNAIL_URL: ${{ vars.VIDEO_THUMBNAIL_URL }}
+          HELP_COMMAND_ID: ${{ vars.HELP_COMMAND_ID }}
+        run: scripts/render-cloudrun.sh "${SERVICE}" "${RUNNER_TEMP}/service.yaml"
+
+      - name: Validate the service definition server-side (dry run)
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: europe-west8
+        run: |
+          if ! gcloud run services replace "${RUNNER_TEMP}/service.yaml" --project "${PROJECT_ID}" --region "${REGION}" --dry-run --quiet >/dev/null 2>"${RUNNER_TEMP}/dry-run.err"; then
+            echo "::error::the dry run rejected the service definition"
+            cat "${RUNNER_TEMP}/dry-run.err" >&2
+            exit 1
+          fi
+
+      - name: Deploy the service
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: europe-west8
+        run: |
+          if ! gcloud run services replace "${RUNNER_TEMP}/service.yaml" --project "${PROJECT_ID}" --region "${REGION}" --quiet >/dev/null 2>"${RUNNER_TEMP}/replace.err"; then
+            echo "::error::the deploy failed"
+            cat "${RUNNER_TEMP}/replace.err" >&2
+            exit 1
+          fi
+
+      - name: Check the live service
+        env:
+          SERVICE: ${{ inputs.service }}
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: europe-west8
+        run: |
+          URL="$(gcloud run services describe "${SERVICE}" --project "${PROJECT_ID}" --region "${REGION}" --format='value(status.url)')"
+          if [ -z "${URL}" ]; then
+            echo "::error::could not read the URL of ${SERVICE}"
+            exit 1
+          fi
+          echo "::add-mask::${URL}"
+
+          # expect <method> <path> <status>: one request without a token, only the status code is kept.
+          expect() {
+            local method="$1" path="$2" want="$3" got
+            local -a body=()
+            if [ "${method}" = "POST" ]; then
+              body=(--header 'Content-Type: application/json' --data '{}')
+            fi
+            got="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 60 \
+              --retry 3 --retry-delay 5 --retry-connrefused --request "${method}" \
+              "${body[@]}" "${URL}${path}")" || got="no-response"
+            if [ "${got}" != "${want}" ]; then
+              echo "::error::${SERVICE} ${method} ${path}: expected ${want}, got ${got}"
+              exit 1
+            fi
+            echo "${SERVICE} ${method} ${path} -> ${got}"
+          }
+
+          case "${SERVICE}" in
+            mcp-server)
+              expect GET /healthz 200
+              expect POST /mcp 401
+              ;;
+            chat-bot)
+              expect POST / 401
+              ;;
+            *)
+              echo "::error::no post-deploy check is defined for ${SERVICE}"
+              exit 1
+              ;;
+          esac

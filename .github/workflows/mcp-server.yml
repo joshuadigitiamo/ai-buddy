@@ -1,0 +1,43 @@
+# MCP server pipeline (INFRA-05, INFRA-06, D-04): test, then build, push and deploy.
+#
+# The paths are the COPY sources of the mcp_server stage in the Dockerfile plus what renders and
+# deploys it; tests/unit/test_workflows.py fails when they drift apart.
+name: mcp-server
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/mcp_server/**"
+      - "packages/buddy_core/**"
+      - "requirements.txt"
+      - "Dockerfile"
+      - "deploy/cloudrun/mcp-server.yaml"
+      - "scripts/render-cloudrun.sh"
+      - ".github/workflows/mcp-server.yml"
+      - ".github/workflows/_test.yml"
+      - ".github/workflows/_deploy.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+# Deploys never cancel one another: two quick pushes deploy one after the other.
+concurrency:
+  group: deploy-mcp-server
+  cancel-in-progress: false
+
+jobs:
+  test:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/_test.yml
+
+  deploy:
+    needs: test
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      service: mcp-server
+      target: mcp_server

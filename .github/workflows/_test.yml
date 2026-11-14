@@ -1,0 +1,29 @@
+# Reusable test gate (INFRA-06). Every service workflow calls this before it builds or pushes an image.
+#
+# `unit` runs the one test entry point of the repository: ruff, ruff format, mypy and pytest with the
+# 80 percent coverage floor, all inside Docker. A run that collects no tests, drops coverage or fails a
+# linter exits non-zero, and the caller's deploy job waits for this workflow to succeed.
+name: _test
+
+on:
+  workflow_call:
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Lint, type check and unit tests
+        run: ./run-unit-tests.sh --all
