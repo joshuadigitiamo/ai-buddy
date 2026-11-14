@@ -53,8 +53,8 @@ Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requireme
 - [x] **INFRA-01**: One Dockerfile per service (`mcp_server`, `chat_bot`, `jobs/sync`) on Python 3.12; the same image is used in compose, kind and Cloud Run.
 - [x] **INFRA-02**: `docker compose` starts all services plus Firestore and Pub/Sub emulators with separate services, and a chat event completes a round trip locally.
 - [x] **INFRA-03**: kind manifests (Kustomize base + overlays) deploy the services to a local kind cluster, and pass manifest validation (KUBERNETES_GUIDE).
-- [ ] **INFRA-04**: Cloud Run service/job YAMLs for `mcp_server`, `chat_bot` and the sync job (europe-west8, request-based, scale-to-zero, stateless), with a nightly Cloud Scheduler trigger for sync and the `ArtifactStore` implementation chosen in Phase 4 per D-12 (bucket read or baked image) wired in.
-- [ ] **INFRA-05**: GitHub Actions workflows are path-filtered per service: build, push to Artifact Registry, deploy, authenticating with Workload Identity Federation (no key files or long-lived credentials).
+- [ ] **INFRA-04**: Cloud Run service YAMLs for `mcp_server` and `chat_bot` (europe-west8, request-based, scale-to-zero, stateless), with the `ArtifactStore` bucket-read implementation (`GcsArtifactStore`, D-12 closed in Phase 4) wired in; the sync job runs on demand on the developer laptop and publishes the index to a private bucket, then forces a new `mcp_server` revision (no Cloud Run job, no Cloud Scheduler; D-07, D-09). (reworded 2026-11 per 04-CONTEXT D-07/D-09)
+- [ ] **INFRA-05**: GitHub Actions workflows are path-filtered per service: build, push to Artifact Registry and deploy for `mcp_server` and `chat_bot`; test and image build without push or deploy for `jobs/sync`; Meridian built from the approved commit; authenticating with Workload Identity Federation (no key files or long-lived credentials). (reworded 2026-11 per 04-CONTEXT D-07/D-09)
 - [ ] **INFRA-06**: CI runs `run-unit-tests.sh --all` (ruff, mypy, pytest with coverage) as a required check before any image push.
 
 ### Evaluation and Gate
