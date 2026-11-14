@@ -143,8 +143,35 @@ Plans:
   3. Cloud Run YAMLs for `mcp_server`, `chat_bot` and the sync job target europe-west8 with scale-to-zero and request-based billing, a nightly Cloud Scheduler trigger exists for sync, and the SYNC-07 handoff mechanism is wired in.
   4. A change under `services/mcp_server` triggers only that service's workflow, which runs `run-unit-tests.sh --all` (ruff, mypy, pytest with coverage) and blocks the image push on failure; on success it pushes to Artifact Registry and deploys, authenticating through Workload Identity Federation with no key file in the repo or secrets.
   5. Guide videos play inline in the browser from access-controlled hosting (not GitHub release downloads) and the Guarda button opens at the section's timestamp; timestamp coverage in the guides index improved beyond the 238/2524 scene-mapped rows. (Carried over from the Phase 3 live check, deferred by Joshua; recommended path: Cloud Storage with video/mp4 served inline, access-controlled because the Guides are private.)
-**Plans**: TBD
+**Plans**: 14 plans
 **Note**: Live deploy needs a GCP project with an active billing account (Admin Google). Without it, criteria 3 and 4 are verified statically (YAML schema validation, workflow lint, dry runs) and the live deploy check is recorded as pending.
+
+Plans:
+**Wave 1**
+- [ ] 04-01-PLAN.md — Gate: google-cloud-storage pin and Meridian commit approval, six open decisions recorded (billing, D-18 reading, sections authoring, video fetch, token chain, org policy)
+- [ ] 04-02-PLAN.md — MCP server seams: DEPLOY_ENV fail-closed, MCP_ALLOWED_HOSTS, /healthz, WR-02/WR-05 hardening, env contract
+- [ ] 04-03-PLAN.md — Bot seams: DEPLOY_ENV fail-closed, recording Chat adapter (CHAT_API), README
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 04-04-PLAN.md — GcsArtifactStore + BucketPort + store selected by ARTIFACT_STORE (D-06, D-10)
+- [ ] 04-05-PLAN.md — Sync Dockerfile stage, jobs/sync/requirements.txt, runtime-stage structural guard
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 04-06-PLAN.md — docker-compose.yml (hermetic round trip + live profile), stub LLM, compose smoke; dev compose removed
+- [ ] 04-07-PLAN.md — Kustomize base + dev overlay on kind (Meridian native sidecar), kind smoke, kubeconform
+- [ ] 04-08-PLAN.md — Cloud Run YAMLs (mcp-server, chat-bot with sidecar + GCS FUSE), render script, bootstrap, runbook
+- [ ] 04-10-PLAN.md — Laptop publish + forced revision (sync-and-publish.sh), ADR 0001, INFRA-04/05 and criterion 3 reworded
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 04-09-PLAN.md — Path-filtered GitHub Actions with WIF, test gate before push, drift test, actionlint, executable bits
+- [ ] 04-11-PLAN.md — Video upload to the private bucket and storage.cloud.google.com links in the index
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 04-12-PLAN.md — video-coverage report (actual and projected) and the D-18 fallback rule
+- [ ] 04-13-PLAN.md — Live deploy checkpoint (bootstrap, first CI deploy, twelve live checks)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 04-14-PLAN.md — Five Guides sections.yaml drafts, Joshua's Guides commit, coverage above 238/2524
 
 ### Phase 5: Evaluation and Milestone Gate
 **Goal**: The developer can run one command and know whether Milestone 1 passes its gate, with every judged answer inspectable.
