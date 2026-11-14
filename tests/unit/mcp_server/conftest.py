@@ -27,7 +27,7 @@ GOOGLE_ISSUER = "https://accounts.google.com"
 # Obviously fake values: nothing here is a credential.
 FAKE_CLIENT_ID = "test-client.apps.googleusercontent.com"
 FAKE_CLIENT_SECRET = "fake-client-secret-for-tests"
-FAKE_SIGNING_KEY = "fake-signing-key-for-tests-only"
+FAKE_SIGNING_KEY = "fake-signing-key-for-tests-only-0123"
 WEB_BASE = "https://github.com/example-org/guides"
 SHA = "1" * 40
 FILE = "AI-Engineering/DEMO_GUIDE.md"
@@ -173,7 +173,9 @@ def server_for(tmp_path: Path) -> Iterator[Callable[[IndexContent], FastMCP]]:
         write_index(directory, content)
         loaded = load_snapshot(directory / "index.db")
         opened.append(loaded)
-        config = McpSettings(artifact_dir=directory, guides_web_base=WEB_BASE, auth_mode="off")
+        config = McpSettings(
+            artifact_dir=directory, guides_web_base=WEB_BASE, auth_mode="off", deploy_env="local"
+        )
         return build_server(config, snapshot=loaded, gaplog=InMemoryGapLog(), now=lambda: NOW)
 
     yield factory
@@ -184,7 +186,9 @@ def server_for(tmp_path: Path) -> Iterator[Callable[[IndexContent], FastMCP]]:
 
 @pytest.fixture
 def settings(index_dir: Path) -> McpSettings:
-    return McpSettings(artifact_dir=index_dir, guides_web_base=WEB_BASE, auth_mode="off")
+    return McpSettings(
+        artifact_dir=index_dir, guides_web_base=WEB_BASE, auth_mode="off", deploy_env="local"
+    )
 
 
 @pytest.fixture

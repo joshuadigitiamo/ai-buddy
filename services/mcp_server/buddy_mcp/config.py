@@ -10,17 +10,28 @@ import os
 import re
 from pathlib import Path
 from typing import Annotated, Any, Literal
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 _COLLECTION_NAME = re.compile(r"[A-Za-z0-9_-]+")
-_LOOPBACK_PREFIXES = ("http://localhost", "http://127.0.0.1")
+_MIN_SIGNING_KEY_LENGTH = 32
+_LOOPBACK_HOSTNAMES = ("localhost", "127.0.0.1")
 # A bare lowercase DNS hostname: labels of 1-63 characters (a-z, 0-9, inner hyphens) joined by
 # single dots. No scheme, port, path, wildcard, underscore or empty label.
 _HOSTNAME = re.compile(
     r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*"
 )
+
+
+def _scheme_and_hostname(url: str) -> tuple[str, str | None]:
+    """Scheme and hostname of ``url``; an unparsable URL yields no scheme and no hostname."""
+    try:
+        parts = urlsplit(url)
+        return parts.scheme, parts.hostname
+    except ValueError:
+        return "", None
 
 
 def _split_csv(value: Any) -> Any:
@@ -47,6 +58,7 @@ class McpSettings(BaseSettings):
     port: int = 8000
     gap_ttl_days: int = 90
     gap_collection: str = "gaps"
+    deploy_env: Literal["local", "production"] = "production"
     auth_mode: Literal["on", "off"] = "on"
     mcp_public_base_url: str | None = None
     google_client_id: str | None = None
@@ -84,8 +96,12 @@ class McpSettings(BaseSettings):
     def _check_mcp_public_base_url(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        # The value is not echoed: hide_input_in_errors keeps it out of the error.
-        if not (value.startswith("https://") or value.startswith(_LOOPBACK_PREFIXES)):
+        # The value is not echoed: hide_input_in_errors keeps it out of the error. The hostname is
+        # parsed, never prefix-matched: http://localhost.evil.example must not pass (WR-02).
+        scheme, hostname = _scheme_and_hostname(value)
+        secure = scheme == "https" and hostname is not None
+        loopback = scheme == "http" and hostname in _LOOPBACK_HOSTNAMES
+        if not (secure or loopback):
             raise ValueError(
                 "mcp_public_base_url must start with https:// (http only for localhost)"
             )
@@ -103,11 +119,15 @@ class McpSettings(BaseSettings):
     def _check_auth_and_storage(self) -> McpSettings:
         # Names only: no value of a secret may reach the error text.
         # D-13: the guard lives here so every entry point (server process, tests) hits it.
-        # K_SERVICE is Cloud Run's marker; a different host in Phase 4 must add its own (A6).
-        if self.auth_mode == "off" and "K_SERVICE" in os.environ:
+        # The marker is explicit (WR-01, audit warning 4): DEPLOY_ENV defaults to production, so a
+        # host that sets nothing (kind, a VM, Cloud Run) fails closed. K_SERVICE, Cloud Run's own
+        # marker, only ever forces production.
+        if self.deploy_env == "local" and "K_SERVICE" in os.environ:
             raise ValueError(
-                "AUTH_MODE=off is refused when K_SERVICE is set (deployed on Cloud Run)"
+                "DEPLOY_ENV=local is refused when K_SERVICE is set (deployed on Cloud Run)"
             )
+        if self.auth_mode == "off" and self.deploy_env != "local":
+            raise ValueError("AUTH_MODE=off requires DEPLOY_ENV=local")
         if self.auth_mode == "on":
             missing = [
                 name
@@ -121,6 +141,9 @@ class McpSettings(BaseSettings):
             ]
             if missing:
                 raise ValueError(f"AUTH_MODE=on requires: {', '.join(missing)}")
+            key = self.oauth_jwt_signing_key
+            if key is not None and len(key.get_secret_value()) < _MIN_SIGNING_KEY_LENGTH:
+                raise ValueError("OAUTH_JWT_SIGNING_KEY must be at least 32 characters")
         if self.oauth_storage == "firestore" and self.oauth_storage_encryption_key is None:
             raise ValueError("OAUTH_STORAGE=firestore requires OAUTH_STORAGE_ENCRYPTION_KEY")
         return self

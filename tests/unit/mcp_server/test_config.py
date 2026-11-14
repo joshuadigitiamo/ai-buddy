@@ -36,6 +36,7 @@ _ENV_VARIABLES = (
     "RATE_LIMIT_BURST",
     "K_SERVICE",
     "MCP_ALLOWED_HOSTS",
+    "DEPLOY_ENV",
 )
 
 _SECRET_FIELDS = {
@@ -88,7 +89,7 @@ def test_auth_on_lists_every_missing_variable(index_dir: Path) -> None:
 
 
 def test_auth_off_needs_none_of_the_auth_variables(index_dir: Path) -> None:
-    config = McpSettings(artifact_dir=index_dir, guides_web_base=WEB_BASE, auth_mode="off")
+    config = McpSettings(**_off_values(index_dir, deploy_env="local"))
     assert config.google_client_secret is None
 
 
@@ -97,7 +98,7 @@ def test_secret_values_never_reach_errors_or_repr(index_dir: Path) -> None:
     values = _values(
         index_dir,
         google_client_secret=sentinel,
-        oauth_jwt_signing_key=sentinel + "-key",
+        oauth_jwt_signing_key=sentinel + "-key-" + "x" * 16,
         oauth_storage_encryption_key=sentinel + "-fernet",
     )
     config = McpSettings(**values)
@@ -149,6 +150,12 @@ def test_oauth_storage_defaults_to_memory(index_dir: Path) -> None:
     ("url", "accepted"),
     [
         ("http://example.com", False),
+        ("http://localhost.evil.example", False),
+        ("http://127.0.0.1.evil.example", False),
+        ("http://localhost@evil.example", False),
+        ("http://", False),
+        ("https://", False),
+        ("https://mcp.example.invalid", True),
         ("ftp://buddy.example", False),
         ("buddy.example", False),
         ("http://localhost:8000", True),
@@ -241,3 +248,98 @@ def test_mcp_allowed_hosts_is_split_and_lowercased_from_the_environment(
 
 def test_mcp_allowed_hosts_defaults_to_empty(index_dir: Path) -> None:
     assert McpSettings(**_values(index_dir)).mcp_allowed_hosts == frozenset()
+
+
+# --- DEPLOY_ENV: the explicit marker that makes auth-off fail closed (INFRA-01) --------------
+
+
+def _off_values(index_dir: Path, **overrides: Any) -> dict[str, Any]:
+    return {"artifact_dir": index_dir, "guides_web_base": WEB_BASE, "auth_mode": "off", **overrides}
+
+
+def test_deploy_env_defaults_to_production(index_dir: Path) -> None:
+    assert McpSettings(**_values(index_dir)).deploy_env == "production"
+
+
+def test_deploy_env_empty_means_production(
+    index_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DEPLOY_ENV", "")
+    assert McpSettings(**_values(index_dir)).deploy_env == "production"
+    with pytest.raises(ValidationError, match="DEPLOY_ENV"):
+        McpSettings(**_off_values(index_dir))
+
+
+def test_deploy_env_production_refuses_auth_off_naming_both_variables(index_dir: Path) -> None:
+    with pytest.raises(ValidationError) as raised:
+        McpSettings(**_off_values(index_dir, deploy_env="production"))
+    assert "AUTH_MODE" in str(raised.value)
+    assert "DEPLOY_ENV" in str(raised.value)
+
+
+def test_deploy_env_local_accepts_auth_off(index_dir: Path) -> None:
+    config = McpSettings(**_off_values(index_dir, deploy_env="local"))
+    assert (config.auth_mode, config.deploy_env) == ("off", "local")
+
+
+@pytest.mark.parametrize("auth_mode", ["on", "off"])
+def test_deploy_env_local_is_refused_when_k_service_is_set(
+    index_dir: Path, monkeypatch: pytest.MonkeyPatch, auth_mode: str
+) -> None:
+    monkeypatch.setenv("K_SERVICE", "digitiamo-buddy")
+    with pytest.raises(ValidationError) as raised:
+        McpSettings(**_values(index_dir, auth_mode=auth_mode, deploy_env="local"))
+    assert "DEPLOY_ENV" in str(raised.value)
+    assert "K_SERVICE" in str(raised.value)
+
+
+@pytest.mark.parametrize("k_service", [None, "digitiamo-buddy"])
+@pytest.mark.parametrize("deploy_env", ["production", "prod", "staging", "LOCAL", "kind", "dev"])
+def test_every_value_but_local_refuses_auth_off(
+    index_dir: Path, monkeypatch: pytest.MonkeyPatch, deploy_env: str, k_service: str | None
+) -> None:
+    """Invariant: auth-off is accepted for DEPLOY_ENV=local only, with and without K_SERVICE."""
+    if k_service:
+        monkeypatch.setenv("K_SERVICE", k_service)
+    monkeypatch.setenv("DEPLOY_ENV", deploy_env)
+    with pytest.raises(ValidationError):
+        McpSettings(**_off_values(index_dir))
+
+
+def test_deploy_env_is_read_from_the_environment(
+    index_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DEPLOY_ENV", "local")
+    assert McpSettings(**_off_values(index_dir)).deploy_env == "local"
+
+
+@pytest.mark.parametrize("url", ["http://localhost:8000", "https://mcp.example.invalid"])
+def test_public_base_url_accepts_loopback_http_and_https(index_dir: Path, url: str) -> None:
+    assert McpSettings(**_values(index_dir, mcp_public_base_url=url)).mcp_public_base_url == url
+
+
+@pytest.mark.parametrize(
+    "url", ["http://localhost.evil.example", "http://127.0.0.1.evil.example", "http://evil.example"]
+)
+def test_public_base_url_refuses_plain_http_to_lookalike_hosts(index_dir: Path, url: str) -> None:
+    with pytest.raises(ValidationError, match="mcp_public_base_url"):
+        McpSettings(**_values(index_dir, mcp_public_base_url=url))
+
+
+def test_signing_key_shorter_than_32_characters_is_refused_without_echo(index_dir: Path) -> None:
+    key = "k" * 31
+    with pytest.raises(ValidationError) as raised:
+        McpSettings(**_values(index_dir, oauth_jwt_signing_key=key))
+    assert "OAUTH_JWT_SIGNING_KEY" in str(raised.value)
+    assert key not in str(raised.value)
+    assert key not in repr(raised.value)
+
+
+def test_signing_key_of_32_characters_is_accepted(index_dir: Path) -> None:
+    config = McpSettings(**_values(index_dir, oauth_jwt_signing_key="k" * 32))
+    assert config.oauth_jwt_signing_key is not None
+
+
+def test_signing_key_length_is_not_checked_when_auth_is_off(index_dir: Path) -> None:
+    config = McpSettings(**_off_values(index_dir, deploy_env="local", oauth_jwt_signing_key="k"))
+    assert config.auth_mode == "off"

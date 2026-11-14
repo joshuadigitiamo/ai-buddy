@@ -1,4 +1,4 @@
-"""D-13: AUTH_MODE=off works for local and kind use, and is refused on Cloud Run (K_SERVICE)."""
+"""D-13: AUTH_MODE=off works only with DEPLOY_ENV=local, and is refused on Cloud Run (K_SERVICE)."""
 
 import logging
 from collections.abc import AsyncIterator
@@ -31,6 +31,7 @@ _HEADERS = {"Accept": "application/json, text/event-stream", "Content-Type": "ap
 @pytest.fixture(autouse=True)
 def _outside_cloud_run(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("K_SERVICE", raising=False)
+    monkeypatch.delenv("DEPLOY_ENV", raising=False)
 
 
 def _auth_on_values(index_dir: Path) -> dict[str, Any]:
@@ -77,7 +78,29 @@ def test_auth_off_is_refused_on_cloud_run(index_dir: Path, monkeypatch: pytest.M
     with pytest.raises(ValidationError) as raised:
         McpSettings(artifact_dir=index_dir, guides_web_base=WEB_BASE, auth_mode="off")
     assert "AUTH_MODE" in str(raised.value)
+    assert "DEPLOY_ENV" in str(raised.value)
+
+
+def test_auth_off_with_local_deploy_env_is_still_refused_on_cloud_run(
+    index_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("K_SERVICE", "digitiamo-buddy")
+    with pytest.raises(ValidationError) as raised:
+        McpSettings(
+            artifact_dir=index_dir,
+            guides_web_base=WEB_BASE,
+            auth_mode="off",
+            deploy_env="local",
+        )
+    assert "DEPLOY_ENV" in str(raised.value)
     assert "K_SERVICE" in str(raised.value)
+
+
+def test_auth_off_is_refused_without_a_deploy_marker_on_any_host(index_dir: Path) -> None:
+    with pytest.raises(ValidationError) as raised:
+        McpSettings(artifact_dir=index_dir, guides_web_base=WEB_BASE, auth_mode="off")
+    assert "AUTH_MODE" in str(raised.value)
+    assert "DEPLOY_ENV" in str(raised.value)
 
 
 def test_auth_off_from_the_environment_is_refused_on_cloud_run(
@@ -86,6 +109,7 @@ def test_auth_off_from_the_environment_is_refused_on_cloud_run(
     monkeypatch.setenv("ARTIFACT_DIR", str(index_dir))
     monkeypatch.setenv("GUIDES_WEB_BASE", WEB_BASE)
     monkeypatch.setenv("AUTH_MODE", "off")
+    monkeypatch.setenv("DEPLOY_ENV", "local")
     monkeypatch.setenv("K_SERVICE", "digitiamo-buddy")
     with pytest.raises(ValidationError, match="K_SERVICE"):
         McpSettings()
@@ -96,6 +120,8 @@ def test_auth_on_builds_on_cloud_run(index_dir: Path, monkeypatch: pytest.Monkey
     assert McpSettings(**_auth_on_values(index_dir)).auth_mode == "on"
 
 
-def test_auth_off_builds_outside_cloud_run(index_dir: Path) -> None:
-    config = McpSettings(artifact_dir=index_dir, guides_web_base=WEB_BASE, auth_mode="off")
+def test_auth_off_builds_with_local_deploy_env(index_dir: Path) -> None:
+    config = McpSettings(
+        artifact_dir=index_dir, guides_web_base=WEB_BASE, auth_mode="off", deploy_env="local"
+    )
     assert config.auth_mode == "off"

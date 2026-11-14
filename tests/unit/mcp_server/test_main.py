@@ -71,6 +71,7 @@ def valid_env(monkeypatch: pytest.MonkeyPatch, index_dir: Path) -> Callable[...,
             "ARTIFACT_DIR": str(index_dir),
             "GUIDES_WEB_BASE": WEB_BASE,
             "AUTH_MODE": "off",
+            "DEPLOY_ENV": "local",
             "GOOGLE_CLOUD_PROJECT": "demo-ai-buddy",
         }
         values.update(overrides)
@@ -145,7 +146,26 @@ def test_auth_off_on_cloud_run_is_refused(
 
     errors = _error_lines(capsys.readouterr().err)
     assert len(errors) == 1
+    assert "DEPLOY_ENV" in errors[0]
+    assert "K_SERVICE" in errors[0]
+    assert serve_stub.calls == 0
+
+
+def test_auth_off_without_deploy_env_is_refused_on_any_host(
+    valid_env: Callable[..., None],
+    monkeypatch: pytest.MonkeyPatch,
+    serve_stub: ServeStub,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    valid_env()
+    monkeypatch.delenv("DEPLOY_ENV")
+
+    assert main([], serve=serve_stub) == 1
+
+    errors = _error_lines(capsys.readouterr().err)
+    assert len(errors) == 1
     assert "AUTH_MODE" in errors[0]
+    assert "DEPLOY_ENV" in errors[0]
     assert serve_stub.calls == 0
 
 

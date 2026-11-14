@@ -76,6 +76,7 @@ def server_process(
         {
             "ARTIFACT_DIR": str(artifacts),
             "AUTH_MODE": "off",
+            "DEPLOY_ENV": "local",
             "MCP_HOST": "127.0.0.1",
             "PORT": str(port),
             "GUIDES_WEB_BASE": WEB_BASE,

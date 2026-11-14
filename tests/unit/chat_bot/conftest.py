@@ -215,7 +215,9 @@ def mcp_server(tmp_path: Path, gaplog: InMemoryGapLog) -> Iterator[FastMCP]:
     directory = tmp_path / "artifacts"
     write_index(directory, content)
     snapshot = load_snapshot(directory / "index.db")
-    settings = McpSettings(artifact_dir=directory, guides_web_base=WEB_BASE, auth_mode="off")
+    settings = McpSettings(
+        artifact_dir=directory, guides_web_base=WEB_BASE, auth_mode="off", deploy_env="local"
+    )
     yield build_server(settings, snapshot=snapshot, gaplog=gaplog, now=lambda: NOW)
     snapshot.reader.close()
     snapshot.handbook_index.close()

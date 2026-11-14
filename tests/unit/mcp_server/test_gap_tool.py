@@ -73,7 +73,11 @@ async def test_ttl_follows_the_settings(
     from buddy_mcp.server import build_server
 
     config = McpSettings(
-        artifact_dir=index_dir, guides_web_base=WEB_BASE, gap_ttl_days=7, auth_mode="off"
+        artifact_dir=index_dir,
+        guides_web_base=WEB_BASE,
+        gap_ttl_days=7,
+        auth_mode="off",
+        deploy_env="local",
     )
     server = build_server(config, snapshot=snapshot, gaplog=gaplog, now=lambda: NOW)
     await _report(server, QUESTION)
@@ -110,7 +114,11 @@ async def test_backend_failure_is_gap_log_unavailable_and_logs_the_type_only(
 def test_gap_ttl_days_must_be_at_least_one(index_dir: Any) -> None:
     with pytest.raises(ValidationError, match="gap_ttl_days"):
         McpSettings(
-            artifact_dir=index_dir, guides_web_base=WEB_BASE, gap_ttl_days=0, auth_mode="off"
+            artifact_dir=index_dir,
+            guides_web_base=WEB_BASE,
+            gap_ttl_days=0,
+            auth_mode="off",
+            deploy_env="local",
         )
 
 
@@ -118,6 +126,7 @@ def test_gap_ttl_days_from_the_environment(index_dir: Any, monkeypatch: pytest.M
     monkeypatch.setenv("ARTIFACT_DIR", str(index_dir))
     monkeypatch.setenv("GUIDES_WEB_BASE", WEB_BASE)
     monkeypatch.setenv("AUTH_MODE", "off")
+    monkeypatch.setenv("DEPLOY_ENV", "local")
     monkeypatch.setenv("GAP_TTL_DAYS", "0")
     with pytest.raises(ValidationError, match="gap_ttl_days"):
         McpSettings()
@@ -126,7 +135,9 @@ def test_gap_ttl_days_from_the_environment(index_dir: Any, monkeypatch: pytest.M
 
 
 def test_gap_settings_defaults(index_dir: Any) -> None:
-    config = McpSettings(artifact_dir=index_dir, guides_web_base=WEB_BASE, auth_mode="off")
+    config = McpSettings(
+        artifact_dir=index_dir, guides_web_base=WEB_BASE, auth_mode="off", deploy_env="local"
+    )
     assert config.gap_ttl_days == 90
     assert config.gap_collection == "gaps"
 
@@ -139,6 +150,7 @@ def test_gap_collection_is_restricted(index_dir: Any, collection: str) -> None:
             guides_web_base=WEB_BASE,
             gap_collection=collection,
             auth_mode="off",
+            deploy_env="local",
         )
 
 
