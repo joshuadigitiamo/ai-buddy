@@ -6,7 +6,7 @@
 <domain>
 ## Phase Boundary
 
-Repo foundation (D11 layout, Python 3.12 tooling, Dockerized `run-unit-tests.sh`) plus a sync job that turns the ClickUp test handbook (`xkwgt-39975`, id from env) and the Guides repo into one redacted, incremental, versioned index artifact with a Guides section → video map. Requirements: FND-01, FND-02, GUIDE-01, SYNC-01..07.
+Repo foundation (D11 layout, Python 3.12 tooling, Dockerized `run-unit-tests.sh`) plus a sync job that turns the ClickUp test handbook ([ClickUp doc ID removed], id from env) and the Guides repo into one redacted, incremental, versioned index artifact with a Guides section → video map. Requirements: FND-01, FND-02, GUIDE-01, SYNC-01..07.
 
 Out of this phase: serving the index (Phase 2), hosting/deploy and the concrete artifact handoff (Phase 4), retrieval quality measurement (Phase 5).
 
@@ -75,7 +75,7 @@ Out of this phase: serving the index (Phase 2), hosting/deploy and the concrete 
 - `.planning/intel/decisions.md` — decision rationale and confidence tags
 
 ### Source data
-- `docs/research/handbook-raw/` — 23-page raw snapshot the test doc `xkwgt-39975` was copied from; fixture source for sync and redaction tests (contains the Wi-Fi page; never copy its values into artifacts or plans)
+- `docs/research/handbook-raw/` — 23-page raw snapshot the test doc [ClickUp doc ID removed] was copied from; fixture source for sync and redaction tests (contains the Wi-Fi page; never copy its values into artifacts or plans)
 - `~/Desktop/WORK/Guides/README.md` — full-video URL table per guide (fallback video source, D-06)
 - `~/Desktop/WORK/Guides/videos/<topic>/scenes.py`, `narration.py` — scene ids (S01..Snn) and chapter kickers for `sections.yaml`
 - `~/Desktop/WORK/Guides/videos/<topic>/out/durations.json` — scene durations (currently local, uncommitted; e.g. present for `multi-agent-design`)

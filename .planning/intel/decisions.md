@@ -97,7 +97,7 @@ Precedence inside PLAN.md: section 2.1 (03/11/2026) overrides section 2 wherever
 ## D14: Test data = separate ClickUp doc "AI Buddy - Test Handbook"
 - source: docs/PLAN.md (section 2.1, D14)
 - status: locked
-- decision: Doc ClickUp separato "AI Buddy - Test Handbook" (`xkwgt-39975`, privato, space Wiki), copiato dallo snapshot `docs/research/handbook-raw/` con redazione del Wi-Fi. L'handbook ufficiale `xkwgt-22915` non si tocca (e' in riscrittura). ID del doc via variabile d'ambiente. Confidenza [High].
+- decision: Doc ClickUp separato "AI Buddy - Test Handbook" ([ClickUp doc ID removed], privato, space Wiki), copiato dallo snapshot `docs/research/handbook-raw/` con redazione del Wi-Fi. L'handbook ufficiale [ClickUp doc ID removed] non si tocca (e' in riscrittura). ID del doc via variabile d'ambiente. Confidenza [High].
 - scope: test data, ClickUp sync target
 
 ## D15: Guides videos in chat as "Guarda" button and thumbnail on cards

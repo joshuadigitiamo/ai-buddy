@@ -29,14 +29,14 @@ Milestone 1 is done when the eval phase reports all three:
 Full list with IDs in `.planning/REQUIREMENTS.md`. Summary by area:
 
 - [ ] Foundation: monorepo skeleton (D11), Python 3.12 tooling, Dockerized test runner `run-unit-tests.sh`, Guides best practices applied per phase (D16)
-- [ ] Content sync: ClickUp test handbook (`xkwgt-39975`, id from env) and Guides repo into `buddy_core` index; redaction filter; incremental sync on `date_edited` + content hash; section -> video mapping
+- [ ] Content sync: ClickUp test handbook ([ClickUp doc ID removed], id from env) and Guides repo into `buddy_core` index; redaction filter; incremental sync on `date_edited` + content hash; section -> video mapping
 - [ ] Google Chat bot: Pub/Sub events in dev, HTTP + Google JWT on Cloud Run, LangGraph 2-step RAG with citations and confidence gate, pluggable LLM client (`meridian | api`, Vertex configured not enabled), allowlist guard, cards with source link and "Guarda" video button
 - [ ] Infra: Dockerfile per service, docker compose, kind manifests (Kustomize), Cloud Run YAMLs (europe-west8), GitHub Actions path-filtered build/test/push/deploy with Workload Identity Federation
 - [ ] Eval: golden set (30-50, drafted by Claude, reviewed by Joshua), Recall@5, correctness + citation scoring, MLflow tracing, empty-context refusal test, gate verdict
 
 ### Out of Scope
 
-- Phase 0 official handbook cleanup (HR content work, `xkwgt-22915`) — outside Milestone 1 code; the test doc (D14) is used instead; prerequisite before the sync targets the official doc (D8)
+- Phase 0 official handbook cleanup (HR content work, [ClickUp doc ID removed]) — outside Milestone 1 code; the test doc (D14) is used instead; prerequisite before the sync targets the official doc (D8)
 - Multi-user rollout, pilot with colleagues, adoption KPIs — Milestone 1 is personal dev use only (D1a)
 - Vector DB / embeddings — only if Guides Recall@5 < 0.8 (D5)
 - Enabling the Vertex AI production LLM switch — config is prepared, not turned on
@@ -50,7 +50,7 @@ Full list with IDs in `.planning/REQUIREMENTS.md`. Summary by area:
 
 ## Context
 
-- **Sources:** ClickUp Handbook (official doc `xkwgt-22915`, 23 pages, ~4,000 words, ~8k tokens, Italian) is being rewritten by HR and is not touched. Milestone 1 uses the private test copy "AI Buddy - Test Handbook" (`xkwgt-39975`, space Wiki), copied from the raw snapshot with the Wi-Fi page redacted. Guides repo at `~/Desktop/WORK/Guides` (~15 technical guides, markdown, plus a video pipeline; videos live as release assets of a private GitHub repo).
+- **Sources:** ClickUp Handbook (official doc [ClickUp doc ID removed], 23 pages, ~4,000 words, ~8k tokens, Italian) is being rewritten by HR and is not touched. Milestone 1 uses the private test copy "AI Buddy - Test Handbook" ([ClickUp doc ID removed], space Wiki), copied from the raw snapshot with the Wi-Fi page redacted. Guides repo at `~/Desktop/WORK/Guides` (~15 technical guides, markdown, plus a video pipeline; videos live as release assets of a private GitHub repo).
 - **Retrieval:** handbook fits in one context (no vector DB, D4); Guides use heading-chunked SQLite FTS5/BM25 (D5).
 - **Architecture:** `buddy_core` (shared index + models) feeds `mcp_server` (retrieval layer, 5 tools) and `chat_bot` (LangGraph 2-step RAG, calls the MCP server over HTTP as an MCP client, D11). `jobs/sync` builds the index. Local dev on kind; prod on Cloud Run europe-west8.
 - **Sensitive content:** the Wi-Fi page of the handbook holds plaintext credentials; redaction excludes it from the index. No credential value is copied into any planning artifact.
@@ -69,7 +69,7 @@ Full list with IDs in `.planning/REQUIREMENTS.md`. Summary by area:
 - **MCP**: FastMCP / SDK `mcp`; streamable-http, stateless, JSON responses, no persistent SSE (cost and ephemeral filesystem); fewer than 10 tools; read-only; every output carries source url + revision date
 - **Gap log**: Firestore, no user id, short retention
 - **LLM access (Milestone 1)**: Meridian + Joshua's Claude Max only for personal dev, single user. Guards: Google Chat app visible to Joshua only, `ALLOWED_USERS` allowlist enforced by the bot, `LLM_BACKEND` switch `meridian | api`. Before anyone else uses the bot, `LLM_BACKEND` must move to an API key (Console or Vertex EU)
-- **Test data**: ClickUp doc id from an environment variable, pointing to `xkwgt-39975`; the official `xkwgt-22915` is not used in Milestone 1
+- **Test data**: ClickUp doc id from an environment variable, pointing to [ClickUp doc ID removed]; the official [ClickUp doc ID removed] is not used in Milestone 1
 - **Redaction**: no credential may reach the index; the Wi-Fi page is excluded before indexing
 - **Repo layout (D11)**: `packages/buddy_core`, `services/mcp_server`, `services/chat_bot`, `jobs/sync`, `deploy/k8s`, `deploy/cloudrun`, `.github/workflows`, `tests/`, `run-unit-tests.sh`
 - **Guides best practices (D16)**: every phase plan cites the Guides sections applied and justifies exceptions
@@ -99,7 +99,7 @@ Locked (Milestone 1 approved 03/11/2026):
 - **D11** (locked): Monorepo: `packages/buddy_core`, `services/mcp_server`, `services/chat_bot`, `jobs/sync`, `deploy/`; one Docker image per service; the bot calls the MCP server over HTTP as an MCP client.
 - **D12** (locked): GitHub Actions: path-filtered build, push to Artifact Registry, deploy, Workload Identity Federation (no keys).
 - **D13** (locked, overrides D3 and Phase 2 gating): Milestone 1 = sync, MCP server, Google Chat bot, infra and eval together. Bot receives events via Pub/Sub in dev and via HTTP (Google JWT) on Cloud Run.
-- **D14** (locked): Test data = separate ClickUp doc "AI Buddy - Test Handbook" (`xkwgt-39975`, private, space Wiki), copied from `docs/research/handbook-raw/` with the Wi-Fi redacted. Official `xkwgt-22915` is not touched. Doc id via environment variable.
+- **D14** (locked): Test data = separate ClickUp doc "AI Buddy - Test Handbook" ([ClickUp doc ID removed], private, space Wiki), copied from `docs/research/handbook-raw/` with the Wi-Fi redacted. Official [ClickUp doc ID removed] is not touched. Doc id via environment variable.
 - **D15** (locked): Guides videos appear in chat as a "Guarda" button and thumbnail on cards, with the single-scene clip linked to the cited section. Google Chat has no embedded player. The Guides repo is private (release URLs return 404 without login): fine for dev; for other users videos move to Google Drive (domain-shared) before rollout.
 - **D16** (locked): Apply Guides best practices to every phase (MCP_SERVERS_GUIDE, RAG_CHATBOT_GUIDE, LANGCHAIN/LANGGRAPH_GUIDE, MLFLOW_GENAI_GUIDE, KUBERNETES_GUIDE, DESIGN_PATTERNS_GUIDE). Each phase plan cites the sections applied and justifies exceptions.
 

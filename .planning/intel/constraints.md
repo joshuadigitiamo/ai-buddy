@@ -46,7 +46,7 @@ Source: docs/PLAN.md (SPEC, precedence 0) unless marked "orchestrator/user globa
 ## ClickUp sync metadata and redaction
 - source: docs/PLAN.md (section 3); mechanics from docs/research/01-handbook-inventory.md section 9 (DOC)
 - type: schema
-- content: Incremental sync keyed on `date_edited` plus content hash (NOT `date_updated`, which can change without content change). ClickUp doc ID from environment variable. Redaction filter before indexing (Wi-Fi page excluded; page id xkwgt-28055 per research 01 contains plaintext credentials, values intentionally not reproduced anywhere in intel).
+- content: Incremental sync keyed on `date_edited` plus content hash (NOT `date_updated`, which can change without content change). ClickUp doc ID from environment variable. Redaction filter before indexing (Wi-Fi page excluded; page id [ClickUp doc ID removed] per research 01 contains plaintext credentials, values intentionally not reproduced anywhere in intel).
 
 ## Retrieval strategy
 - source: docs/PLAN.md (D4, D5, section 8)

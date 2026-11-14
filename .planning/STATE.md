@@ -95,7 +95,7 @@ Full log in PROJECT.md Key Decisions (`<decisions>` block, D1-D16 locked).
 Recent decisions affecting current work:
 
 - [Init]: D1a — Meridian + Joshua's Max only for personal dev; guards: Chat app visible to Joshua, `ALLOWED_USERS`, `LLM_BACKEND` meridian|api
-- [Init]: D14 — Test handbook `xkwgt-39975` (id via env); official `xkwgt-22915` not used in Milestone 1
+- [Init]: D14 — Test handbook [ClickUp doc ID removed] (id via env); official [ClickUp doc ID removed] not used in Milestone 1
 - [Init]: D16 — every phase plan cites applied Guides sections and justifies exceptions
 - [Init]: Foundation (repo skeleton, `run-unit-tests.sh`, tooling) moved from Phase 4 to Phase 1 so Phases 1-3 can be verified in Docker
 - [Init]: Golden set drafted by Claude from test doc + Guides (incl. no-answer and sensitive cases), reviewed by Joshua

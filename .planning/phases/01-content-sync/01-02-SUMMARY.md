@@ -117,7 +117,7 @@ coverage:
     requirement: SYNC-07
     verification:
       - kind: other
-        ref: "plan task 3 verify: file existence and grep for schema_version, date_updated, cold start, ArtifactStore; grep -c ArtifactStore REQUIREMENTS.md = 2; no xkwgt-2xxxx ids"
+        ref: "plan task 3 verify: file existence and grep for schema_version, date_updated, cold start, ArtifactStore; grep -c ArtifactStore REQUIREMENTS.md = 2; no [ClickUp doc ID removed]xxxx ids"
         status: pass
     human_judgment: true
     rationale: "Whether the prose is complete and accurate for Phase 2 and Phase 5 consumers is a review judgment; only required terms are mechanically checked"

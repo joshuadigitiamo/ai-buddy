@@ -59,7 +59,7 @@ Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requireme
 
 ### Evaluation and Gate
 
-- [ ] **EVAL-01**: Golden set of 30-50 Q&A pairs drafted by Claude from the test doc `xkwgt-39975` and the Guides, with expected answer and expected source page, covering answerable, no-answer and sensitive-escalation cases; each item records Joshua's review status; no item points at the official `xkwgt-22915`.
+- [ ] **EVAL-01**: Golden set of 30-50 Q&A pairs drafted by Claude from the test doc [ClickUp doc ID removed] and the Guides, with expected answer and expected source page, covering answerable, no-answer and sensitive-escalation cases; each item records Joshua's review status; no item points at the official [ClickUp doc ID removed].
 - [ ] **EVAL-02**: One command measures Recall@5 of retrieval (handbook search and Guides search) over the golden set and reports it; a Guides Recall@5 < 0.8 is flagged as the D5 hybrid-upgrade trigger.
 - [ ] **EVAL-03**: One command scores the golden set end to end against Claude (via the bot workflow and the configured `LLM_BACKEND`) for correctness and correct citation, and counts invented policies (an answer asserting a rule absent from its cited source).
 - [ ] **EVAL-04**: "Empty context" test: with an index that holds no matching content, every answer is a refusal and a gap is logged; the test fails if any answer is produced.
@@ -95,7 +95,7 @@ Deferred beyond Milestone 1. Tracked, not in the current roadmap.
 
 | Feature | Reason |
 |---------|--------|
-| Official handbook `xkwgt-22915` as sync target | Being rewritten; fix before indexing (D8, D14) |
+| Official handbook [ClickUp doc ID removed] as sync target | Being rewritten; fix before indexing (D8, D14) |
 | Meridian for any user other than Joshua | Anthropic terms (D1); D1a covers personal dev only |
 | Vector DB / embeddings | Only if Guides Recall@5 < 0.8 (D5) |
 | Multi-agent, Deep Agents, A2A | 2-step RAG is enough for Q&A |

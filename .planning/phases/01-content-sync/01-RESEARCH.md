@@ -356,7 +356,7 @@ Not a rename/refactor/migration phase. Omitted.
 **How to avoid:** Tight label patterns; configurable email allow-list; entropy rule skips URLs/UUIDs; add a **local-only corpus test** (skipped when `docs/research/handbook-raw/` is absent; the directory is gitignored so CI skips it) that runs the redactor over the 22 non-Wi-Fi snapshot pages and asserts SDI, P.IVA, `@digitiamo.com` addresses and office numbers survive, and that every masked span is reported by rule name. Corpus values must never be copied into committed fixtures.
 
 ### Pitfall 7: The Wi-Fi page id differs in the test doc
-**What goes wrong:** `REDACT_PAGE_IDS` is set to the raw snapshot's Wi-Fi page id but the test doc `xkwgt-39975` has different page ids (it is a copy).
+**What goes wrong:** `REDACT_PAGE_IDS` is set to the raw snapshot's Wi-Fi page id but the test doc [ClickUp doc ID removed] has different page ids (it is a copy).
 **How to avoid:** A one-off human step after the token exists: list the test doc's pages (page_listing) and put the Wi-Fi page id in `.env`. A defence in depth is cheap: a unit test asserting the pipeline refuses to write an artifact when `REDACT_PAGE_IDS` is empty **and** `--allow-empty-denylist` is not passed. Never put real ids or values in committed files; `.env` is gitignored, `.env.example` holds placeholders.
 
 ### Pitfall 8: `#t=` on a GitHub release download URL
@@ -557,7 +557,7 @@ Section numbers below were checked against the Guides files this session (headin
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
 | A1 | `date_edited`/`date_updated` are epoch milliseconds | Pitfall 3 | Wrong ISO rendering; equality comparison unaffected. Confirm with one live call |
-| A2 | Live `/pages` response matches the OpenAPI schema (top-level JSON array, nested `pages`, `id` like `xkwgt-27855`, `name`, `content`) | ClickUp client | Parse failure on first live run. Fixtures are synthetic and schema-derived, not recorded from the real API |
+| A2 | Live `/pages` response matches the OpenAPI schema (top-level JSON array, nested `pages`, `id` like [ClickUp doc ID removed], `name`, `content`) | ClickUp client | Parse failure on first live run. Fixtures are synthetic and schema-derived, not recorded from the real API |
 | A3 | `git -c http.extraHeader=...` avoids persisting the token and works for GitHub HTTPS with a fine-grained PAT | Pitfall 9 | Clone fails or token persists; verify against git/GitHub docs in the plan, and test it |
 | A4 | A `#t=` fragment is ignored on a GitHub release-asset download URL | Pitfall 8 | Low; design (separate offset column) is correct either way |
 | A5 | Page deep-link format `https://app.clickup.com/<workspace_id>/v/dc/<doc_id>/<page_id>` | Pattern 2 / SYNC-05 | Wrong links. Observed in the raw snapshot's `source:` front-matter field (which was produced by an earlier fetch of the real doc); confirm on the test doc |
@@ -573,7 +573,7 @@ Section numbers below were checked against the Guides files this session (headin
 1. **First live call (needs the ClickUp token)**
    - Known: official schema; the token and the workspace id are not yet available (STATE.md blocker: needs Admin ClickUp). The workspace id is a required path parameter (`workspace_id`, type number), so `CLICKUP_WORKSPACE_ID` is a new env var the requirements did not mention.
    - Unclear: `date_edited` unit/nullability, real `id` format, whether content contains attachment links as seen in the raw snapshot, and the test doc's page ids (for `REDACT_PAGE_IDS`).
-   - Recommendation: schedule one human-run `buddy-sync` smoke step against `xkwgt-39975` at the end of the phase, outside the unit suite; until then everything is built against schema-derived synthetic fixtures. Keep a throwaway local-only helper that feeds the gitignored raw snapshot through the pipeline (maps its `last_updated` to `date_edited`) so redaction can be tuned before the token exists.
+   - Recommendation: schedule one human-run `buddy-sync` smoke step against [ClickUp doc ID removed] at the end of the phase, outside the unit suite; until then everything is built against schema-derived synthetic fixtures. Keep a throwaway local-only helper that feeds the gitignored raw snapshot through the pipeline (maps its `last_updated` to `date_edited`) so redaction can be tuned before the token exists.
 2. **Which two videos get real maps?** `rag-chatbot` has no `durations.json`. Recommend `mcp-servers` + `multi-agent-design`, with `rag-chatbot` only if the user runs its TTS first. Needs a user call.
 3. **Non-company email policy** (calendar group, Factorial reply-to, third-party contact): allow-list or mask? D-15/D-16 are silent on non-personal non-company addresses.
 4. **Cross-repo edits** (Guides repo: `sections.yaml` x2, committed `durations.json` x2 plus gitignore negation, generated `GUIDES_INDEX.md`): who commits and where does the work happen? The user's rule forbids commits without an explicit ask, so these are human-action checkpoints.
@@ -636,7 +636,7 @@ Section numbers below were checked against the Guides files this session (headin
 | SYNC-07 | Schema/`user_version`/`meta` present; consumer refuses a mismatched major; identical logical content → identical `content_hash` across two builds at different times; atomic publish leaves one file | unit | `... --single-file test_index_format.py tests/unit/buddy_core` and `test_artifact_store.py` | ❌ Wave 0 |
 | SYNC-07 | `docs/index-format.md` and `docs/adr/0001-index-handoff.md` exist; REQUIREMENTS.md SYNC-07/INFRA-04 reworded | manual (doc review) | plan-check | ❌ Wave 0 |
 | (phase) | End to end on fixtures: sync → artifact → `search_guides` hit with video link → second run writes nothing | unit/integration (in-process) | `... --single test_sync_e2e.py test_end_to_end tests/unit/buddy_sync` | ❌ Wave 0 |
-| (phase) | Live smoke against `xkwgt-39975` with real token, Wi-Fi id in `REDACT_PAGE_IDS` | manual-only (needs credentials and network; unit suite runs with `--network none`) | `docker run … python -m buddy_sync` | — |
+| (phase) | Live smoke against [ClickUp doc ID removed] with real token, Wi-Fi id in `REDACT_PAGE_IDS` | manual-only (needs credentials and network; unit suite runs with `--network none`) | `docker run … python -m buddy_sync` | — |
 
 ### Sampling Rate
 - **Per task commit:** `./run-unit-tests.sh --single-file <file> <dir>` for the touched module

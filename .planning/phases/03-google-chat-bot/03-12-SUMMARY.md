@@ -100,7 +100,7 @@ One compose file runs Meridian, the MCP server, the bot and the Firestore emulat
 
 ## Live check record (D-18)
 
-Date 2026-11-07. GCP project `ai-buddy-dev-513921` (trial billing, personal profile). Topic `ai-buddy-chat`: Publisher role only for the Google Workspace add-ons service agent (`service-629233348577@gcp-sa-gsuiteaddons.iam.gserviceaccount.com`); `chat-api-push` removed. Subscription `ai-buddy-chat-sub`: Subscriber role for the bot service account. Chat app "AI Buddy": Workspace add-on app (irreversible choice), Pub/Sub connection, `/aiuto` command id 1, visible to Joshua only, markup MARKDOWN. Bot key kept outside the repo (mode 600). Meridian credentials volume seeded; Meridian reported the subscription as "team".
+Date 2026-11-07. GCP project `ai-buddy-dev` (trial billing, personal profile). Topic `ai-buddy-chat`: Publisher role only for the Google Workspace add-ons service agent (`service-629233348577@gcp-sa-gsuiteaddons.iam.gserviceaccount.com`); `chat-api-push` removed. Subscription `ai-buddy-chat-sub`: Subscriber role for the bot service account. Chat app "AI Buddy": Workspace add-on app (irreversible choice), Pub/Sub connection, `/aiuto` command id 1, visible to Joshua only, markup MARKDOWN. Bot key kept outside the repo (mode 600). Meridian credentials volume seeded; Meridian reported the subscription as "team".
 
 Step 8 observations:
 - Event format: add-on. Events carry `user.email`, so `ALLOWED_USERS` holds one e-mail and it matched.

@@ -152,7 +152,7 @@ Plans:
 **Requirements**: EVAL-01, EVAL-02, EVAL-03, EVAL-04, EVAL-05, EVAL-06
 **Guides applied (D16)**: RAG_CHATBOT_GUIDE (evaluation, Recall@k), MLFLOW_GENAI_GUIDE (tracing, scorers, LLM judges), LANGGRAPH_GUIDE (tracing the workflow), DESIGN_PATTERNS_GUIDE; plan lists exact sections and exceptions.
 **Success Criteria** (what must be TRUE):
-  1. A golden set of 30-50 Q&A pairs exists in the repo, drafted from the test doc `xkwgt-39975` and the Guides, with expected answer and expected source per item, covering answerable, no-answer and sensitive-escalation cases, each item showing Joshua's review status, and none pointing at the official handbook.
+  1. A golden set of 30-50 Q&A pairs exists in the repo, drafted from the test doc [ClickUp doc ID removed] and the Guides, with expected answer and expected source per item, covering answerable, no-answer and sensitive-escalation cases, each item showing Joshua's review status, and none pointing at the official handbook.
   2. One command prints Recall@5 for handbook search and Guides search over the golden set, and flags Guides Recall@5 < 0.8 as the hybrid-upgrade trigger.
   3. One command runs the golden set through the bot workflow with the configured `LLM_BACKEND` and prints the correctness-with-citation percentage and the count of invented policies; each judged answer has an MLflow trace (retrieval, generation, gate) viewable in a containerized MLflow UI.
   4. The empty-context test passes: with an index holding no matching content, every question gets a refusal and a logged gap, and the test fails if any answer is produced.

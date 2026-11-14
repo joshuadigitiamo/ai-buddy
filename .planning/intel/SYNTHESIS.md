@@ -6,7 +6,7 @@ Mode: new. Precedence: ADR > SPEC > PRD > DOC; docs/PLAN.md is SPEC with precede
 - Total: 8 (SPEC 1, DOC 7, ADR 0, PRD 0, UNKNOWN 0)
 - SPEC: docs/PLAN.md
 - DOC: docs/research/01-handbook-inventory.md, 02-meridian-e-backend-ai.md, 03-onboarding-best-practices.md, 04-handbook-gap-analysis.md, 05-modelli-open-self-hosted.md, 06-hosting-modello-self-hosted.md, 07-costi-hosting-cloud-run.md
-- docs/PLAN.md re-read from disk after classification; includes D16 and test doc id xkwgt-39975 (D14).
+- docs/PLAN.md re-read from disk after classification; includes D16 and test doc id [ClickUp doc ID removed] (D14).
 
 ## Decisions
 - 18 entries in decisions.md (D1, D1a, D2-D16). Treated as locked per orchestrator instruction (no ADR status in source). Tentative parts flagged: D7 region "da confermare"; D9 alternative open-model proposal.

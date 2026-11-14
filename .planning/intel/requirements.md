@@ -34,7 +34,7 @@ Note: the ingest set contains no PRD documents. Entries below are taken from exp
 
 ## REQ-sync-clickup-guides
 - source: docs/PLAN.md (section 3 sync, section 4 Phase 1 item 2, D14)
-- description: Job di sync ClickUp + Guides con redazione e hash. ClickUp: `list_document_pages` per l'albero, `get_document_pages` (text/md); sync incrementale con `date_edited` e hash del contenuto (non `date_updated`). Guides: git pull del repo. Target ClickUp doc ID via variabile d'ambiente (test doc `xkwgt-39975`, never the official `xkwgt-22915`). Open design point in source: how synced data reaches the container (image rebuild vs bucket read at startup).
+- description: Job di sync ClickUp + Guides con redazione e hash. ClickUp: `list_document_pages` per l'albero, `get_document_pages` (text/md); sync incrementale con `date_edited` e hash del contenuto (non `date_updated`). Guides: git pull del repo. Target ClickUp doc ID via variabile d'ambiente (test doc [ClickUp doc ID removed], never the official [ClickUp doc ID removed]). Open design point in source: how synced data reaches the container (image rebuild vs bucket read at startup).
 - acceptance: absent
 - scope: sync job, ClickUp API, Guides repo
 
