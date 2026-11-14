@@ -1,5 +1,9 @@
 """Shared synthetic content for the buddy_core contract tests (no real ids or handbook text)."""
 
+import base64
+import hashlib
+from pathlib import Path
+
 import pytest
 
 from buddy_core.models import (
@@ -56,3 +60,78 @@ def sample_content() -> IndexContent:
         pipeline_version="test-1",
         redaction_version="test-1",
     )
+
+
+class FakeBucketError(Exception):
+    """Stands in for a storage failure raised by an upload."""
+
+
+class FakeBucket:
+    """In-memory BucketPort: no network, md5 computed like GCS (base64 of the md5 digest).
+
+    ``fail_next_upload`` makes the next upload of any object raise; ``fail_uploads_matching``
+    makes every upload whose object name contains the text raise, so a test can interrupt a
+    publish between the db object and the pointer.
+    """
+
+    def __init__(self) -> None:
+        self.objects: dict[str, bytes] = {}
+        self.metadata: dict[str, dict[str, str | None]] = {}
+        self.uploads: list[str] = []
+        self.downloads: list[str] = []
+        self.fail_next_upload = False
+        self.fail_uploads_matching = ""
+        self.corrupt_uploads_matching = ""
+
+    def _check_upload(self, name: str) -> None:
+        if self.fail_next_upload:
+            self.fail_next_upload = False
+            raise FakeBucketError("simulated upload failure")
+        if self.fail_uploads_matching and self.fail_uploads_matching in name:
+            raise FakeBucketError("simulated upload failure")
+
+    def _store(self, name: str, data: bytes, meta: dict[str, str | None]) -> None:
+        if self.corrupt_uploads_matching and self.corrupt_uploads_matching in name:
+            data = data + b"x"
+        self.objects[name] = data
+        self.metadata[name] = meta
+        self.uploads.append(name)
+
+    def read_bytes(self, name: str) -> bytes | None:
+        return self.objects.get(name)
+
+    def download_to(self, name: str, dest: Path) -> None:
+        if name not in self.objects:
+            raise FileNotFoundError(name)
+        self.downloads.append(name)
+        dest.write_bytes(self.objects[name])
+
+    def upload_file(
+        self,
+        src: Path,
+        name: str,
+        *,
+        content_type: str,
+        content_disposition: str | None = None,
+        cache_control: str | None = None,
+    ) -> None:
+        self._check_upload(name)
+        self._store(
+            name,
+            src.read_bytes(),
+            {
+                "content_type": content_type,
+                "content_disposition": content_disposition,
+                "cache_control": cache_control,
+            },
+        )
+
+    def upload_bytes(self, data: bytes, name: str, *, content_type: str) -> None:
+        self._check_upload(name)
+        self._store(name, data, {"content_type": content_type})
+
+    def md5_base64(self, name: str) -> str | None:
+        data = self.objects.get(name)
+        if data is None:
+            return None
+        return base64.b64encode(hashlib.md5(data, usedforsecurity=False).digest()).decode("ascii")

@@ -42,6 +42,11 @@ module = "google.cloud.pubsub_v1"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+# google-cloud-storage ships no py.typed marker; only buddy_core.gcs_bucket and its test import it.
+module = "google.cloud.storage"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 # protobuf ships no stubs here; only buddy_bot.chat_api (FieldMask, json_format) and its test use it.
 module = "google.protobuf"
 ignore_missing_imports = true

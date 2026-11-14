@@ -17,13 +17,20 @@ from fastmcp import FastMCP
 from google.cloud import firestore
 from pydantic import ValidationError
 
+from buddy_core.gcs_bucket import BucketError, GcsBucket
 from buddy_core.index_reader import IndexFormatError
 from buddy_mcp.auth import build_auth
 from buddy_mcp.config import McpSettings
 from buddy_mcp.gaplog import FirestoreGapLog
 from buddy_mcp.oauth_storage import OAuthStorageError, build_oauth_storage
 from buddy_mcp.server import build_server, host_kwargs
-from buddy_mcp.snapshot import SnapshotError, load_snapshot, resolve_index_path
+from buddy_mcp.snapshot import (
+    BucketFactory,
+    SnapshotError,
+    artifact_store_from_settings,
+    load_snapshot,
+    resolve_index_path,
+)
 
 LOGGER_NAME: Final = "buddy_mcp"
 LOG_FORMAT: Final = "%(levelname)s %(name)s %(message)s"
@@ -31,6 +38,7 @@ LOG_FORMAT: Final = "%(levelname)s %(name)s %(message)s"
 # Failures that end startup with one ERROR line and exit code 1.
 _EXPECTED_ERRORS: Final = (
     SnapshotError,
+    BucketError,
     IndexFormatError,
     OAuthStorageError,
     OSError,
@@ -66,13 +74,18 @@ def _configure_logging(logger: logging.Logger) -> logging.Handler:
     return handler
 
 
-def main(argv: Sequence[str] | None = None, *, serve: ServeFn | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    serve: ServeFn | None = None,
+    bucket_factory: BucketFactory | None = None,
+) -> int:
     """Build every adapter from the environment and serve; return 0 or 1 on a reported failure."""
     del argv  # no command-line options: every setting comes from the environment
     logger = logging.getLogger(LOGGER_NAME)
     handler = _configure_logging(logger)
     try:
-        return _run(logger, serve or _serve_http)
+        return _run(logger, serve or _serve_http, bucket_factory or GcsBucket)
     except ValidationError as exc:
         logger.error("%s", _describe_validation_error(exc))
         return 1
@@ -83,14 +96,16 @@ def main(argv: Sequence[str] | None = None, *, serve: ServeFn | None = None) -> 
         logger.removeHandler(handler)
 
 
-def _run(logger: logging.Logger, serve: ServeFn) -> int:
+def _run(logger: logging.Logger, serve: ServeFn, bucket_factory: BucketFactory) -> int:
     settings = McpSettings()
     project = settings.google_cloud_project
     if not project:
         logger.error("missing environment variable: GOOGLE_CLOUD_PROJECT")
         return 1
 
-    snapshot = load_snapshot(resolve_index_path(settings.artifact_dir))
+    # GcsBucket builds its client on first use, so a local run makes no network call.
+    store = artifact_store_from_settings(settings, bucket_factory=bucket_factory)
+    snapshot = load_snapshot(resolve_index_path(store))
     try:
         # The Firestore client is built on the first gap write, inside the server's event loop,
         # so startup makes no network call.

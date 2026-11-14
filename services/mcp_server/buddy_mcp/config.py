@@ -15,6 +15,8 @@ from urllib.parse import urlsplit
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+from buddy_core.store import check_bucket_name, check_object_prefix
+
 _COLLECTION_NAME = re.compile(r"[A-Za-z0-9_-]+")
 _MIN_SIGNING_KEY_LENGTH = 32
 _LOOPBACK_HOSTNAMES = ("localhost", "127.0.0.1")
@@ -51,7 +53,10 @@ class McpSettings(BaseSettings):
         hide_input_in_errors=True,
     )
 
-    artifact_dir: Path
+    artifact_store: Literal["local", "gcs"] = "local"
+    artifact_dir: Path | None = None
+    artifact_bucket: str | None = None
+    artifact_prefix: str = ""
     guides_web_base: str
     google_cloud_project: str | None = None
     mcp_host: str = "0.0.0.0"
@@ -77,6 +82,17 @@ class McpSettings(BaseSettings):
     @classmethod
     def _parse_bot_sa_emails(cls, value: Any) -> Any:
         return _split_csv(value)
+
+    @field_validator("artifact_bucket")
+    @classmethod
+    def _check_artifact_bucket(cls, value: str | None) -> str | None:
+        # The value is not echoed: check_bucket_name never repeats it.
+        return None if value is None else check_bucket_name(value)
+
+    @field_validator("artifact_prefix")
+    @classmethod
+    def _check_artifact_prefix(cls, value: str) -> str:
+        return check_object_prefix(value)
 
     @field_validator("mcp_allowed_hosts", mode="before")
     @classmethod
@@ -114,6 +130,15 @@ class McpSettings(BaseSettings):
         if not domain or "@" in domain:
             raise ValueError("allowed_email_domain must be a bare domain name")
         return domain
+
+    @model_validator(mode="after")
+    def _check_artifact_source(self) -> McpSettings:
+        # D-06 / D-10: the store is chosen by configuration; each store needs its own variable.
+        if self.artifact_store == "gcs" and self.artifact_bucket is None:
+            raise ValueError("ARTIFACT_STORE=gcs requires ARTIFACT_BUCKET")
+        if self.artifact_store == "local" and self.artifact_dir is None:
+            raise ValueError("ARTIFACT_STORE=local requires ARTIFACT_DIR")
+        return self
 
     @model_validator(mode="after")
     def _check_auth_and_storage(self) -> McpSettings:

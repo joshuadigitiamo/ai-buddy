@@ -1,18 +1,32 @@
 """Cold-start load of the published index artifact (P1 D-11: no hot reload).
 
 The server only reads the artifact. It never creates, stages or publishes anything in the
-artifact directory.
+artifact directory. Which store it reads from (a local directory or a bucket) is chosen by
+configuration in ``artifact_store_from_settings`` and nowhere else (D-06, D-10).
 """
 
 import sqlite3
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Final
 
 from buddy_core.index_reader import IndexReader, open_index, to_match_query
 from buddy_core.models import GuideChunk, HandbookPage, IndexMeta, VideoLink
-from buddy_core.store import LocalDirArtifactStore
+from buddy_core.store import (
+    ArtifactIntegrityError,
+    ArtifactStore,
+    BucketPort,
+    GcsArtifactStore,
+    LocalDirArtifactStore,
+)
+from buddy_mcp.config import McpSettings
 from buddy_mcp.stemming import stem_query, stem_text
+
+# Where a bucket-backed server keeps its disposable copy of the index when ARTIFACT_DIR is unset.
+DEFAULT_CACHE_DIR: Final = Path("/tmp/buddy-index")
+
+BucketFactory = Callable[[str], BucketPort]
 
 
 class SnapshotError(Exception):
@@ -69,14 +83,38 @@ class IndexSnapshot:
     handbook_index: HandbookIndex
 
 
-def resolve_index_path(artifact_dir: Path) -> Path:
-    """Return the published index.db path; never creates the directory."""
+def artifact_store_from_settings(
+    settings: McpSettings, *, bucket_factory: BucketFactory
+) -> ArtifactStore:
+    """The store the settings name; a local store never creates its directory."""
+    if settings.artifact_store == "gcs":
+        bucket_name = settings.artifact_bucket
+        if bucket_name is None:  # McpSettings refuses this already; keeps the type honest
+            raise SnapshotError("ARTIFACT_BUCKET is not set")
+        return GcsArtifactStore(
+            bucket_factory(bucket_name),
+            settings.artifact_prefix,
+            settings.artifact_dir or DEFAULT_CACHE_DIR,
+        )
+    artifact_dir = settings.artifact_dir
+    if artifact_dir is None:  # McpSettings refuses this already; keeps the type honest
+        raise SnapshotError("ARTIFACT_DIR is not set")
     # LocalDirArtifactStore.__init__ runs mkdir, so the directory is checked first.
     if not artifact_dir.is_dir():
         raise SnapshotError("artifact directory does not exist")
-    path = LocalDirArtifactStore(artifact_dir).latest_path()
+    return LocalDirArtifactStore(artifact_dir)
+
+
+def resolve_index_path(store: ArtifactStore) -> Path:
+    """Return the published index path the store holds; messages name the store, not a bucket."""
+    try:
+        path = store.latest_path()
+    except ArtifactIntegrityError as exc:
+        raise SnapshotError(str(exc)) from None
     if path is None:
-        raise SnapshotError("no index.db in artifact directory")
+        if isinstance(store, LocalDirArtifactStore):
+            raise SnapshotError("no index.db in artifact directory")
+        raise SnapshotError("no published index in artifact store")
     return path
 
 
