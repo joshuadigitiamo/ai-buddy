@@ -74,7 +74,7 @@ One file per video, at `videos/<topic>/out/durations.json`, written by the video
 
 With the example above, `S03Chunking` starts at 10.0 + 20.5 = 30.5 seconds. The link stores the offset as `start_seconds`; consumers compose the playable URL with `buddy_core.models.video_link`, which appends `#t=<whole seconds>` (here `#t=30`).
 
-Open assumption, to be confirmed against the real Guides repo: a browser may ignore the `#t=` fragment on a release download URL. The offset is stored separately for that reason, so another link syntax can be chosen later without a re-sync.
+Open assumption, to be confirmed live: a browser may ignore the `#t=` fragment, on a release download URL or on the authenticated bucket URL after the Google login redirect. The offset is stored separately for that reason, so another link syntax can be chosen later without a re-sync.
 
 ## Committing durations.json in the Guides repo
 
@@ -109,6 +109,8 @@ Everything else in `out/` (MP4, WAV, frames) stays ignored.
 - Last cell: either a dash (`—`, `–` or `-`), meaning no video, or one or more `[label](https://….mp4)` links. A single link is part 1 whatever its label. With several links each label must start with `Part N`; parts are ordered by `N`.
 - Only `https` links ending in `.mp4` are accepted.
 - Lines that are not table rows, separator rows, and rows without a guide link (headers, other tables) are ignored.
+
+The README table stays the source of the part list and of the file names. When `VIDEO_BUCKET` is set, the sync keeps each part but stores the hosted copy as its base URL, `https://storage.cloud.google.com/<VIDEO_BUCKET>/videos/<name>.mp4` (no query string; `<name>.mp4` is the last segment of the README URL), and appends `#t=<seconds>` for scene rows as before. `python -m buddy_sync upload-videos` puts the files there, so every README mp4 name must exist as a local file before the upload: under the Guides `videos/` tree, or in the directory the release assets were downloaded to (see [jobs/sync/README.md](../jobs/sync/README.md)). File names must be plain `*.mp4` names, and two different README URLs may not end in the same name. Without `VIDEO_BUCKET` the README URLs are stored unchanged.
 
 Drift guard: a row that links a guide but has neither a dash nor at least one valid `.mp4` link, a link without `Part N` among several, a repeated part number, or a guide listed twice raises `VideoMapError`. The README format is therefore checked on every sync rather than silently producing guides without videos.
 

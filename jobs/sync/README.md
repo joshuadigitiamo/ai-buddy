@@ -2,7 +2,7 @@
 
 Batch job, run on demand from the developer laptop (there is no schedule and no Cloud Run job), that builds the AI Buddy knowledge artifact and publishes it to the private bucket the hosted MCP server reads. One run reads the local handbook folder (`HANDBOOK_DIR`, mounted read-only) and the Guides git repository (the local checkout, mounted read-only and cloned into `GUIDES_CHECKOUT_DIR`), redacts secrets and denylisted pages, resolves Guides video links, and publishes one `index.db` (SQLite with FTS5) to `ARTIFACT_DIR`. An unchanged input writes nothing, and a failed run leaves the previous `index.db` in place, so a run can always be repeated.
 
-No variable is secret, and `run` needs no network: both sources are local directories. Only `publish` talks to the network, and it needs Application Default Credentials (see "Publish to the bucket").
+No variable is secret, and `run` needs no network: both sources are local directories. Only `publish` and `upload-videos` talk to the network, and they need Application Default Credentials (see `publish` and `upload-videos` below).
 
 Everything runs in Docker. Do not run it with the host Python.
 
@@ -21,6 +21,7 @@ Every setting comes from the environment. Pass them with `--env-file .env`. Copy
 | `ARTIFACT_DIR` | Directory where `index.db` and `index.manifest.json` are published. Required. |
 | `ARTIFACT_BUCKET` | Name of the private bucket that receives the index. Used by `publish` only, required there. Lowercase bucket name; the convention is `<project id>-ai-buddy-index`. |
 | `ARTIFACT_PREFIX` | Object prefix inside the bucket. Used by `publish` only, optional, empty by default. Lowercase segments each ending with `/`, for example `index/`. The server must be configured with the same bucket and prefix. |
+| `VIDEO_BUCKET` | Name of the private bucket that holds the Guides videos (D-16). Required by `upload-videos`. Optional for `run`: when set, `run` writes `https://storage.cloud.google.com/<bucket>/videos/<name>.mp4` as the base video URL of every video link, and `upload-videos` must have uploaded those files first. Unset, the README URLs are kept. The convention is `<project id>-ai-buddy-videos`. |
 
 If you still have an older `.env` that holds task-tracker variables or an API token, delete those lines (or the file) and revoke that token in the tracker. The job never reads them, and nobody needs to open `.env` to do this.
 
@@ -124,6 +125,38 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
   ai-buddy-sync:laptop publish
 ```
 
+### `python -m buddy_sync upload-videos --guides-dir DIR --videos-dir DIR [--videos-dir DIR ...]`
+
+Uploads the Guides videos to `VIDEO_BUCKET` (D-16, D-17). The Guides `README.md` table in `--guides-dir` is the only source of which videos exist: every `.mp4` it names must be uploaded to `videos/<name>.mp4`. Output is one line with counts and nothing else:
+
+```
+uploaded=<n> unchanged=<m>
+```
+
+Where the local files come from:
+
+- `Guides/videos/<topic>/out/*.mp4` in the Guides working tree (about 12 of the 20 videos). Pass the tree's `videos/` directory as one `--videos-dir`.
+- The rest are GitHub release assets of the private Guides repository. Download them on the host with your own login, into the gitignored `.cache/videos` directory: `gh release download videos --repo <owner>/Guides --dir .cache/videos`. Pass that directory as a second `--videos-dir`. The job never downloads them and holds no token.
+
+Behaviour:
+
+- Files are found by name, recursively, under every `--videos-dir`. The same name with different bytes in two places is an error; identical bytes upload once.
+- An object is uploaded only when it is absent or its md5 differs from the local file, so a second run uploads nothing. Objects are sent with `Content-Type: video/mp4`, `Content-Disposition: inline` and `Cache-Control: private`, so a browser plays them instead of downloading them.
+- A README video with no local file fails the command (exit 1) with the count and the names. Files found earlier in the same run are still uploaded. This is the guard that stops an index from pointing at an object that was never uploaded.
+- A README file name must be a plain `*.mp4` name (letters, digits, `.`, `_`, `-`), and two different README URLs may not share a name. Anything else is refused before any bucket call.
+- Access is an IAM grant on the private bucket plus the Google login that `storage.cloud.google.com` asks for. The links never use a public URL or a signed URL with an expiry. Whether the player opens inline and seeks to `#t=<seconds>` after that login redirect is checked live in plan 04-13.
+- Credentials are Application Default Credentials, as for `publish`. A bucket failure prints the error type name only.
+
+```bash
+docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v "$HOME/Desktop/WORK/Guides:/guides-src:ro" -v "$PWD/.cache/videos:/videos-extra:ro" \
+  -v "$HOME/.config/gcloud/application_default_credentials.json:/adc.json:ro" \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/adc.json -e GOOGLE_CLOUD_PROJECT="$PROJECT_ID" \
+  -e VIDEO_BUCKET="$PROJECT_ID-ai-buddy-videos" \
+  ai-buddy-sync:laptop upload-videos --guides-dir /guides-src \
+  --videos-dir /guides-src/videos --videos-dir /videos-extra
+```
+
 ## One command: scripts/sync-and-publish.sh
 
 `scripts/sync-and-publish.sh` is the laptop command that refreshes the hosted index end to end. It needs `HANDBOOK_SRC_DIR`, `GUIDES_SRC_DIR` and `REDACT_PAGE_FILES`; `PROJECT_ID` enables the publish steps.
@@ -137,11 +170,12 @@ REDACT_PAGE_FILES=<denylisted page files> PROJECT_ID=<project id> \
 Steps:
 
 1. Builds the `sync` image (`docker build --target sync`).
-2. Runs `run` with `--network none`, the handbook and the Guides checkout mounted read-only, as the host user, writing `ARTIFACTS_DIR` (default `./artifacts`).
-3. Runs `publish` in the same image with network access, `ARTIFACTS_DIR` read-only and the credentials file mounted read-only. The credentials file is mounted only in this step, never in the sync run.
-4. Only when step 3 printed `published`, forces a new `mcp-server` revision in `europe-west8` with `gcloud run services update mcp-server --update-env-vars INDEX_BUILD_ID=<build id>`, run through the pinned Cloud SDK image. The next request cold-starts on the new index (D-08). With `unchanged` no revision is created. If the `mcp-server` service does not exist yet, the script says so and ends successfully: the first CI deploy loads the published index.
+2. With `PROJECT_ID` set and without `--local-only`: runs `upload-videos` with network access, the Guides tree (`GUIDES_SRC_DIR`, which holds `videos/`) and `EXTRA_VIDEOS_DIR` (default `./.cache/videos`, skipped when the directory does not exist) mounted read-only, and the credentials file mounted read-only. `VIDEO_BUCKET` defaults to `<PROJECT_ID>-ai-buddy-videos`. A missing video file stops the command here, before any index is built.
+3. Runs `run` with `--network none`, the handbook and the Guides checkout mounted read-only, as the host user, writing `ARTIFACTS_DIR` (default `./artifacts`). `VIDEO_BUCKET` is passed to `run` only when step 2 ran, so the index never links to videos that were not uploaded; otherwise the README URLs are kept.
+4. Runs `publish` in the same image with network access, `ARTIFACTS_DIR` read-only and the credentials file mounted read-only. The credentials file is mounted only in the upload and publish steps, never in the sync run.
+5. Only when step 4 printed `published`, forces a new `mcp-server` revision in `europe-west8` with `gcloud run services update mcp-server --update-env-vars INDEX_BUILD_ID=<build id>`, run through the pinned Cloud SDK image. The next request cold-starts on the new index (D-08). With `unchanged` no revision is created. If the `mcp-server` service does not exist yet, the script says so and ends successfully: the first CI deploy loads the published index.
 
-`--local-only` stops after step 2: no bucket call and no gcloud call. So does an unset `PROJECT_ID`. Other settings: `ARTIFACT_BUCKET` (default `<PROJECT_ID>-ai-buddy-index`), `ARTIFACT_PREFIX` (default `index/`) and `ADC_FILE` (default `~/.config/gcloud/application_default_credentials.json`). The script logs step names and build ids only.
+`--local-only` skips steps 2, 4 and 5: no bucket call, no gcloud call and no video upload, and the local index keeps the README video URLs. So does an unset `PROJECT_ID`. `PROJECT_ID` and the credentials file are checked before step 2. Other settings: `ARTIFACT_BUCKET` (default `<PROJECT_ID>-ai-buddy-index`), `ARTIFACT_PREFIX` (default `index/`), `VIDEO_BUCKET`, `EXTRA_VIDEOS_DIR` and `ADC_FILE` (default `~/.config/gcloud/application_default_credentials.json`). The script logs step names and build ids only.
 
 Nothing deletes old builds, neither a bucket rule nor this script; see `docs/index-format.md`, "Publishing to a bucket".
 
@@ -150,7 +184,7 @@ Nothing deletes old builds, neither a bucket rule nor this script; see `docs/ind
 | Code | Meaning |
 |------|---------|
 | 0 | The command succeeded. For `run`, this includes a run that found nothing to change. |
-| 1 | The command failed. One `ERROR` line on stderr names the cause, for example a missing variable, a handbook folder error (missing folder, malformed front matter, a `REDACT_PAGE_FILES` entry that names no file), a git error, `--strict` drift, or for `publish` a missing or inconsistent local index and a failed bucket call. |
+| 1 | The command failed. One `ERROR` line on stderr names the cause, for example a missing variable, a handbook folder error (missing folder, malformed front matter, a `REDACT_PAGE_FILES` entry that names no file), a git error, `--strict` drift, or for `publish` a missing or inconsistent local index and a failed bucket call, or for `upload-videos` a README video without a local file or an invalid README file name. |
 | 2 | The command line is invalid (no subcommand, unknown subcommand or bad option). |
 
 ## Never commit these
