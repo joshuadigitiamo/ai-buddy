@@ -192,7 +192,10 @@ services:
       MERIDIAN_HOST: 0.0.0.0
       MERIDIAN_PORT: "3456"
       MERIDIAN_HOST_ID: meridian-dev
-      MERIDIAN_API_KEY: ${MERIDIAN_API_KEY:?set MERIDIAN_API_KEY in .env}
+      # Compose interpolates every service, even one in an inactive profile, so a required
+      # (:?) variable here would break the default stack. chat-bot-live refuses to start
+      # without the key instead (see its command).
+      MERIDIAN_API_KEY: ${MERIDIAN_API_KEY:-}
       # BOT-11: drops Meridian's routine per-request [PROXY] stderr lines (docs/configuration.md).
       # Meridian has no other option to reduce request logging; debug flags stay unset.
       MERIDIAN_SILENT: "1"
@@ -207,6 +210,15 @@ services:
     # The image runs as uid 10001, which cannot read a key file kept at mode 600 by its owner.
     # Live use runs as the host user instead, so the key file needs no chmod.
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    # Fail fast and loudly when the live inputs are missing: compose cannot require them here,
+    # because the default stack (no profile) must load without them.
+    command:
+      - sh
+      - -c
+      - |
+        [ -n "$$MERIDIAN_API_KEY" ] || { echo "chat-bot-live: MERIDIAN_API_KEY is not set (put it in .env)" >&2; exit 1; }
+        [ -s /secrets/bot-sa.json ] || { echo "chat-bot-live: BOT_SA_KEY_FILE is not set or the key file is empty" >&2; exit 1; }
+        exec python -m buddy_bot
     env_file:
       - path: .env
         required: true
@@ -218,7 +230,7 @@ services:
       CHAT_API: google
       LLM_BACKEND: meridian
       LLM_BASE_URL: http://meridian:3456
-      MERIDIAN_API_KEY: ${MERIDIAN_API_KEY:?set MERIDIAN_API_KEY in .env}
+      MERIDIAN_API_KEY: ${MERIDIAN_API_KEY:-}
       # The Service name, admitted by the server's MCP_ALLOWED_HOSTS (same rule in kind).
       MCP_URL: http://mcp-server:8000/mcp
       MCP_AUTH: none
@@ -228,7 +240,7 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: /secrets/bot-sa.json
       LANGSMITH_TRACING: "false"
     volumes:
-      - ${BOT_SA_KEY_FILE:?set BOT_SA_KEY_FILE (path of the bot service-account key)}:/secrets/bot-sa.json:ro
+      - ${BOT_SA_KEY_FILE:-/dev/null}:/secrets/bot-sa.json:ro
     depends_on:
       meridian:
         condition: service_started

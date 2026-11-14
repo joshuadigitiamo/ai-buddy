@@ -52,7 +52,7 @@ export GUIDES_SRC_DIR=/path/to/the/Guides/checkout
 docker compose --profile live up --build mcp-server meridian chat-bot-live
 ```
 
-`mcp-server` depends on the `sync` one-shot, so compose runs the sync over those two folders first and the server waits for it to finish successfully. Compose reads `MERIDIAN_API_KEY` from `.env` and refuses to start without it. Compose-only host variables:
+`mcp-server` depends on the `sync` one-shot, so compose runs the sync over those two folders first and the server waits for it to finish successfully. Compose reads `MERIDIAN_API_KEY` from `.env`. The default stack must load without the live inputs, so compose cannot require them: `chat-bot-live` exits at once with a message naming `MERIDIAN_API_KEY` or `BOT_SA_KEY_FILE` when either is missing. If that happens, stop the stack (`docker compose --profile live down`) so Meridian does not keep running without its key. Compose-only host variables:
 
 | Variable | Default | Meaning |
 |----------|---------|---------|

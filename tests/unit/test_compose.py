@@ -4,6 +4,7 @@ Migrated from the Phase 3 guard of the dev compose file; every assertion that st
 is kept, and the hermetic-stack and ordering rules of Phase 4 (INFRA-02) are added.
 """
 
+import json
 import os
 import re
 from pathlib import Path
@@ -163,7 +164,7 @@ def test_live_chat_bot_is_wired_for_real_chat_and_meridian() -> None:
     assert environment["GOOGLE_APPLICATION_CREDENTIALS"] == "/secrets/bot-sa.json"
     key_mounts = [v for v in bot["volumes"] if str(v).endswith(":/secrets/bot-sa.json:ro")]
     assert len(key_mounts) == 1, "the service-account key is mounted read-only"
-    assert str(key_mounts[0]).startswith("${BOT_SA_KEY_FILE:?")
+    assert str(key_mounts[0]).startswith("${BOT_SA_KEY_FILE:-/dev/null}")
     assert bot["env_file"] == [{"path": ".env", "required": True}]
 
 
@@ -277,17 +278,26 @@ def test_secret_looking_environment_values_are_interpolations() -> None:
     assert checked >= 3, "meridian, the hermetic bot and the live bot each receive a secret"
 
 
-def test_required_variables_have_no_default() -> None:
+def test_default_stack_inputs_have_no_default() -> None:
     text = COMPOSE_FILE.read_text(encoding="utf-8")
-    for variable in (
-        "BOT_SA_KEY_FILE",
-        "MERIDIAN_API_KEY",
-        "THREAD_KEY_SECRET",
-        "HANDBOOK_SRC_DIR",
-        "GUIDES_SRC_DIR",
-        "REDACT_PAGE_FILES",
-    ):
+    required = ("THREAD_KEY_SECRET", "HANDBOOK_SRC_DIR", "GUIDES_SRC_DIR", "REDACT_PAGE_FILES")
+    for variable in required:
         assert f"${{{variable}:?" in text, variable
+
+
+def test_profile_services_require_nothing_at_load_time() -> None:
+    # Compose interpolates every service, including one in an inactive profile, so a required
+    # (${VAR:?}) variable in the live profile would stop the default stack from loading.
+    for name in LIVE_SERVICES:
+        assert ":?" not in json.dumps(_services()[name]), name
+
+
+def test_live_bot_fails_fast_when_its_live_inputs_are_missing() -> None:
+    # The live inputs cannot be compose-required (see above), so the bot refuses to start.
+    script = "\n".join(str(part) for part in _services()["chat-bot-live"]["command"])
+    assert '[ -n "$$MERIDIAN_API_KEY" ]' in script
+    assert "[ -s /secrets/bot-sa.json ]" in script
+    assert script.rstrip().endswith("exec python -m buddy_bot")
 
 
 def test_env_example_mcp_url_matches_the_live_wiring() -> None:
