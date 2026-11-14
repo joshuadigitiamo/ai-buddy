@@ -19,6 +19,8 @@ MCP_FILE = CLOUDRUN / "mcp-server.yaml"
 BOT_FILE = CLOUDRUN / "chat-bot.yaml"
 MERIDIAN_VERSION_FILE = ROOT / "deploy" / "meridian.version"
 RENDER_SCRIPT = ROOT / "scripts" / "render-cloudrun.sh"
+BOOTSTRAP = CLOUDRUN / "bootstrap.sh"
+RUNBOOK = CLOUDRUN / "README.md"
 
 REGION_IMAGE_HOST = "europe-west8-docker.pkg.dev"
 REGION_URL_SUFFIX = ".europe-west8.run.app"
@@ -378,3 +380,73 @@ def test_server_names_the_bot_runtime_service_account_as_an_allowed_caller() -> 
     account = str(_pod_spec(_bot())["serviceAccountName"])
     allowed = str(_env(_mcp_container())["BOT_SA_EMAILS"]["value"])
     assert allowed.split(",") == [account]
+
+
+def test_bootstrap_never_creates_a_project_and_takes_ids_only_from_the_environment() -> None:
+    script = BOOTSTRAP.read_text(encoding="utf-8")
+    assert "set -euo pipefail" in script
+    assert "set -x" not in script, "tracing would print resource and policy details"
+    assert "projects create" not in script, "the project already exists (D-02)"
+    assert "require PROJECT_ID PROJECT_NUMBER GITHUB_REPO_ID OWNER_EMAIL" in script
+    assert 'REGION="${REGION:-${DEFAULT_REGION}}"' in script
+    assert 'DEFAULT_REGION="europe-west8"' in script
+    assert "ALLOW_REGION_FALLBACK" in script, "D-03: another region only after asking Joshua"
+    assert RENDER_SCRIPT.read_text(encoding="utf-8").count("PROJECT_ID") >= 1
+    assert not re.search(r"PROJECT_(ID|NUMBER)=['\"]?[A-Za-z0-9-]", script), "no default id"
+
+
+def test_bootstrap_confirms_the_one_way_firestore_location_by_typing_the_region() -> None:
+    script = BOOTSTRAP.read_text(encoding="utf-8")
+    assert "firestore databases create" in script
+    assert "read -r -p" in script and '"${typed}" == "${REGION}"' in script
+    assert "[[ -t 0 ]]" in script, "no confirmation without a terminal"
+    assert script.index("read -r -p") < script.index("firestore databases create")
+    assert script.count("ttls update expire_at") == 2, "D-05: gaps and thread_memory"
+    assert "--collection-group=gaps" in script and "--collection-group=thread_memory" in script
+
+
+def test_bootstrap_restricts_the_wif_provider_to_the_repository_id_and_main() -> None:
+    script = BOOTSTRAP.read_text(encoding="utf-8")
+    assert "workload-identity-pools" in script
+    assert "assertion.repository_id == '${GITHUB_REPO_ID}'" in script
+    assert "assertion.ref == 'refs/heads/main'" in script
+    assert "attribute.repository_id/${GITHUB_REPO_ID}" in script
+    assert "service-accounts keys" not in script, "keyless: no service account key is ever created"
+
+
+def test_bootstrap_makes_private_buckets_and_six_empty_secrets() -> None:
+    script = BOOTSTRAP.read_text(encoding="utf-8")
+    assert "--uniform-bucket-level-access" in script
+    assert "--public-access-prevention" in script
+    for bucket in ("-ai-buddy-index", "-ai-buddy-videos", "-ai-buddy-claude"):
+        assert f"${{PROJECT_ID}}{bucket}" in script
+    secrets = (
+        "google-client-secret oauth-jwt-signing-key oauth-storage-encryption-key",
+        "allowed-users thread-key-secret meridian-api-key",
+    )
+    for group in secrets:
+        assert f"({group})" in script
+    assert "versions add" not in script.replace("gcloud secrets versions add <name>", "")
+    bot_grant = 'bind_bucket "${CLAUDE_BUCKET}" "serviceAccount:${SA_BOT_EMAIL}"'
+    assert f"{bot_grant} roles/storage.objectUser" in script
+    assert script.count("roles/storage.objectUser") == 1, "objectUser: credentials bucket only"
+
+
+def test_runbook_covers_the_bootstrap_seeding_fallbacks_and_org_policy_notes() -> None:
+    text = RUNBOOK.read_text(encoding="utf-8")
+    headings = re.findall(r"^## .+$", text, re.MULTILINE)
+    assert len(headings) >= 6
+    for needle in (
+        "never creates a project",
+        "token_chain",
+        "org_policy",
+        "consent",
+        "cpu-throttling",
+        "minScale",
+        "auth login",
+        "report it to Joshua",
+        "docs/internal/gcp-project.md",
+    ):
+        assert needle in text, f"the runbook does not mention {needle!r}"
+    assert PROJECT_ID_LITERAL not in text, "the real project id must stay out of the public repo"
+    assert not (CLOUDRUN / ".gitkeep").exists(), "the directory holds real files now"
