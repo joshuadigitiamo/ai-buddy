@@ -110,8 +110,8 @@ def test_every_container_has_cpu_and_memory_requests_and_limits() -> None:
 
 
 def test_app_containers_run_restricted_as_the_image_user() -> None:
-    for workload, name in (("mcp-server", "mcp-server"), ("chat-bot", "chat-bot")):
-        context = _container(workload, name)["securityContext"]
+    for app in ("mcp-server", "chat-bot"):
+        context = _container(app, app)["securityContext"]
         assert context["runAsNonRoot"] is True
         assert context["runAsUser"] == APP_UID, "the images end with USER 10001 (04-05)"
         assert context["allowPrivilegeEscalation"] is False
@@ -127,14 +127,18 @@ def test_app_containers_run_restricted_as_the_image_user() -> None:
 def test_chat_bot_runs_meridian_as_a_loopback_native_sidecar() -> None:
     meridian = _container("chat-bot", "meridian")
     assert meridian in _pod_spec(_workloads()["chat-bot"])["initContainers"]
-    assert meridian["restartPolicy"] == "Always", "a native sidecar is an init container that keeps running"
+    assert meridian["restartPolicy"] == "Always", (
+        "a native sidecar is an init container that keeps running"
+    )
     assert meridian["startupProbe"], "the bot must not start before Meridian answers"
     environment = _env(meridian)
     assert environment["MERIDIAN_HOST"]["value"] == "127.0.0.1", "no other pod may reach Meridian"
     assert environment["MERIDIAN_SILENT"]["value"] == "1", "BOT-11: no per-request lines in logs"
     assert environment["MERIDIAN_CREDENTIALS_READONLY"]["value"] == "1", "04-01 token_chain"
     bot_env = _env(_container("chat-bot", "chat-bot"))
-    assert bot_env["LLM_BASE_URL"]["value"] == "http://localhost:3456", "same as the Cloud Run sidecar"
+    assert bot_env["LLM_BASE_URL"]["value"] == "http://localhost:3456", (
+        "same as the Cloud Run sidecar"
+    )
     assert bot_env["LLM_BACKEND"]["value"] == "meridian"
 
 
@@ -188,7 +192,9 @@ def test_no_secret_object_and_no_literal_secret_value_anywhere_under_deploy_k8s(
     literals = _overlay_literals()
     for name, pairs in literals.items():
         for key in pairs:
-            assert not key.endswith(SECRET_SUFFIXES), f"ConfigMap {name} carries a secret-named key {key}"
+            assert not key.endswith(SECRET_SUFFIXES), (
+                f"ConfigMap {name} carries a secret-named key {key}"
+            )
     for workload_name, workload in _workloads().items():
         for container in _containers(workload):
             for env_name, entry in _env(container).items():
@@ -228,7 +234,9 @@ def test_base_is_fail_closed_and_only_the_dev_overlay_sets_the_local_knobs() -> 
     assert literals["mcp-server-local"]["AUTH_MODE"] == "off"
     assert literals["chat-bot-local"]["MCP_AUTH"] == "none"
     assert literals["chat-bot-local"]["CHAT_API"] == "recording"
-    assert literals["chat-bot-local"]["CHAT_RECORD_PATH"].startswith("/tmp/"), "emptyDir /tmp exists"
+    assert literals["chat-bot-local"]["CHAT_RECORD_PATH"].startswith("/tmp/"), (
+        "emptyDir /tmp exists"
+    )
 
 
 def test_bot_reaches_the_server_by_service_name_and_the_server_admits_that_host() -> None:
@@ -303,7 +311,9 @@ def test_base_kustomization_lists_every_manifest_in_the_directory() -> None:
 def test_kind_up_verifies_the_download_and_creates_secrets_without_printing_them() -> None:
     script = KIND_UP.read_text(encoding="utf-8")
     assert script.count("set -euo pipefail") == 1
-    assert re.search(r"^\s*set\s+-\w*x", script, re.MULTILINE) is None, "no xtrace: it would print secrets"
+    assert re.search(r"^\s*set\s+-\w*x", script, re.MULTILINE) is None, (
+        "no xtrace: it would print secrets"
+    )
     assert "sha256sum" in script and "v0.33.0" in script and "kindest/node:v1.37.0" in script
     assert script.count("kubectl create secret generic") == 2
     assert "--from-literal" not in script, "values never appear in a command line"
