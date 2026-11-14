@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Infrastructure and CI/CD
 status: executing
-stopped_at: Completed 04-07-PLAN.md
-last_updated: "2026-11-14T12:53:19.573Z"
+stopped_at: Completed 04-08-PLAN.md
+last_updated: "2026-11-14T13:08:31.558Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 04 execution started
-state_head: e127a5d02388fb8025eede2b5dea6087cb8a69f5
+state_head: 93a8ebba75435f874d6d8624a00628210f8dee55
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 44
-  completed_plans: 37
+  completed_plans: 38
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 04 (Infrastructure and CI/CD) — EXECUTING
-Plan: 8 of 14
+Plan: 9 of 14
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 04 execution started
 
@@ -93,6 +93,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P05 | 4 min | 2 tasks | 5 files |
 | Phase 04 P06 | 25 min | 3 tasks | 12 files |
 | Phase 04 P07 | 17 min | 3 tasks | 16 files |
+| Phase 04 P08 | 12 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -183,6 +184,10 @@ Recent decisions affecting current work:
 - [Phase 04]: chat-bot depends on sync directly as well as through mcp-server; the Pub/Sub emulator REST surface works for topic, subscription and publish — Found by the plan-level re-run of the smoke script after the live profile was added.
 - [Phase 04]: 04-07: Meridian in kind is probed with exec probes (node fetch inside the container) on /health and /livez, staying bound to 127.0.0.1; /readyz needs a Meridian profile and answers 503 for the single seeded credentials file
 - [Phase 04]: 04-07: kind-up uses a per-cluster kubeconfig under .cache and creates Secrets imperatively from streams (meridian-credentials re-applied each run via server-side apply, bot-secrets created once); no Secret object or value in git
+- [Phase 04]: 04-08: Meridian Cloud Run start-up probe is httpGet /health, not /readyz (single seeded credentials file gives /readyz 503; Cloud Run has no exec probe; loopback reachability unverified, checked in 04-13)
+- [Phase 04]: 04-08: GCS FUSE credentials volume uses mountOptions uid=1000,gid=1000 so the Meridian image user can write the refreshed login
+- [Phase 04]: 04-08: no age-based lifecycle rule on the index bucket (it would delete the build the pointer names after a month without a sync); 04-10 docs must not promise one
+- [Phase 04]: 04-08: chat-bot leaves DEPLOY_ENV unset (04-03 hand-off), mcp-server sets DEPLOY_ENV production; both fail closed
 
 ### Pending Todos
 
@@ -212,6 +217,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T12:53:19.390Z
-Stopped at: Completed 04-07-PLAN.md
+Last session: 2026-11-14T13:08:31.368Z
+Stopped at: Completed 04-08-PLAN.md
 Resume file: None
