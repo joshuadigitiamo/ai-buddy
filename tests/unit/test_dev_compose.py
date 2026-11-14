@@ -164,3 +164,10 @@ def test_mcp_server_still_gets_the_variables_it_requires() -> None:
     assert INTERPOLATION.fullmatch(environment["GUIDES_WEB_BASE"]), "required by McpSettings"
     assert environment["ARTIFACT_DIR"] == "/artifacts"
     assert environment["AUTH_MODE"] == "off"
+
+
+def test_dev_stack_declares_deploy_env_local_for_server_and_bot() -> None:
+    # 04-02: AUTH_MODE=off is refused unless DEPLOY_ENV=local; the bot learns the rule in 04-03.
+    services = _services()
+    for name in ("mcp_server", "chat_bot"):
+        assert _environment(services[name])["DEPLOY_ENV"] == "local"

@@ -46,6 +46,7 @@ services:
     # (THREAD_KEY_SECRET, MERIDIAN_API_KEY, ANTHROPIC_API_KEY). Compose reads .env for ${...}.
     environment:
       ARTIFACT_DIR: /artifacts
+      DEPLOY_ENV: local
       AUTH_MODE: "off"
       GUIDES_WEB_BASE: ${GUIDES_WEB_BASE:?set GUIDES_WEB_BASE in .env}
       GAP_TTL_DAYS: ${GAP_TTL_DAYS:-90}
@@ -75,6 +76,8 @@ services:
         required: true
     environment:
       HOME: /tmp
+      # The bot ignores this until 04-03 (extra="ignore"); then MCP_AUTH=none needs it.
+      DEPLOY_ENV: local
       INTAKE: pubsub
       LLM_BACKEND: meridian
       LLM_BASE_URL: http://meridian:3456

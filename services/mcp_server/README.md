@@ -28,12 +28,12 @@ Build the test image and run the whole offline gate or the Firestore emulator te
 
 `--emulator` starts the Firestore emulator in a private compose network and runs the tests marked `firestore`, among them the real-process test that starts `python -m buddy_mcp` and calls it over HTTP.
 
-Run the process from the test image. This is `AUTH_MODE=off`, so it is for your machine only. It needs a published `index.db` in `./artifacts` (see `jobs/sync/README.md`) and a Firestore to write gaps to: either the emulator, or a real project reached with credentials you mount yourself.
+Run the process from the test image. This is `AUTH_MODE=off` with `DEPLOY_ENV=local`, so it is for your machine only. It needs a published `index.db` in `./artifacts` (see `jobs/sync/README.md`) and a Firestore to write gaps to: either the emulator, or a real project reached with credentials you mount yourself.
 
 ```bash
 docker build --target test -t ai-buddy-test .
 docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp --env-file .env \
-  -e AUTH_MODE=off -e MCP_HOST=0.0.0.0 -p 127.0.0.1:8000:8000 \
+  -e DEPLOY_ENV=local -e AUTH_MODE=off -e MCP_HOST=0.0.0.0 -p 127.0.0.1:8000:8000 \
   -v "$PWD:/app" -w /app ai-buddy-test python -m buddy_mcp
 ```
 
@@ -64,11 +64,13 @@ Every setting comes from the environment (`--env-file .env`; no env file is read
 | `GOOGLE_CLOUD_PROJECT` | none, required | Project of the Firestore that stores gaps and, with `OAUTH_STORAGE=firestore`, OAuth state. |
 | `MCP_HOST` | `0.0.0.0` | Interface to bind. |
 | `PORT` | `8000` | Port to bind. |
-| `AUTH_MODE` | `on` | `on` or `off`; see "Authentication". |
+| `DEPLOY_ENV` | `production` | `local` or `production`. `local` is for a developer machine, compose and kind; it is refused when `K_SERVICE` is set. See "Local vs deployed". |
+| `AUTH_MODE` | `on` | `on` or `off`; `off` needs `DEPLOY_ENV=local`. See "Authentication". |
 | `MCP_PUBLIC_BASE_URL` | none | Public `https://` URL of the server, equal to the URL users type into the connector without `/mcp` (`http://localhost` is allowed for local runs). Required when `AUTH_MODE=on`. |
+| `MCP_ALLOWED_HOSTS` | empty | Comma-separated extra bare hostnames the server answers on plain http, for example the Service name `mcp-server` in compose and kind. Lowercase DNS names only: no scheme, port, path, wildcard or underscore. The Host guard stays on; `localhost`, `127.0.0.1` and the `MCP_PUBLIC_BASE_URL` host are always allowed. |
 | `GOOGLE_CLIENT_ID` | none | Google OAuth client id. Required when `AUTH_MODE=on`. |
 | `GOOGLE_CLIENT_SECRET` | none | **Secret, never commit.** Google OAuth client secret. Required when `AUTH_MODE=on`. |
-| `OAUTH_JWT_SIGNING_KEY` | none | **Secret, never commit.** Random value of at least 32 bytes that signs the server's own access tokens. Required when `AUTH_MODE=on`. |
+| `OAUTH_JWT_SIGNING_KEY` | none | **Secret, never commit.** Random value of at least 32 characters that signs the server's own access tokens. Required when `AUTH_MODE=on`. |
 | `ALLOWED_EMAIL_DOMAIN` | `digitiamo.com` | Only verified e-mail addresses of this domain may log in. |
 | `BOT_SA_EMAILS` | empty | Comma-separated service-account e-mails allowed to call the server as the bot. |
 | `OAUTH_STORAGE` | `memory` | `memory` or `firestore`; where the OAuth proxy keeps its state. |
@@ -91,9 +93,18 @@ If a variable is missing or invalid, the process exits with code 1 and one `ERRO
 
 ### AUTH_MODE rules (D-13)
 
-- `AUTH_MODE=off` disables authentication. Use it only for a local run or a local kind cluster.
-- The server refuses to start with `AUTH_MODE=off` when `K_SERVICE` is set, which is how Cloud Run marks a deployed service. If the hosting changes in Phase 4, that guard must learn the new host's marker.
-- With `AUTH_MODE=on`, `MCP_PUBLIC_BASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `OAUTH_JWT_SIGNING_KEY` are all required.
+- `AUTH_MODE=off` disables authentication. The server accepts it only with `DEPLOY_ENV=local`, set explicitly; a missing or empty `DEPLOY_ENV` means production on every host.
+- `DEPLOY_ENV=local` is refused whenever `K_SERVICE` is set, which is how Cloud Run marks a deployed service.
+- With `AUTH_MODE=on`, `MCP_PUBLIC_BASE_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `OAUTH_JWT_SIGNING_KEY` are all required, and the signing key must be at least 32 characters.
+- A plain `http://` `MCP_PUBLIC_BASE_URL` is accepted only when its hostname is exactly `localhost` or `127.0.0.1`.
+
+### Local vs deployed
+
+`DEPLOY_ENV` defaults to `production`. Set `DEPLOY_ENV=local` only on a developer machine, in compose and in kind. `K_SERVICE` forces production: the server refuses `DEPLOY_ENV=local` on Cloud Run even with authentication on. One image serves every target; the environment variables decide the behaviour.
+
+### Health route
+
+`GET /healthz` answers `200` with the constant body `{"status": "ok"}`. It needs no token, even with `AUTH_MODE=on`, and reads neither Firestore nor any bucket, so a slow dependency never fails liveness. The Host guard applies to it as to `/mcp`: a probe must send a `Host` header the server allows (for Kubernetes `httpGet` probes, set `Host: mcp-server` and list `mcp-server` in `MCP_ALLOWED_HOSTS`).
 
 ### Google OAuth client
 
