@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Infrastructure and CI/CD
 status: executing
-stopped_at: Completed 04-04-PLAN.md
-last_updated: "2026-11-14T12:10:26.969Z"
+stopped_at: Completed 04-05-PLAN.md
+last_updated: "2026-11-14T12:15:50.877Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 04 execution started
-state_head: 58bb1549a0d6d5183fec3f2f4dd70d28ae19b2d1
+state_head: 4eff4282ef85069bd2a378c4934a914f40563e19
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 44
-  completed_plans: 34
+  completed_plans: 35
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 04 (Infrastructure and CI/CD) — EXECUTING
-Plan: 5 of 14
+Plan: 6 of 14
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 04 execution started
 
@@ -90,6 +90,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P01 | 25 min | 3 tasks | 3 files |
 | Phase 04 P03 | 5 min | 3 tasks | 12 files |
 | Phase 04 P04 | 14 min | 3 tasks | 14 files |
+| Phase 04 P05 | 4 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -174,6 +175,7 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-03: bot mirrors the server DEPLOY_ENV rule; MCP_AUTH=none and CHAT_API=recording need explicit DEPLOY_ENV=local, local refused under K_SERVICE — RecordingChatApi is a config-selected second adapter of the ChatApi port so compose and kind can prove a chat round trip with no Google Chat API (Chat has no emulator); CHAT_API and CHAT_RECORD_PATH stay out of .env.example
 - [Phase 04]: 04-04: artifact store chosen only by ARTIFACT_STORE in artifact_store_from_settings; the bucket pointer is trusted only after build_id, object name, sha256 and size validation
 - [Phase 04]: 04-04: GcsArtifactStore.publish uploads the db object, checks the bucket md5, then overwrites the pointer last; BucketError carries the exception type name only
+- [Phase 04]: 04-05: sync image stage marks /guides-src and /guides-src/.git safe.directory (git names the .git path for a non-root clone of a host-owned mount); INFRA-01 met by one multi-stage Dockerfile with a runtime target per service, guarded by tests/unit/test_dockerfile_stages.py
 
 ### Pending Todos
 
@@ -203,6 +205,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T12:10:26.799Z
-Stopped at: Completed 04-04-PLAN.md
+Last session: 2026-11-14T12:15:50.697Z
+Stopped at: Completed 04-05-PLAN.md
 Resume file: None
