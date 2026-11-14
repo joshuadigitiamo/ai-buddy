@@ -140,6 +140,21 @@ Consumers load the artifact at cold start only (D-11). There is no hot reload: a
 
 The `sha256` here is a transfer check on file bytes. It is not the logical `content_hash`.
 
+## Publishing to a bucket
+
+The hosted deployment reads the index from a private bucket instead of a directory (ADR 0001, D-06). `python -m buddy_sync publish` uploads what `run` wrote; `GcsArtifactStore` reads it back.
+
+| Object | Name | Content |
+|--------|------|---------|
+| Build | `<prefix>index-<build_id>.db` | the `index.db` bytes, one object per build |
+| Pointer | `<prefix>index.manifest.json` | the manifest fields above plus `object`, the build object name |
+
+- **Order.** The build object is uploaded first and the md5 the bucket reports is compared with the local one. The pointer is overwritten last, so a reader that follows the pointer never meets a missing or half-written build.
+- **Idempotence.** When the pointer already holds the local `content_hash`, nothing is uploaded and the command prints `unchanged build_id=<id>`. A new build prints `published build_id=<id>`.
+- **Checks on load.** A reader accepts a pointer only when `build_id` is `[A-Za-z0-9_-]` up to 128 characters, `object` equals `index-<build_id>.db`, `sha256` is 64 hex characters and `size_bytes` is a non-negative integer. After the download it compares the file's size and sha256 with the pointer and refuses to start on a mismatch.
+- **Retention.** The bucket has no age-based delete rule: it would remove the build the pointer names once a month passes without a sync, and the server would then refuse to start. Old builds are a few MB each and are kept. If pruning is ever needed, it belongs in the publish step and must delete only builds the current pointer does not name, keeping the newest few.
+- **Rollback.** Rewrite the pointer to name an older build that is still in the bucket, with that build's `sha256` and `size_bytes`; then force a new `mcp-server` revision.
+
 ## Not indexed
 
 - Pages whose file name is listed in `REDACT_PAGE_FILES`: the file is never opened, and the page is never written or hashed.
@@ -151,7 +166,7 @@ The `sha256` here is a transfer check on file bytes. It is not the logical `cont
 
 ## Handoff
 
-How the artifact reaches the MCP container is recorded in [ADR 0001](adr/0001-index-handoff.md): an `ArtifactStore` port with a local-directory adapter now, bucket versus baked image decided with the hosting platform in Phase 4.
+How the artifact reaches the MCP container is recorded in [ADR 0001](adr/0001-index-handoff.md): an `ArtifactStore` port with a local-directory adapter (laptop, `docker compose`, `kind`) and a bucket adapter (Cloud Run, Phase 4).
 
 ## Changelog
 
