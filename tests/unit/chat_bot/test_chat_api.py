@@ -1,6 +1,8 @@
 """D-09: the Chat API adapter posts the placeholder in the thread and patches it in place."""
 
+import json
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 import google.auth
@@ -9,10 +11,23 @@ from google.api_core import exceptions as api_exceptions
 from google.apps import chat_v1
 from google.auth.credentials import AnonymousCredentials
 from google.protobuf import field_mask_pb2
+from tests.unit.chat_bot.conftest import (
+    GOOD_DRAFT,
+    REFORMULATION,
+    FakeLlm,
+    ServiceFactory,
+    load_event,
+)
 
-from buddy_bot.chat_api import CHAT_BOT_SCOPE, ChatApiError, GoogleChatApi, build_chat_client
+from buddy_bot.chat_api import (
+    CHAT_BOT_SCOPE,
+    ChatApiError,
+    GoogleChatApi,
+    RecordingChatApi,
+    build_chat_client,
+)
 from buddy_bot.render import render_reply
-from buddy_bot.schemas import BotReply, Evidence
+from buddy_bot.schemas import AnswerDraft, BotReply, Evidence, Reformulation
 
 pytestmark = pytest.mark.anyio
 
@@ -174,3 +189,85 @@ async def test_build_chat_client_uses_app_credentials_with_the_chat_bot_scope(
     assert seen["scopes"] == [CHAT_BOT_SCOPE]
     assert CHAT_BOT_SCOPE == "https://www.googleapis.com/auth/chat.bot"
     assert isinstance(client, chat_v1.ChatServiceAsyncClient)
+
+
+def _records(path: Path) -> list[dict[str, Any]]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+
+
+async def test_recording_create_message_returns_a_name_under_the_space_and_records_it(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "chat.jsonl"
+    api = RecordingChatApi(path)
+
+    first = await api.create_message(space="spaces/S", thread="spaces/S/threads/T", text="wait")
+    second = await api.create_message(space="spaces/S", thread=None, text="again")
+
+    assert first == "spaces/S/messages/rec-1"
+    assert second == "spaces/S/messages/rec-2"
+    records = _records(path)
+    assert [r["op"] for r in records] == ["create", "create"]
+    assert records[0]["name"] == first
+    assert records[0]["space"] == "spaces/S"
+    assert records[0]["thread"] == "spaces/S/threads/T"
+    assert records[0]["text"] == "wait"
+    assert records[1]["thread"] is None
+
+
+async def test_recording_update_message_records_name_text_and_cards(tmp_path: Path) -> None:
+    path = tmp_path / "chat.jsonl"
+    api = RecordingChatApi(path)
+
+    await api.update_message(
+        name="spaces/S/messages/rec-1", text="Risposta con è e Fonte.", cards_v2=_video_cards()
+    )
+
+    (record,) = _records(path)
+    assert record["op"] == "update"
+    assert record["name"] == "spaces/S/messages/rec-1"
+    assert record["text"] == "Risposta con è e Fonte."
+    assert record["cards_v2"][0]["cardId"] == "video-sources"
+    assert "è" in path.read_text(encoding="utf-8")  # ensure_ascii=False, UTF-8
+
+
+async def test_recording_appends_to_an_existing_file(tmp_path: Path) -> None:
+    path = tmp_path / "chat.jsonl"
+    path.write_text('{"op": "create"}\n', encoding="utf-8")
+
+    await RecordingChatApi(path).create_message(space="spaces/S", thread=None, text="x")
+
+    assert len(_records(path)) == 2
+
+
+async def test_recording_missing_parent_directory_is_a_chat_api_error_naming_the_type(
+    tmp_path: Path,
+) -> None:
+    api = RecordingChatApi(tmp_path / "missing" / "chat.jsonl")
+
+    with pytest.raises(ChatApiError) as raised:
+        await api.create_message(space="spaces/S", thread=None, text="x")
+    assert str(raised.value) == "FileNotFoundError"
+    assert not (tmp_path / "missing").exists()
+
+    with pytest.raises(ChatApiError) as raised_update:
+        await api.update_message(name="spaces/S/messages/rec-1", text="x", cards_v2=[])
+    assert str(raised_update.value) == "FileNotFoundError"
+
+
+async def test_recording_round_trip_of_the_dm_fixture_through_bot_service(
+    tmp_path: Path, make_service: ServiceFactory
+) -> None:
+    path = tmp_path / "chat.jsonl"
+    llm = FakeLlm({Reformulation: [REFORMULATION], AnswerDraft: [GOOD_DRAFT]})
+    service = make_service(llm, chat=RecordingChatApi(path))
+
+    await service.handle(load_event("legacy_dm_message"))
+
+    created, updated = _records(path)
+    assert created["op"] == "create"
+    assert created["space"] == "spaces/AAAAsyntheticDM"
+    assert updated["op"] == "update"
+    assert updated["name"] == created["name"]
+    assert GOOD_DRAFT.answer in updated["text"]
+    assert "Fonte: Manuale" in updated["text"]

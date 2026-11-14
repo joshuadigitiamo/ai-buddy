@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from tests.unit.mcp_server.conftest import NOW, WEB_BASE, make_content, make_page, write_index
 
 from buddy_bot.mcp_client import FastMcpConnector
-from buddy_bot.ports import LlmOutputError, M, McpTools, ThreadMemory, Turn
+from buddy_bot.ports import ChatApi, LlmOutputError, M, McpTools, ThreadMemory, Turn
 from buddy_bot.schemas import AnswerDraft, Reformulation
 from buddy_bot.service import BotService
 from buddy_bot.workflow import WorkflowConfig, WorkflowDeps
@@ -245,7 +245,7 @@ def make_service(connector: RecordingConnector, workflow_config: WorkflowConfig)
     def build(
         llm: FakeLlm,
         *,
-        chat: FakeChatApi | None = None,
+        chat: ChatApi | None = None,
         memory: ThreadMemory | None = None,
         **overrides: Any,
     ) -> BotService:

@@ -6,7 +6,9 @@ carrying the exception type name only, so no token or response text can reach a 
 render.py emits Chat REST JSON (cardsV2); this adapter converts it to the GAPIC message.
 """
 
+import json
 from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 from typing import Any, Final, Protocol
 
 import google.auth
@@ -85,3 +87,54 @@ class GoogleChatApi:
             )
         except (GoogleAPIError, json_format.ParseError) as exc:
             raise ChatApiError(type(exc).__name__) from None
+
+
+class RecordingChatApi:
+    """ChatApi port that appends every call to a JSON-lines file instead of calling Chat.
+
+    Local smoke adapter: BotSettings refuses it outside DEPLOY_ENV=local. It gives compose and
+    kind a hermetic chat round trip through the real composition root (Chat has no emulator).
+    The parent directory must exist; nothing is created. Errors surface as ChatApiError with the
+    exception type name only, the same shape as GoogleChatApi.
+    """
+
+    def __init__(self, path: Path) -> None:
+        self._path = path
+        self._created = 0
+
+    def _append(self, record: Mapping[str, Any]) -> None:
+        try:
+            with self._path.open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(record, ensure_ascii=False) + "\n")
+                stream.flush()
+        except OSError as exc:
+            raise ChatApiError(type(exc).__name__) from None
+
+    async def create_message(self, *, space: str, thread: str | None, text: str) -> str:
+        self._created += 1
+        name = f"{space}/messages/rec-{self._created}"
+        self._append(
+            {
+                "op": "create",
+                "name": name,
+                "space": space,
+                "thread": thread,
+                "text": text,
+                "cards_v2": [],
+            }
+        )
+        return name
+
+    async def update_message(
+        self, *, name: str, text: str, cards_v2: Sequence[Mapping[str, Any]]
+    ) -> None:
+        self._append(
+            {
+                "op": "update",
+                "name": name,
+                "space": None,
+                "thread": None,
+                "text": text,
+                "cards_v2": list(cards_v2),
+            }
+        )
