@@ -35,6 +35,7 @@ _ENV_VARIABLES = (
     "RATE_LIMIT_RPS",
     "RATE_LIMIT_BURST",
     "K_SERVICE",
+    "MCP_ALLOWED_HOSTS",
 )
 
 _SECRET_FIELDS = {
@@ -215,3 +216,28 @@ def test_rate_limit_from_the_environment(index_dir: Path, monkeypatch: pytest.Mo
     monkeypatch.setenv("RATE_LIMIT_BURST", "7")
     config = McpSettings(**_values(index_dir))
     assert (config.rate_limit_rps, config.rate_limit_burst) == (2.5, 7)
+
+
+@pytest.mark.parametrize(
+    "value", ["http://x", "x:8000", "*.svc", "mcp_server", "a..b", "x/y", "-x", "x-", "UP per"]
+)
+def test_mcp_allowed_hosts_refuses_anything_but_a_bare_hostname(
+    index_dir: Path, value: str
+) -> None:
+    with pytest.raises(ValidationError) as raised:
+        McpSettings(**_values(index_dir, mcp_allowed_hosts=value))
+    text = str(raised.value)
+    assert "mcp_allowed_hosts" in text.lower()
+    assert value not in text
+
+
+def test_mcp_allowed_hosts_is_split_and_lowercased_from_the_environment(
+    index_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MCP_ALLOWED_HOSTS", " MCP-Server, buddy.svc.cluster.local ,")
+    config = McpSettings(**_values(index_dir))
+    assert config.mcp_allowed_hosts == frozenset({"mcp-server", "buddy.svc.cluster.local"})
+
+
+def test_mcp_allowed_hosts_defaults_to_empty(index_dir: Path) -> None:
+    assert McpSettings(**_values(index_dir)).mcp_allowed_hosts == frozenset()

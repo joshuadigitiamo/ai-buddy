@@ -130,6 +130,113 @@ def test_host_kwargs_cover_the_public_host_and_loopback(settings: McpSettings) -
     assert host_kwargs(None)["allowed_hosts"]
 
 
+# --- INFRA-03: pod-to-pod Host allow-list and /healthz -----------------------------------------
+
+_POD_HOST = {"Host": "mcp-server:8000"}
+
+
+async def _served_client(
+    server: FastMCP, settings: McpSettings
+) -> AsyncIterator[httpx2.AsyncClient]:
+    app = build_app(server, settings)
+    async with app.router.lifespan_context(app):
+        transport = httpx2.ASGITransport(app=app)
+        async with httpx2.AsyncClient(transport=transport, base_url="http://localhost") as http:
+            yield http
+
+
+@pytest.fixture
+async def pod_client(server: FastMCP, settings: McpSettings) -> AsyncIterator[httpx2.AsyncClient]:
+    config = settings.model_copy(update={"mcp_allowed_hosts": frozenset({"mcp-server"})})
+    async for http in _served_client(server, config):
+        yield http
+
+
+def _guides_search_call() -> dict[str, Any]:
+    return _rpc("tools/call", {"name": "guides_search", "arguments": {"query": "chunking"}})
+
+
+async def test_allowed_host_pod_to_pod_call_is_served(pod_client: httpx2.AsyncClient) -> None:
+    response = await pod_client.post(
+        "/mcp", json=_guides_search_call(), headers={**_HEADERS, **_POD_HOST}
+    )
+    assert response.status_code == 200
+    result = response.json()["result"]
+    assert result["isError"] is False
+    assert result["structuredContent"]["results"][0]["source_url"]
+
+
+async def test_unlisted_service_host_gets_421_without_the_allow_list(
+    guarded: httpx2.AsyncClient,
+) -> None:
+    response = await guarded.post(
+        "/mcp", json=_guides_search_call(), headers={**_HEADERS, **_POD_HOST}
+    )
+    assert response.status_code == 421
+    assert "result" not in response.text
+
+
+async def test_allowed_host_list_does_not_admit_other_hosts(pod_client: httpx2.AsyncClient) -> None:
+    response = await pod_client.post(
+        "/mcp", json=_guides_search_call(), headers={**_HEADERS, "Host": "evil.example"}
+    )
+    assert response.status_code == 421
+
+
+async def test_healthz_answers_a_constant_body(pod_client: httpx2.AsyncClient) -> None:
+    response = await pod_client.get("/healthz", headers=_POD_HOST)
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+async def test_healthz_is_subject_to_the_host_guard(pod_client: httpx2.AsyncClient) -> None:
+    response = await pod_client.get("/healthz", headers={"Host": "evil.example"})
+    assert response.status_code == 421
+    assert "ok" not in response.text
+
+
+async def test_healthz_needs_no_token_when_auth_is_on(
+    make_auth_server: Callable[..., FastMCP], auth_settings: McpSettings
+) -> None:
+    async for http in _served_client(make_auth_server(), auth_settings):
+        assert (
+            await http.post("/mcp", json=_rpc("initialize", {}), headers=_HEADERS)
+        ).status_code == 401
+        response = await http.get("/healthz")
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+        assert "authorization" not in response.request.headers
+
+
+def test_host_kwargs_default_allowed_hosts_are_unchanged(settings: McpSettings) -> None:
+    expected = ["localhost", "127.0.0.1"]
+    assert host_kwargs(None)["allowed_hosts"] == expected
+    assert host_kwargs(settings)["allowed_hosts"] == expected
+    assert (
+        host_kwargs(settings.model_copy(update={"mcp_public_base_url": None}))["allowed_hosts"]
+        == expected
+    )
+
+
+def test_host_kwargs_append_allowed_hosts_sorted_without_duplicates(settings: McpSettings) -> None:
+    config = settings.model_copy(
+        update={
+            "mcp_public_base_url": "https://buddy.example",
+            "mcp_allowed_hosts": frozenset({"zeta", "mcp-server", "buddy.example", "localhost"}),
+        }
+    )
+    kwargs = host_kwargs(config)
+    assert kwargs["allowed_hosts"] == [
+        "localhost",
+        "127.0.0.1",
+        "buddy.example",
+        "mcp-server",
+        "zeta",
+    ]
+    assert kwargs["host_origin_protection"] is True
+    assert "https://mcp-server" not in kwargs["allowed_origins"]
+
+
 # --- MCP-01: nothing is written to disk -------------------------------------------------------
 
 

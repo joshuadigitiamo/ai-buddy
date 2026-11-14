@@ -9,6 +9,8 @@ from fastmcp import FastMCP
 from fastmcp.server.auth import AuthProvider
 from fastmcp.server.middleware.rate_limiting import RateLimitingMiddleware
 from starlette.applications import Starlette
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from buddy_mcp.auth import caller_identity
 from buddy_mcp.config import McpSettings
@@ -58,6 +60,12 @@ def build_server(
         ttl_days=settings.gap_ttl_days,
         now=now,
     )
+
+    @mcp.custom_route("/healthz", methods=["GET"], include_in_schema=False)
+    async def healthz(request: Request) -> JSONResponse:
+        # Liveness only: constant body, no setting, snapshot, Firestore or bucket is read.
+        return JSONResponse({"status": "ok"})
+
     return mcp
 
 
@@ -68,9 +76,11 @@ _CLAUDE_ORIGIN: Final = "https://claude.ai"
 def host_kwargs(settings: McpSettings | None) -> dict[str, Any]:
     """Keyword arguments for fastmcp's Host/Origin guard (ASVS V13, DNS-rebinding defence).
 
-    Allowed hosts: the host of MCP_PUBLIC_BASE_URL when set, plus localhost and 127.0.0.1 (any
-    port). Allowed origins: the public origin, claude.ai and loopback origins. The same dict feeds
-    the ASGI app and the process runner, so both enforce the same rule.
+    Allowed hosts: localhost and 127.0.0.1 (any port), the host of MCP_PUBLIC_BASE_URL when set,
+    then each MCP_ALLOWED_HOSTS entry in sorted order (pod-to-pod names such as ``mcp-server``);
+    the request's own Host is never admitted automatically. Allowed origins: the public origin,
+    claude.ai and loopback origins. The same dict feeds the ASGI app and the process runner, so
+    both enforce the same rule.
     """
     hosts = list(_LOOPBACK_HOSTS)
     origins = [_CLAUDE_ORIGIN, *(f"http://{host}:*" for host in _LOOPBACK_HOSTS)]
@@ -79,6 +89,8 @@ def host_kwargs(settings: McpSettings | None) -> dict[str, Any]:
         if public.hostname and public.hostname not in hosts:
             hosts.append(public.hostname)
         origins.append(f"{public.scheme}://{public.netloc}")
+    if settings is not None:
+        hosts.extend(host for host in sorted(settings.mcp_allowed_hosts) if host not in hosts)
     return {
         "host_origin_protection": True,
         "allowed_hosts": hosts,

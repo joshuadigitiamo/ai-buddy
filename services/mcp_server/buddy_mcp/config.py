@@ -16,6 +16,11 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 _COLLECTION_NAME = re.compile(r"[A-Za-z0-9_-]+")
 _LOOPBACK_PREFIXES = ("http://localhost", "http://127.0.0.1")
+# A bare lowercase DNS hostname: labels of 1-63 characters (a-z, 0-9, inner hyphens) joined by
+# single dots. No scheme, port, path, wildcard, underscore or empty label.
+_HOSTNAME = re.compile(
+    r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*"
+)
 
 
 def _split_csv(value: Any) -> Any:
@@ -49,6 +54,7 @@ class McpSettings(BaseSettings):
     oauth_jwt_signing_key: SecretStr | None = None
     allowed_email_domain: str = "digitiamo.com"
     bot_sa_emails: Annotated[frozenset[str], NoDecode] = frozenset()
+    mcp_allowed_hosts: Annotated[frozenset[str], NoDecode] = frozenset()
     oauth_storage: Literal["memory", "firestore"] = "memory"
     oauth_storage_encryption_key: SecretStr | None = None
     oauth_collection: str = "oauth_state"
@@ -59,6 +65,19 @@ class McpSettings(BaseSettings):
     @classmethod
     def _parse_bot_sa_emails(cls, value: Any) -> Any:
         return _split_csv(value)
+
+    @field_validator("mcp_allowed_hosts", mode="before")
+    @classmethod
+    def _parse_mcp_allowed_hosts(cls, value: Any) -> Any:
+        return _split_csv(value)
+
+    @field_validator("mcp_allowed_hosts")
+    @classmethod
+    def _check_mcp_allowed_hosts(cls, value: frozenset[str]) -> frozenset[str]:
+        # The value is not echoed: hide_input_in_errors keeps it out of the error.
+        if not all(_HOSTNAME.fullmatch(host) for host in value):
+            raise ValueError("MCP_ALLOWED_HOSTS entries must be bare hostnames")
+        return value
 
     @field_validator("mcp_public_base_url")
     @classmethod
