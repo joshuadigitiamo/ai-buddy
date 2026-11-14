@@ -169,7 +169,7 @@ Recent decisions affecting current work:
 - [Phase 04]: sections_authoring (a): Claude drafts five sections.yaml; Joshua commits them with five durations.json; eight guides stay at 0 offset (interprets D-18)
 - [Phase 04]: video_fetch (a): Joshua downloads release videos to .cache/videos; upload-videos reads both directories (interprets D-17)
 - [Phase 04]: token_chain (b): fresh separate claude login seeds the Cloud Run bucket; local volume keeps its own chain (keeps D-12)
-- [Phase 04]: org_policy (yes): project ai-buddy-dev under digitiamo.com, billing linked; org policies may apply to 04-08 and 04-13 (information)
+- [Phase 04]: org_policy (yes): project `ai-buddy-dev` (IDs in docs/internal/gcp-project.md, gitignored) under the digitiamo.com organization, billing linked; org policies may apply to 04-08 and 04-13 (information)
 - [Phase 04]: 04-03: bot mirrors the server DEPLOY_ENV rule; MCP_AUTH=none and CHAT_API=recording need explicit DEPLOY_ENV=local, local refused under K_SERVICE — RecordingChatApi is a config-selected second adapter of the ChatApi port so compose and kind can prove a chat round trip with no Google Chat API (Chat has no emulator); CHAT_API and CHAT_RECORD_PATH stay out of .env.example
 
 ### Pending Todos
@@ -180,9 +180,9 @@ None yet.
 
 - [Phase 1] How synced data reaches the MCP container (image rebuild vs bucket read): decide in Phase 1 plan (SYNC-07)
 - [Phase 1] Per-scene video clips: source is the Guides README (full-video URLs); scene-clip URLs may not exist yet, fall back to full video
-- [Phase 1] ClickUp read-only API token needed (Admin ClickUp)
+- [Phase 1] RESOLVED: no ClickUp token needed. ClickUp is shut down (D-25); the handbook comes from the local gitignored snapshot and the Guides from a local checkout, with no tokens
 - [Phase 2] RESOLVED: Bot-to-MCP authentication mechanism defined by D-12 and tested in 02-05 (Google-signed service-account ID token, BOT_SA_EMAILS allowlist). 02-07 verified the user OAuth flow live; a live bot ID-token call was not run (covered by offline tests, revisit with the Phase 3 bot)
-- [Phase 4] GCP project + active billing account needed for live Cloud Run deploy and Workload Identity Federation (Admin Google); region europe-west8 still "da confermare" (D7)
+- [Phase 4] Live Cloud Run deploy still open: Workload Identity Federation setup (Admin Google); region europe-west8 still "da confermare" (D7). The GCP project `ai-buddy-dev` exists under the digitiamo.com organization with billing linked; org policies may apply to deploys
 - [Phase 4] Cost of chat_bot service, Pub/Sub, CI and kind is not covered by research 07; ~0 EUR/month holds for the MCP server only
 - [Later] Videos must move to Google Drive before any non-dev user (D15); `LLM_BACKEND` must move to API key before any second user (D1a)
 - [Later] Re-check the thread-memory privacy posture (D-11: HMAC key, N turns, 24 h TTL) before any second user, together with the LLM_BACKEND switch (D1a)

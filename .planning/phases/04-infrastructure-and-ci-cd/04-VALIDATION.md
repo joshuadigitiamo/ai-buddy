@@ -33,7 +33,7 @@ created: "2026-11-14"
 
 - **After every task commit:** Run the task's `--single-file` command
 - **After every plan wave:** Run `./run-unit-tests.sh --all` plus `scripts/validate-infra.sh`
-- **Before `/gsd-verify-work`:** `--all`, `--emulator`, `compose-smoke.sh`, `kind-smoke.sh` green; live checkpoint recorded (or recorded as pending without billing)
+- **Before `/gsd-verify-work`:** `--all`, `--emulator`, `compose-smoke.sh`, `kind-smoke.sh` green; live checkpoint recorded (or recorded as deferred if Joshua defers it; the GCP project `ai-buddy-dev` with billing exists since 2026-11-14)
 - **Max feedback latency:** 120 seconds
 
 ---
@@ -62,11 +62,11 @@ Every new test file is created by the task that first needs it (TDD in the task)
 
 | Task | Requirement | Automated command | Status |
 |------|-------------|-------------------|--------|
-| 04-01 T1-T2 | INFRA-04 | checkpoint (human legitimacy gate, decisions) | ⬜ pending |
-| 04-01 T3 | INFRA-04 | `./run-unit-tests.sh --single-file test_repo_layout.py tests/unit` | ⬜ pending |
-| 04-02 T1 | INFRA-03 | `./run-unit-tests.sh --single-file test_http_transport.py tests/unit/mcp_server` | ⬜ pending |
-| 04-02 T2 | INFRA-01 | `./run-unit-tests.sh --single-file test_config.py tests/unit/mcp_server`; `./run-unit-tests.sh --all` | ⬜ pending |
-| 04-02 T3 | INFRA-01 | `./run-unit-tests.sh --single-file test_repo_layout.py tests/unit`; `./run-unit-tests.sh --single-file test_dev_compose.py tests/unit` | ⬜ pending |
+| 04-01 T1-T2 | INFRA-04 | checkpoint (human legitimacy gate, decisions) | ✅ green |
+| 04-01 T3 | INFRA-04 | `./run-unit-tests.sh --single-file test_repo_layout.py tests/unit` | ✅ green |
+| 04-02 T1 | INFRA-03 | `./run-unit-tests.sh --single-file test_http_transport.py tests/unit/mcp_server` | ✅ green |
+| 04-02 T2 | INFRA-01 | `./run-unit-tests.sh --single-file test_config.py tests/unit/mcp_server`; `./run-unit-tests.sh --all` | ✅ green |
+| 04-02 T3 | INFRA-01 | `./run-unit-tests.sh --single-file test_repo_layout.py tests/unit`; `./run-unit-tests.sh --single-file test_dev_compose.py tests/unit` | ✅ green |
 | 04-03 T1 | INFRA-02 | `./run-unit-tests.sh --single-file test_chat_api.py tests/unit/chat_bot` | ⬜ pending |
 | 04-03 T2 | INFRA-01 | `./run-unit-tests.sh --single-file test_config.py tests/unit/chat_bot`; `--single-file test_main.py tests/unit/chat_bot` | ⬜ pending |
 | 04-03 T3 | INFRA-01 | `./run-unit-tests.sh --single-file test_readme_contract.py tests/unit/chat_bot`; `--all` | ⬜ pending |
@@ -114,7 +114,7 @@ Every new test file is created by the task that first needs it (TDD in the task)
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| WIF push + deploy, no key file | INFRA-05 | Needs GCP project with billing | First push to `main` after bootstrap; check run log and `gcloud run revisions list` |
+| WIF push + deploy, no key file | INFRA-05 | Needs the live run in the existing GCP project `ai-buddy-dev` (billing linked; 04-13) | First push to `main` after bootstrap; check run log and `gcloud run revisions list` |
 | Inline video playback + `#t=` seek | SC5 | Needs signed-in browser on private bucket | Chrome signed in as owner; open Guarda link; paste evidence |
 | Cloud Run server-side YAML validation | INFRA-04 | Needs auth | `gcloud run services replace <file> --dry-run --region europe-west8` in CI after WIF login |
 

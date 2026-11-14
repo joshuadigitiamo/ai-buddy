@@ -23,6 +23,8 @@
 | Not yet, static only | | |
 | Unsure, plan both | | |
 
+(Update 2026-11-14: GCP access now exists: project `ai-buddy-dev` under the digitiamo.com organization, billing linked; id in docs/internal/gcp-project.md, gitignored.)
+
 | Deploy gate | | |
 |---|---|---|
 | Auto on push to main | | ✓ |

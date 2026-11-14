@@ -11,7 +11,7 @@
 
 **Hosting platform**
 - **D-01:** Cloud Run free tier stays the production host (D7 kept). No-card hosts (Render, HF Spaces, Oracle Free, self-hosted k3s) are rejected: they would replace Firestore, Pub/Sub, WIF and the `K_SERVICE` auth guards.
-- **D-02:** Joshua provides a GCP project with an active billing account during this phase. Plans include a **live deploy checkpoint** (real Cloud Run, WIF, Chat HTTP JWT, bot-to-MCP ID token, claude.ai connector check, non-digitiamo rejection). Static checks (YAML schema, workflow lint, dry runs) still run in CI.
+- **D-02:** Joshua provides a GCP project with an active billing account during this phase. (Update 2026-11-14: provided; existing project `ai-buddy-dev` under the digitiamo.com organization, billing linked; id in docs/internal/gcp-project.md, gitignored.) Plans include a **live deploy checkpoint** (real Cloud Run, WIF, Chat HTTP JWT, bot-to-MCP ID token, claude.ai connector check, non-digitiamo rejection). Static checks (YAML schema, workflow lint, dry runs) still run in CI.
 - **D-03:** Region europe-west8 (Milano). The researcher verifies availability there of Cloud Run (incl. sidecars and GCS volume mounts), Firestore, Artifact Registry and free-tier eligibility. Fallback to europe-west1 only if a blocker is found, and only after asking Joshua. — **Reversibility:** one-way — a Firestore database location cannot be changed after creation; moving it means a new database and data migration.
 - **D-04:** CI deploys automatically on push to `main` after `run-unit-tests.sh --all` passes and the image is pushed (no manual approval environment).
 - **D-05:** Gap log and thread memory stay on Firestore. Add a native Firestore TTL policy on `expire_at` (03-07 left expiry read-side until Phase 4).
@@ -515,9 +515,11 @@ Follow `tests/unit/test_dev_compose.py` (yaml.safe_load, assertions): for each `
 | A11 | Total video size is about 1 GB | Pitfall 16 | Slightly different storage cost |
 | A12 | kubeconform accepts `kubectl kustomize` output on stdin | Pattern 5 | Use a temp file instead |
 | A13 | Restricting the WIF provider to `refs/heads/main` is acceptable for all CI jobs | Code Examples | Pull-request test jobs do not need cloud access, so low risk |
-| A14 | Order-inheritance of scene offsets is a product decision, not yet made | Pitfall 14 | D-18 target is read differently by Joshua and the executor |
+| A14 | Order-inheritance of scene offsets is a product decision, not yet made (Update 2026-11-14: decided at 04-01, coverage_inheritance (a), no inheritance) | Pitfall 14 | D-18 target is read differently by Joshua and the executor |
 
 ## Open Questions
+
+(Update 2026-11-14: all six were answered at the 04-01 gate; see 04-01-SUMMARY.md `## Phase decisions (04-01 Task 2)`. 1: (a) request-based. 2: (a) stay at 0. 3: (a) Claude drafts, Joshua reviews and commits. 4: yes, the existing project `ai-buddy-dev` is under the digitiamo.com organization with billing linked; org policies may apply to 04-08 bootstrap and 04-13. 5: (b) a fresh, separate `claude` login seeds the Cloud Run bucket. 6: (a) `gh release download videos --repo <owner>/Guides --dir .cache/videos` with Joshua's login.)
 
 1. **Does Joshua accept request-based billing for `chat_bot` even if slow answers stall?**
    - Known: criterion 3 says request-based; the intake design lets runs outlive the ack window.
@@ -544,10 +546,10 @@ Follow `tests/unit/test_dev_compose.py` (yaml.safe_load, assertions): for each `
 | actionlint | INFRA-05 lint | no (host) | `rhysd/actionlint:1.7.12` image exists | run via Docker |
 | gcloud | bootstrap, `--dry-run`, TTL | no (host) | `google/cloud-sdk:592.0.0-emulators` image present locally (gcloud 592.0.0) | run via Docker; needs network and auth for non-emulator commands |
 | ffprobe / ffmpeg | video inspection | no | n/a | not required: upload uses file bytes; scene offsets come from `durations.json` |
-| GCP project with billing | live checkpoint (criteria 3, 4, 5 live) | not yet (D-02, STATE blocker) | n/a | static checks run now; live checks recorded as pending |
+| GCP project with billing | live checkpoint (criteria 3, 4, 5 live) | not yet (D-02, STATE blocker); (Update 2026-11-14: yes, existing project `ai-buddy-dev` under the digitiamo.com organization, billing linked; id in docs/internal/gcp-project.md, gitignored) | n/a | static checks run now; live checks recorded as pending |
 | Joshua's Max login | Meridian live profile, credentials seed | local volume `meridian-claude` exists | n/a | smoke profile uses the stub LLM |
 
-**Missing dependencies with no fallback:** a GCP project with an active billing account blocks only the live checkpoint, not the static work.
+**Missing dependencies with no fallback:** a GCP project with an active billing account blocks only the live checkpoint, not the static work. (Update 2026-11-14: no longer missing; the project `ai-buddy-dev` exists with billing linked.)
 **Missing dependencies with fallback:** kind, kubeconform, actionlint, gcloud (all via pinned binary or Docker image).
 
 ## Validation Architecture

@@ -62,6 +62,8 @@ nyquist:
 
 **Verdict: gaps_found.** Milestone is mid-flight: phases 1–3 done and verified, phases 4 (Infra/CI-CD) and 5 (Evaluation + milestone gate) not started. The 12 unsatisfied requirements are exactly INFRA-01..06 and EVAL-01..06. No defect found in phases 1–3; cross-phase wiring is complete.
 
+> Update 2026-11-14 (audit itself is as of 2026-11-07, not re-run): Phase 4 is in progress — 04-01 and 04-02 complete, 04-03 running; Phase 5 not started. 04-02 added an explicit fail-closed `DEPLOY_ENV`, `MCP_ALLOWED_HOSTS` and `/healthz` on the MCP server (integration warning 4 / WR-01 on the MCP side). The GCP project for deploys exists: `ai-buddy-dev` (ID in docs/internal/gcp-project.md, gitignored), digitiamo.com org, billing linked. The PROJECT.md "ClickUp terms" tech-debt item was fixed on 2026-11-14.
+
 ## Phases
 
 | Phase | Verification | Plans | Nyquist | Security | Notes |

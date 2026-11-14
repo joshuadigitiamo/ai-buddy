@@ -50,6 +50,7 @@ Precedence inside PLAN.md: section 2.1 (03/11/2026) overrides section 2 wherever
 - source: docs/PLAN.md (section 2, D7; refined by D7a)
 - status: locked (platform Cloud Run confirmed by D7a/D12; region europe-west8 still marked "da confermare" in source)
 - decision: Hosting Cloud Run europe-west8 (Milano), da confermare. Connettore MCP raggiungibile da internet; login Google ristretto al dominio `digitiamo.com`. Scale-to-zero + billing request-based = ~0 EUR/mese (~20k richieste/mese ~6% del free tier). Serve un billing account attivo. Confidenza [High] prezzi, [Medium] traffico.
+- update 2026-11-14: billing account presente — progetto GCP esistente `ai-buddy-dev` (ID in docs/internal/gcp-project.md, gitignored), nell'organizzazione digitiamo.com, billing collegato. Regione europe-west8 ancora "da confermare".
 - scope: production hosting, cost
 
 ## D7a: Local Kubernetes (kind) for development, Cloud Run for production
@@ -99,6 +100,7 @@ Precedence inside PLAN.md: section 2.1 (03/11/2026) overrides section 2 wherever
 - status: locked
 - decision: Doc ClickUp separato "AI Buddy - Test Handbook" ([ClickUp doc ID removed], privato, space Wiki), copiato dallo snapshot `docs/research/handbook-raw/` con redazione del Wi-Fi. L'handbook ufficiale [ClickUp doc ID removed] non si tocca (e' in riscrittura). ID del doc via variabile d'ambiente. Confidenza [High].
 - scope: test data, ClickUp sync target
+- update 2026-11-14: superseded by Phase 1 D-25..D-27 (ClickUp in dismissione): handbook dallo snapshot locale gitignored via `HANDBOOK_DIR`, Guides dal checkout locale; nessuna API ClickUp, nessun token.
 
 ## D15: Guides videos in chat as "Guarda" button and thumbnail on cards
 - source: docs/PLAN.md (section 2.1, D15)

@@ -4,7 +4,7 @@
 
 ## Sintesi
 
-Il server MCP della Fase 1 costa **~0 €/mese** con scale-to-zero e billing request-based, al traffico previsto (<15 persone, ~10–20k richieste/mese). Serve comunque un account di fatturazione attivo. L'unico rischio di costo concreto sono le connessioni lunghe (stream SSE di MCP), che tengono l'istanza fatturata: si evita con il server in modalità stateless e risposte JSON.
+Il server MCP della Fase 1 costa **~0 €/mese** con scale-to-zero e billing request-based, al traffico previsto (<15 persone, ~10–20k richieste/mese). Serve comunque un account di fatturazione attivo (aggiornamento 14/11/2026: c'è già, collegato al progetto GCP esistente `ai-buddy-dev`). L'unico rischio di costo concreto sono le connessioni lunghe (stream SSE di MCP), che tengono l'istanza fatturata: si evita con il server in modalità stateless e risposte JSON.
 
 ## Free tier Cloud Run (request-based billing)
 
@@ -29,13 +29,13 @@ Da [Free Tier features](https://docs.cloud.google.com/free/docs/free-cloud-featu
 
 | Servizio | Free tier | Uso previsto |
 |---|---|---|
-| Cloud Scheduler | 3 job al mese per billing account | 1 job (sync notturno) |
+| Cloud Scheduler | 3 job al mese per billing account | 1 job (sync notturno) (aggiornamento 14/11/2026: oggi il sync si lancia a mano, nessun job schedulato) |
 | Artifact Registry | 0,5 GB di storage al mese | 1 immagine Python slim, da tenere sotto 0,5 GB con cleanup delle vecchie versioni |
 | Firestore | 1 GiB storage, 50k letture e 20k scritture al giorno per progetto | gap log: poche scritture al giorno |
-| Secret Manager | 6 versioni attive, 10k accessi al mese | token ClickUp, client OAuth |
+| Secret Manager | 6 versioni attive, 10k accessi al mese | token ClickUp, client OAuth (aggiornamento 14/11/2026: niente token ClickUp, il sync legge solo cartelle locali; restano i segreti OAuth) |
 | Cloud Build | 2.500 build-minute al mese (e2-standard-2) | build dell'immagine |
 
-"A Google Cloud billing account is required to access the Google Cloud Free Tier." Serve quindi la decisione 05 (progetto GCP con fatturazione).
+"A Google Cloud billing account is required to access the Google Cloud Free Tier." Serve quindi la decisione 05 (progetto GCP con fatturazione). (Aggiornamento 14/11/2026: il progetto GCP `ai-buddy-dev` esiste già, nell'organizzazione Google Cloud di digitiamo.com, con il billing account collegato.)
 
 Cloud Storage **non** va bene per il gap log a costo zero: il suo free tier vale solo in us-east1, us-west1 e us-central1.
 

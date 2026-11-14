@@ -144,7 +144,7 @@ Plans:
   4. A change under `services/mcp_server` triggers only that service's workflow, which runs `run-unit-tests.sh --all` (ruff, mypy, pytest with coverage) and blocks the image push on failure; on success it pushes to Artifact Registry and deploys, authenticating through Workload Identity Federation with no key file in the repo or secrets.
   5. Guide videos play inline in the browser from access-controlled hosting (not GitHub release downloads) and the Guarda button opens at the section's timestamp; timestamp coverage in the guides index improved beyond the 238/2524 scene-mapped rows. (Carried over from the Phase 3 live check, deferred by Joshua; recommended path: Cloud Storage with video/mp4 served inline, access-controlled because the Guides are private.)
 **Plans**: 3/14 plans executed
-**Note**: Live deploy needs a GCP project with an active billing account (Admin Google). Without it, criteria 3 and 4 are verified statically (YAML schema validation, workflow lint, dry runs) and the live deploy check is recorded as pending.
+**Note**: Live deploy runs in the existing GCP project `ai-buddy-dev` (digitiamo.com organization, billing linked; org policies may apply) and still needs Workload Identity Federation (Admin Google); region europe-west8 is still to be confirmed (D7). Until the live deploy runs, criteria 3 and 4 are verified statically (YAML schema validation, workflow lint, dry runs) and the live deploy check is recorded as pending.
 
 Plans:
 **Wave 1**

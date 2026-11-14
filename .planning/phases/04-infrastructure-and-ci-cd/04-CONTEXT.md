@@ -134,6 +134,11 @@ Not in this phase: golden set, Recall@5, MLflow scoring and the milestone gate (
 
 </amendments>
 
+## Status notes
+
+- (Update 2026-11-14) D-02 project: the GCP project exists. `ai-buddy-dev` sits under the digitiamo.com Google Cloud organization with a billing account linked; its id lives in docs/internal/gcp-project.md (gitignored) and reaches scripts only as PROJECT_ID / PROJECT_NUMBER. Plans use this project and never create one. Org policies (domain-restricted sharing, service-account and bucket constraints) may apply to 04-08 bootstrap and 04-13. Region europe-west8 (D-03) is still to confirm with Joshua. The STATE.md blocker "GCP billing" in Canonical References refers to the state before this date.
+- (Update 2026-11-14) 04-01 gate answers, all recorded in 04-01-SUMMARY.md `## Phase decisions (04-01 Task 2)`: billing_mode (a), coverage_inheritance (a), sections_authoring (a), video_fetch (a), token_chain (b), org_policy (yes).
+
 ---
 
 *Phase: 04-infrastructure-and-ci-cd*

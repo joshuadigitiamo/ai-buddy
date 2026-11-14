@@ -1,6 +1,6 @@
 # buddy_sync: content sync job
 
-Nightly batch job that builds the AI Buddy knowledge artifact. One run reads the local handbook folder (`HANDBOOK_DIR`, mounted read-only) and the Guides git repository (the local checkout, mounted read-only and cloned into `GUIDES_CHECKOUT_DIR`), redacts secrets and denylisted pages, resolves Guides video links, and publishes one `index.db` (SQLite with FTS5) to `ARTIFACT_DIR`. An unchanged input writes nothing, and a failed run leaves the previous `index.db` in place, so a run can always be repeated.
+Batch job, run by hand, that builds the AI Buddy knowledge artifact. One run reads the local handbook folder (`HANDBOOK_DIR`, mounted read-only) and the Guides git repository (the local checkout, mounted read-only and cloned into `GUIDES_CHECKOUT_DIR`), redacts secrets and denylisted pages, resolves Guides video links, and publishes one `index.db` (SQLite with FTS5) to `ARTIFACT_DIR`. An unchanged input writes nothing, and a failed run leaves the previous `index.db` in place, so a run can always be repeated.
 
 No variable is secret, and `run` needs no network: both sources are local directories.
 

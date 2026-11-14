@@ -37,8 +37,10 @@ Cross-cutting: REQ-apply-guides-best-practices (D16), REQ-grounded-cited-answers
 - 0 blockers, 3 warnings (cycle-rule deviation, Max account sharing vs D1a, golden set authorship), 10 info (auto-resolved / notes). No competing PRD variants (no PRDs). No LOCKED-vs-LOCKED contradictions.
 - Detail: /home/digitiamo/Desktop/WORK/AI BUDDY/.planning/INGEST-CONFLICTS.md
 
+> Update 2026-11-14: this file is the ingest-time snapshot. Since then ClickUp sync was dropped (Phase 1 D-25..D-27: local handbook snapshot and local Guides checkout, no tokens), so item 1 below now reads "local handbook + Guides sync". Phases 1–3 are complete and Phase 4 is in progress. Current state: `.planning/PROJECT.md`, `.planning/ROADMAP.md`.
+
 ## Open items to carry into phase planning (unresolved in source)
-- How sync data reaches the MCP container (image rebuild vs bucket read at startup), PLAN section 3.
+- How sync data reaches the MCP container (image rebuild vs bucket read at startup), PLAN section 3. (Update 2026-11-14: decided in Phase 4, 04-CONTEXT D-06: private GCS bucket read at cold start.)
 - Region europe-west8 confirmation (D7).
 - Real team chat and rollout channel; Team license budget; CCNL; official handbook owner; which Guides become company-wide; formal data-sovereignty constraint (PLAN section 10).
 - Video hosting for non-dev users must move to Google Drive before rollout (D15).

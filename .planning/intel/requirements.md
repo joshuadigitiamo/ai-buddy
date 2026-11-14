@@ -37,6 +37,7 @@ Note: the ingest set contains no PRD documents. Entries below are taken from exp
 - description: Job di sync ClickUp + Guides con redazione e hash. ClickUp: `list_document_pages` per l'albero, `get_document_pages` (text/md); sync incrementale con `date_edited` e hash del contenuto (non `date_updated`). Guides: git pull del repo. Target ClickUp doc ID via variabile d'ambiente (test doc [ClickUp doc ID removed], never the official [ClickUp doc ID removed]). Open design point in source: how synced data reaches the container (image rebuild vs bucket read at startup).
 - acceptance: absent
 - scope: sync job, ClickUp API, Guides repo
+- update 2026-11-14: superseded by Phase 1 D-25..D-27 (ClickUp is being shut down): handbook from the local gitignored snapshot via `HANDBOOK_DIR`, Guides from the local read-only checkout; no ClickUp API, no `CLICKUP_TOKEN`, no `GUIDES_REPO_TOKEN`. Current wording: SYNC-01..07 in `.planning/REQUIREMENTS.md`.
 
 ## REQ-sync-redaction
 - source: docs/PLAN.md (section 3, section 7, D14)

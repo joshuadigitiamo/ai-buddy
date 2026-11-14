@@ -17,6 +17,7 @@ All entries are from docs/research/*.md (DOC, lowest precedence). Where they con
 
 ## Topic: ClickUp API ingestion notes
 - source: docs/research/01-handbook-inventory.md (section 9)
+- update 2026-11-14: historical only. ClickUp is being shut down (Phase 1 D-25): no ClickUp API sync, no ClickUp token, no ClickUp deep-link citations (handbook citations are `handbook://<page-id>`). The handbook is read from a local gitignored snapshot.
 - `clickup_list_document_pages(document_id, max_page_depth=-1)` returns the full tree in one call, no pagination; `clickup_get_document_pages(..., content_format="text/md")` accepts batches of ids. Markdown output; images as ClickUp attachment URLs; some blocks (e.g. Team) not exported; internal links `app.clickup.com/.../{page_id}` usable as citation deep-links.
 - Metadata for incremental sync: `date_created`, `date_updated`, `date_edited`, `edited_by`, etc. `date_updated` can change without content change: use `date_edited` or a content hash.
 - Attachments via `clickup_list_document_page_attachments` (limit max 100) and download call; needed for OCR/transcription of values image/video.

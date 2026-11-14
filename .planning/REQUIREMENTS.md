@@ -3,7 +3,7 @@
 **Defined:** 2026-11-03
 **Core Value:** An employee gets an answer only from official sources with the source cited, or an honest "non lo so, chiedi a ..." with the gap logged. Never an invented policy.
 
-Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requirements.md`. No PRD exists; IDs are derived from explicit PLAN.md statements. Milestone 1 scope: personal dev use only (Joshua), handbook = the local Markdown snapshot kept in a gitignored folder of this repo (D-25: ClickUp is being shut down).
+Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requirements.md`. No PRD exists; IDs are derived from explicit PLAN.md statements. Milestone 1 scope: personal dev use only (Joshua), handbook = the local Markdown snapshot kept in a gitignored folder of this repo (D-25: ClickUp is shut down; no ClickUp sync or token).
 
 ## v1 Requirements (Milestone 1)
 

@@ -7,7 +7,7 @@ Accepted (Phase 1, decision D-12).
 ## Context
 
 - The sync job writes `index.db` (see [index-format.md](../index-format.md)). `mcp_server` must read it. Requirement SYNC-07 asks how the artifact reaches the MCP container.
-- The user wants hosting to be free if possible. That reopens the hosting choice (D7: Cloud Run needs an active billing account even at about zero cost), so the platform is not settled in Phase 1.
+- The user wants hosting to be free if possible. That reopens the hosting choice (D7: Cloud Run needs an active billing account even at about zero cost), so the platform is not settled in Phase 1. (Update 2026-11-14: the existing GCP project `ai-buddy-dev` already has a billing account linked, so the billing account is no longer an open prerequisite. The decision below is unchanged.)
 - The repository is public. No public image may contain handbook content, so an image that bakes the artifact in must stay private.
 
 ## Options
