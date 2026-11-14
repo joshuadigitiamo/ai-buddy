@@ -76,7 +76,7 @@ Deferred beyond Milestone 1. Tracked, not in the current roadmap.
 - **ROLL-02**: Move Guides videos to Google Drive (domain-shared) so non-developer users can play them (D15).
 - **ROLL-03**: AI disclosure ("stai parlando con un'AI", AI Act art. 50) and worker notice (L. 132/2025) before a shared rollout.
 - **ROLL-04**: Feedback thumbs up/down and "segnala errore"; pilot with 3-4 colleagues for 2 weeks; adoption and thumbs-up KPIs.
-- **ROLL-05**: Confirm the real team chat (Google Chat vs ClickUp Chat) and the europe-west8 region.
+- **ROLL-05**: Confirm the europe-west8 region (team chat settled on Google Chat on 2026-11-14; ClickUp is shut down).
 
 ### Content and quality
 
