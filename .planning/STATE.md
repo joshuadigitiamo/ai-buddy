@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Infrastructure and CI/CD
 status: executing
-stopped_at: Completed 04-08-PLAN.md
-last_updated: "2026-11-14T13:08:31.558Z"
+stopped_at: Completed 04-10-PLAN.md
+last_updated: "2026-11-14T13:17:57.105Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 04 execution started
-state_head: 93a8ebba75435f874d6d8624a00628210f8dee55
+state_head: 446ec540960bbff2017f471952a2e14e4ee97b40
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 44
-  completed_plans: 38
+  completed_plans: 39
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 04 (Infrastructure and CI/CD) — EXECUTING
-Plan: 9 of 14
+Plan: 10 of 14
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 04 execution started
 
@@ -94,6 +94,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P06 | 25 min | 3 tasks | 12 files |
 | Phase 04 P07 | 17 min | 3 tasks | 16 files |
 | Phase 04 P08 | 12 min | 3 tasks | 7 files |
+| Phase 04 P10 | 14 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -188,6 +189,7 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-08: GCS FUSE credentials volume uses mountOptions uid=1000,gid=1000 so the Meridian image user can write the refreshed login
 - [Phase 04]: 04-08: no age-based lifecycle rule on the index bucket (it would delete the build the pointer names after a month without a sync); 04-10 docs must not promise one
 - [Phase 04]: 04-08: chat-bot leaves DEPLOY_ENV unset (04-03 hand-off), mcp-server sets DEPLOY_ENV production; both fail closed
+- [Phase 04]: 04-10: publish reports unchanged from the bucket pointer content_hash before any upload; old builds are never pruned and no age-based delete exists (it would remove the build the pointer names), so rollback means rewriting the pointer
 
 ### Pending Todos
 
@@ -217,6 +219,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T13:08:31.368Z
-Stopped at: Completed 04-08-PLAN.md
+Last session: 2026-11-14T13:17:56.921Z
+Stopped at: Completed 04-10-PLAN.md
 Resume file: None
