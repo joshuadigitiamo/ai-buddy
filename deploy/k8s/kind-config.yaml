@@ -1,0 +1,11 @@
+# kind cluster for the dev overlay (INFRA-03). scripts/kind-up.sh renders this template: the
+# placeholder below becomes the absolute host path of the artifact directory (the one holding
+# index.db), which the node then mounts read-only at /artifacts (D-10).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraMounts:
+      - hostPath: __ARTIFACTS_DIR__
+        containerPath: /artifacts
+        readOnly: true

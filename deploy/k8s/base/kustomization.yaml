@@ -1,0 +1,6 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Labels are written explicitly on every workload (app.kubernetes.io/name and part-of), not
+# injected, so a selector never changes behind a reader's back.
+resources:
+  - mcp-server.yaml

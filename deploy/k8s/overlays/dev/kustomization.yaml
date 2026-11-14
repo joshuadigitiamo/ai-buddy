@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: ai-buddy
+resources:
+  - ../../base
+  - namespace.yaml
+# Tags match what scripts/kind-up.sh builds and loads into the node; nothing is pulled or pushed.
+images:
+  - name: ai-buddy/mcp-server
+    newTag: dev
+# Non-secret configuration only. Secrets are created by scripts/kind-up.sh, never written here.
+configMapGenerator:
+  - name: mcp-server-local
+    options:
+      disableNameSuffixHash: true
+    literals:
+      - DEPLOY_ENV=local
+      - AUTH_MODE=off
+      - ARTIFACT_STORE=local
+      - ARTIFACT_DIR=/artifacts
+      - MCP_ALLOWED_HOSTS=mcp-server
+      - GUIDES_WEB_BASE=https://github.com/example-org/guides
+      - GOOGLE_CLOUD_PROJECT=demo-ai-buddy
+patches:
+  - path: local-env.yaml
+  - path: artifacts-hostpath.yaml

@@ -1,0 +1,11 @@
+# Dev namespace. Pod Security Standards are not enforced here: the artifacts hostPath volume (D-10)
+# is forbidden by both baseline and restricted, and the emulator images run as root. The
+# restricted level is still reported (warn and audit) so every deviation stays visible.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai-buddy
+  labels:
+    app.kubernetes.io/part-of: ai-buddy
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

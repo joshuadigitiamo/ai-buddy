@@ -1,0 +1,20 @@
+# D-10: kind serves the index from a local directory. The node mounts the host artifact directory
+# at /artifacts (kind-config.yaml extraMounts, read-only); the pod reads it through a hostPath.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server
+spec:
+  template:
+    spec:
+      containers:
+        - name: mcp-server
+          volumeMounts:
+            - name: artifacts
+              mountPath: /artifacts
+              readOnly: true
+      volumes:
+        - name: artifacts
+          hostPath:
+            path: /artifacts
+            type: Directory
