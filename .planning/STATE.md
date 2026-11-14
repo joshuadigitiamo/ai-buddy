@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Infrastructure and CI/CD
 status: executing
-stopped_at: Completed 04-11-PLAN.md
-last_updated: "2026-11-14T13:38:18.647Z"
+stopped_at: Completed 04-12-PLAN.md
+last_updated: "2026-11-14T13:43:49.275Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 04 execution started
-state_head: 3642dd75317a1987ec3570b1557744d387e71ad8
+state_head: c3b3a38c5964a9300f6075eaf0f7052f44283309
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 44
-  completed_plans: 41
+  completed_plans: 42
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 04 (Infrastructure and CI/CD) — EXECUTING
-Plan: 12 of 14
+Plan: 13 of 14
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 04 execution started
 
@@ -97,6 +97,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P10 | 14 min | 3 tasks | 10 files |
 | Phase 04 P09 | 6 min | 3 tasks | 12 files |
 | Phase 04 P11 | 7 min | 3 tasks | 13 files |
+| Phase 04 P12 | 13 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -197,6 +198,7 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-11: links kept from the previous artifact are re-pointed with rewrite_links when VIDEO_BUCKET is set, so adding the variable takes effect without a Guides commit
 - [Phase 04]: 04-11: sync-and-publish.sh passes VIDEO_BUCKET to run only after upload-videos ran (T-04-44); project id and ADC are validated before the first bucket step
 - [Phase 04]: 04-11: upload-videos skips by md5 only (BucketPort has no header metadata); live header and playback check is 04-13
+- [Phase 04]: 04-12: D-18 fallback kept (04-01 coverage_inheritance (a)); video-coverage reports scene/fallback only, no inherited source, no schema change
 
 ### Pending Todos
 
@@ -226,6 +228,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T13:38:18.452Z
-Stopped at: Completed 04-11-PLAN.md
+Last session: 2026-11-14T13:43:49.082Z
+Stopped at: Completed 04-12-PLAN.md
 Resume file: None
