@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Infrastructure and CI/CD
 status: executing
-stopped_at: Completed 04-06-PLAN.md
-last_updated: "2026-11-14T12:33:00.155Z"
+stopped_at: Completed 04-07-PLAN.md
+last_updated: "2026-11-14T12:53:19.573Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 04 execution started
-state_head: 845b85a875df2bdd60ac228e67e058e9610465a7
+state_head: e127a5d02388fb8025eede2b5dea6087cb8a69f5
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 44
-  completed_plans: 36
+  completed_plans: 37
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 04 (Infrastructure and CI/CD) — EXECUTING
-Plan: 7 of 14
+Plan: 8 of 14
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 04 execution started
 
@@ -92,6 +92,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P04 | 14 min | 3 tasks | 14 files |
 | Phase 04 P05 | 4 min | 2 tasks | 5 files |
 | Phase 04 P06 | 25 min | 3 tasks | 12 files |
+| Phase 04 P07 | 17 min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -180,6 +181,8 @@ Recent decisions affecting current work:
 - [Phase 04]: Compose live-profile inputs are not compose-required; chat-bot-live fails fast on a missing key (compose interpolates inactive profiles, so :? broke the default stack) — Found by the plan-level re-run of the smoke script after the live profile was added.
 - [Phase 04]: Sync source mounts use long bind syntax so a relative HANDBOOK_SRC_DIR is a path, not a named volume — Found by the plan-level re-run of the smoke script after the live profile was added.
 - [Phase 04]: chat-bot depends on sync directly as well as through mcp-server; the Pub/Sub emulator REST surface works for topic, subscription and publish — Found by the plan-level re-run of the smoke script after the live profile was added.
+- [Phase 04]: 04-07: Meridian in kind is probed with exec probes (node fetch inside the container) on /health and /livez, staying bound to 127.0.0.1; /readyz needs a Meridian profile and answers 503 for the single seeded credentials file
+- [Phase 04]: 04-07: kind-up uses a per-cluster kubeconfig under .cache and creates Secrets imperatively from streams (meridian-credentials re-applied each run via server-side apply, bot-secrets created once); no Secret object or value in git
 
 ### Pending Todos
 
@@ -209,6 +212,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T12:32:59.976Z
-Stopped at: Completed 04-06-PLAN.md
+Last session: 2026-11-14T12:53:19.390Z
+Stopped at: Completed 04-07-PLAN.md
 Resume file: None

@@ -143,7 +143,7 @@ Plans:
   3. Cloud Run YAMLs for `mcp_server`, `chat_bot` and the sync job target europe-west8 with scale-to-zero and request-based billing, a nightly Cloud Scheduler trigger exists for sync, and the SYNC-07 handoff mechanism is wired in.
   4. A change under `services/mcp_server` triggers only that service's workflow, which runs `run-unit-tests.sh --all` (ruff, mypy, pytest with coverage) and blocks the image push on failure; on success it pushes to Artifact Registry and deploys, authenticating through Workload Identity Federation with no key file in the repo or secrets.
   5. Guide videos play inline in the browser from access-controlled hosting (not GitHub release downloads) and the Guarda button opens at the section's timestamp; timestamp coverage in the guides index improved beyond the 238/2524 scene-mapped rows. (Carried over from the Phase 3 live check, deferred by Joshua; recommended path: Cloud Storage with video/mp4 served inline, access-controlled because the Guides are private.)
-**Plans**: 6/14 plans executed
+**Plans**: 7/14 plans executed
 **Note**: Live deploy runs in the existing GCP project `ai-buddy-dev` (digitiamo.com organization, billing linked; org policies may apply) and still needs Workload Identity Federation (Admin Google); region europe-west8 is still to be confirmed (D7). Until the live deploy runs, criteria 3 and 4 are verified statically (YAML schema validation, workflow lint, dry runs) and the live deploy check is recorded as pending.
 
 Plans:
@@ -158,7 +158,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [x] 04-06-PLAN.md — docker-compose.yml (hermetic round trip + live profile), stub LLM, compose smoke; dev compose removed
-- [ ] 04-07-PLAN.md — Kustomize base + dev overlay on kind (Meridian native sidecar), kind smoke, kubeconform
+- [x] 04-07-PLAN.md — Kustomize base + dev overlay on kind (Meridian native sidecar), kind smoke, kubeconform
 - [ ] 04-08-PLAN.md — Cloud Run YAMLs (mcp-server, chat-bot with sidecar + GCS FUSE), render script, bootstrap, runbook
 - [ ] 04-10-PLAN.md — Laptop publish + forced revision (sync-and-publish.sh), ADR 0001, INFRA-04/05 and criterion 3 reworded
 
@@ -196,5 +196,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Content Sync | 11/11 | Complete    | 2026-11-03 |
 | 2. MCP Server and Skill | 7/7 | Complete    | 2026-11-06 |
 | 3. Google Chat Bot | 12/12 | Complete    | 2026-11-07 |
-| 4. Infrastructure and CI/CD | 6/14 | In Progress | - |
+| 4. Infrastructure and CI/CD | 7/14 | In Progress | - |
 | 5. Evaluation and Milestone Gate | 0/0 | Not started | - |
