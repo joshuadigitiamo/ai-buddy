@@ -15,6 +15,7 @@ from buddy_core.store import LocalDirArtifactStore
 from buddy_sync.video_map import (
     MAX_SECTIONS_BYTES,
     VideoMapError,
+    gcs_video_url,
     resolve_video_links,
     scene_offsets,
 )
@@ -314,3 +315,35 @@ def test_contract_break_fails_loudly_and_names_the_file(tree: Path, name: str) -
 
 def test_missing_readme_without_any_map_returns_nothing(tmp_path: Path) -> None:
     assert resolve_video_links(tmp_path, all_chunks(), logger=LOGGER) == {}
+
+
+# ---- hosted video URLs (url_for) --------------------------------------------------------------
+
+
+def test_url_for_rewrite_leaves_no_query_string_and_keeps_the_scene_offset() -> None:
+    links = resolve_video_links(
+        FIXTURE_ROOT, all_chunks(), logger=LOGGER, url_for=gcs_video_url("demo-ai-buddy-videos")
+    )
+    assert links
+    for link in links.values():
+        assert "?" not in link.video_url
+        assert link.video_url.startswith("https://storage.cloud.google.com/demo-ai-buddy-videos/")
+    chunking = links[demo_chunks()[1].chunk_key]
+    assert video_link(chunking).endswith("/videos/demo.mp4#t=30")
+
+
+def test_url_for_with_two_readme_urls_sharing_a_basename_is_a_map_error(tree: Path) -> None:
+    readme = tree / "README.md"
+    readme.write_text(
+        readme.read_text()
+        .replace("multi_part2.mp4", "multi_part1.mp4")
+        .replace(
+            "https://videos.example.invalid/multi_part1.mp4)<br>",
+            "https://other.example.invalid/multi_part1.mp4)<br>",
+            1,
+        )
+    )
+    # Without a rewrite the README keeps working (the clash only matters for object names).
+    resolve_video_links(tree, all_chunks(), logger=LOGGER)
+    with pytest.raises(VideoMapError, match="share the name"):
+        resolve_video_links(tree, all_chunks(), logger=LOGGER, url_for=gcs_video_url("b-bucket"))

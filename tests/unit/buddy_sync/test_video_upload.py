@@ -18,11 +18,12 @@ from buddy_sync.guides import select_guide_files
 from buddy_sync.guides_index import write_guides_index
 from buddy_sync.video_map import (
     VideoMapError,
+    VideoPart,
     gcs_video_url,
     parse_readme_videos,
     resolve_video_links,
 )
-from buddy_sync.video_upload import UploadReport, upload_videos
+from buddy_sync.video_upload import UploadReport, VideoUploadError, upload_videos
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
 README_TEXT = (FIXTURES / "guides_videos" / "README.md").read_text(encoding="utf-8")
@@ -194,3 +195,153 @@ def test_pipeline_run_repoints_kept_links_when_video_bucket_is_set_later(
     assert report["guides_rebuilt"] is False
     assert report["artifact_written"] is True
     assert _video_urls(sync_env) == {f"{GCS_PREFIX}demo.mp4"}
+
+
+# --- edge cases ------------------------------------------------------------------------------
+
+
+def test_a_second_upload_of_unchanged_files_uploads_nothing(tmp_path: Path) -> None:
+    bucket = FakeBucket()
+    videos = parse_readme_videos(README_TEXT)
+    directory = _video_dir(tmp_path / "v")
+    upload_videos(videos, [directory], bucket)
+    bucket.uploads.clear()
+    assert upload_videos(videos, [directory], bucket) == UploadReport(uploaded=0, unchanged=4)
+    assert bucket.uploads == []
+
+
+def test_a_changed_local_file_is_uploaded_again(tmp_path: Path) -> None:
+    bucket = FakeBucket()
+    videos = parse_readme_videos(README_TEXT)
+    directory = _video_dir(tmp_path / "v")
+    upload_videos(videos, [directory], bucket)
+    bucket.uploads.clear()
+    (directory / "demo.mp4").write_bytes(b"re-encoded")
+    assert upload_videos(videos, [directory], bucket) == UploadReport(uploaded=1, unchanged=3)
+    assert bucket.uploads == ["videos/demo.mp4"]
+    assert bucket.objects["videos/demo.mp4"] == b"re-encoded"
+
+
+def test_a_missing_local_file_fails_with_the_names_and_count_after_the_others_upload(
+    tmp_path: Path,
+) -> None:
+    bucket = FakeBucket()
+    videos = parse_readme_videos(README_TEXT)
+    directory = _video_dir(tmp_path / "v", ("demo.mp4", "fallback.mp4"))
+    with pytest.raises(VideoUploadError) as excinfo:
+        upload_videos(videos, [directory], bucket)
+    message = str(excinfo.value)
+    assert message.startswith("2 README video file(s) not found locally")
+    assert "multi_part1.mp4" in message
+    assert "multi_part2.mp4" in message
+    assert str(tmp_path) not in message
+    assert sorted(bucket.objects) == ["videos/demo.mp4", "videos/fallback.mp4"]
+
+
+def test_files_are_found_recursively_across_several_directories(tmp_path: Path) -> None:
+    bucket = FakeBucket()
+    videos = parse_readme_videos(README_TEXT)
+    nested = _video_dir(tmp_path / "guides" / "videos" / "topic" / "out", ("demo.mp4",))
+    extra = _video_dir(tmp_path / "extra", ("fallback.mp4", "multi_part1.mp4", "multi_part2.mp4"))
+    report = upload_videos(videos, [tmp_path / "guides" / "videos", extra], bucket)
+    assert report.uploaded == 4
+    assert nested.is_dir()
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://h.example.invalid/..%2Fx.mp4",
+        "https://h.example.invalid/a%20b.mp4",
+        "https://h.example.invalid/a b.mp4",
+        "https://h.example.invalid/a\\b.mp4",
+        "https://h.example.invalid/x.mp4?token=1",
+        "https://h.example.invalid/.mp4",
+    ],
+)
+def test_a_readme_name_that_is_not_a_plain_mp4_name_touches_no_bucket(
+    tmp_path: Path, url: str
+) -> None:
+    bucket = FakeBucket()
+    videos = {"G.md": [VideoPart(1, url)]}
+    with pytest.raises(VideoUploadError, match="plain"):
+        upload_videos(videos, [_video_dir(tmp_path / "v")], bucket)
+    assert bucket.uploads == []
+
+
+def test_the_same_name_with_different_bytes_in_two_directories_is_a_duplicate_error(
+    tmp_path: Path,
+) -> None:
+    bucket = FakeBucket()
+    videos = parse_readme_videos(README_TEXT)
+    first = _video_dir(tmp_path / "a", body=b"one")
+    second = _video_dir(tmp_path / "b", ("demo.mp4",), body=b"two")
+    with pytest.raises(VideoUploadError, match="different content"):
+        upload_videos(videos, [first, second], bucket)
+    assert bucket.uploads == []
+
+
+def test_the_same_name_with_identical_bytes_in_two_directories_uploads_once(
+    tmp_path: Path,
+) -> None:
+    bucket = FakeBucket()
+    videos = parse_readme_videos(README_TEXT)
+    first = _video_dir(tmp_path / "a")
+    second = _video_dir(tmp_path / "b", ("demo.mp4",))
+    report = upload_videos(videos, [first, second], bucket)
+    assert report == UploadReport(uploaded=4, unchanged=0)
+    assert bucket.uploads.count("videos/demo.mp4") == 1
+
+
+def test_two_readme_urls_sharing_a_name_are_refused_by_the_upload(tmp_path: Path) -> None:
+    bucket = FakeBucket()
+    videos = {
+        "A.md": [VideoPart(1, "https://one.example.invalid/x.mp4")],
+        "B.md": [VideoPart(1, "https://two.example.invalid/x.mp4")],
+    }
+    with pytest.raises(VideoUploadError, match="share the name"):
+        upload_videos(videos, [_video_dir(tmp_path / "v", ("x.mp4",))], bucket)
+    assert bucket.uploads == []
+
+
+def test_the_same_readme_url_in_two_guides_is_one_object(tmp_path: Path) -> None:
+    bucket = FakeBucket()
+    url = "https://one.example.invalid/x.mp4"
+    videos = {"A.md": [VideoPart(1, url)], "B.md": [VideoPart(1, url)]}
+    report = upload_videos(videos, [_video_dir(tmp_path / "v", ("x.mp4",))], bucket)
+    assert report == UploadReport(uploaded=1, unchanged=0)
+
+
+def test_upload_videos_cli_reports_missing_names_and_exits_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    guides = tmp_path / "guides"
+    guides.mkdir()
+    (guides / "README.md").write_text(README_TEXT, encoding="utf-8")
+    monkeypatch.setenv("VIDEO_BUCKET", BUCKET)
+    code = main(
+        [
+            "upload-videos",
+            "--guides-dir",
+            str(guides),
+            "--videos-dir",
+            str(_video_dir(tmp_path / "v", ("demo.mp4",))),
+        ],
+        bucket_factory=lambda _name: FakeBucket(),
+    )
+    err = capsys.readouterr().err
+    assert code == 1
+    assert "3 README video file(s) not found locally" in err
+
+
+def test_upload_videos_cli_without_video_bucket_names_the_variable_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.delenv("VIDEO_BUCKET", raising=False)
+    code = main(
+        ["upload-videos", "--guides-dir", str(tmp_path), "--videos-dir", str(tmp_path)],
+        bucket_factory=lambda _name: FakeBucket(),
+    )
+    err = capsys.readouterr().err
+    assert code == 1
+    assert "VIDEO_BUCKET" in err
