@@ -171,7 +171,7 @@ status: complete
 - `jobs/sync/buddy_sync/config.py` - video_bucket setting
 - `jobs/sync/buddy_sync/cli.py` - upload-videos subcommand, VideoUploadSettings, VideoUploadError in _EXPECTED_ERRORS; still one GcsBucket construction site (the shared bucket factory)
 - `scripts/sync-and-publish.sh` - upload step, early project/credentials validation, VIDEO_BUCKET to run
-- `tests/unit/buddy_sync/test_video_upload.py` - 22 tests; `test_video_map.py` +2; `test_config.py` +2
+- `tests/unit/buddy_sync/test_video_upload.py` - 21 test functions; `test_video_map.py` +2; `test_config.py` +2
 - `.env.example`, `tests/unit/test_repo_layout.py`, `jobs/sync/README.md`, `docs/guides-contract.md`
 
 ## Decisions Made

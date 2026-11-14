@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 3
+open_count: 4
 waived_count: 1
 fixed_count: 3
-total_count: 7
-last_updated: 2026-11-07T15:33:38.453Z
+total_count: 8
+last_updated: 2026-11-14T13:38:24.525Z
 ---
 
 # Broken Windows Ledger
@@ -22,6 +22,7 @@ last_updated: 2026-11-07T15:33:38.453Z
 | 5 | 03 | unrun-verify | services/chat_bot/buddy_bot/prompts.py |  | 03-12: parking-style out-of-index question classification is model behaviour; cover in Phase 5 golden set | open |  | 2026-11-07T13:51:17.412Z |  |
 | 6 | 03 | todo | .env.example |  | 03-12: VIDEO_THUMBNAIL_URL is Google's sample image; replace with Digitiamo logo (only SVG exists) | fixed |  | 2026-11-07T13:51:17.562Z | 2026-11-07T15:33:38.241Z |
 | 7 | 03 | deviation | services/chat_bot/buddy_bot/render.py |  | Guarda button opens mp4 as a download, #t= never applies: (1) GitHub release assets served as attachment; (2) joshuadigitiamo/Guides repo is private, video URLs 404 anonymously; (3) only 238 of 2524 video_map rows have start_seconds, 2286 are readme_fallback. Accepted for M1, deferred to Phase 4 by Joshua (access-controlled Cloud Storage video/mp4 inline + better timestamp coverage) | open |  | 2026-11-07T15:33:38.453Z |  |
+| 8 | 04 | unrun-verify | jobs/sync/buddy_sync/video_upload.py |  | upload-videos, md5_hash after reload, inline playback and #t= seek on storage.cloud.google.com not run live; first real use is 04-13 | open |  | 2026-11-14T13:38:24.525Z |  |
 
 ````json
 [
@@ -113,6 +114,19 @@ last_updated: 2026-11-07T15:33:38.453Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-07T15:33:38.453Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 8,
+    "kind": "unrun-verify",
+    "phase": "04",
+    "file": "jobs/sync/buddy_sync/video_upload.py",
+    "line": null,
+    "description": "upload-videos, md5_hash after reload, inline playback and #t= seek on storage.cloud.google.com not run live; first real use is 04-13",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-14T13:38:24.525Z",
     "resolved_at": null,
     "milestone": null
   }
