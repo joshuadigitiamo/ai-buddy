@@ -7,6 +7,7 @@ with both keys.
 """
 
 import re
+import subprocess
 from collections.abc import Iterator
 from typing import Any
 
@@ -353,3 +354,45 @@ def test_dependabot_bumps_the_pinned_actions_weekly() -> None:
     assert update["package-ecosystem"] == "github-actions"
     assert update["directory"] == "/"
     assert update["schedule"]["interval"] == "weekly"
+
+
+def _index_modes(*pathspecs: str) -> dict[str, str]:
+    """Git index mode of every tracked file matching the pathspecs (the mode a CI checkout gets)."""
+    listing = subprocess.run(
+        ["git", "ls-files", "-s", "--", *pathspecs],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    modes: dict[str, str] = {}
+    for line in listing.splitlines():
+        meta, _, path = line.partition("\t")
+        modes[path] = meta.split()[0]
+    return modes
+
+
+def test_run_unit_tests_is_executable_in_the_git_index() -> None:
+    # A CI checkout takes the file mode from the index: 100644 fails with "Permission denied".
+    assert _index_modes("run-unit-tests.sh") == {"run-unit-tests.sh": "100755"}
+
+
+def test_every_tracked_script_has_index_mode_100755() -> None:
+    modes = _index_modes("scripts/*.sh")
+    assert modes, "no tracked script found, the pathspec is wrong"
+    assert {path: mode for path, mode in modes.items() if mode != "100755"} == {}
+
+
+def test_test_workflow_runs_the_static_infra_checks_in_a_validate_job() -> None:
+    validate = _load("_test.yml")["jobs"]["validate"]
+    assert validate["permissions"] == {"contents": "read"}
+    runs = [step["run"] for step in validate["steps"] if "run" in step]
+    assert runs == ["scripts/validate-infra.sh"]
+
+
+def test_validate_script_lints_workflows_and_builds_the_sync_image() -> None:
+    script = (ROOT / "scripts" / "validate-infra.sh").read_text()
+    assert 'ACTIONLINT_IMAGE="rhysd/actionlint:1.7.12"' in script
+    assert "docker build --target sync -t ai-buddy-sync:validate ." in script
+    assert "set -euo pipefail" in script
+    assert "log() {" in script
