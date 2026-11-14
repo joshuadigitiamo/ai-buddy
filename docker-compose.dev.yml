@@ -76,7 +76,7 @@ services:
         required: true
     environment:
       HOME: /tmp
-      # The bot ignores this until 04-03 (extra="ignore"); then MCP_AUTH=none needs it.
+      # MCP_AUTH=none (below) is accepted only with DEPLOY_ENV=local; local is refused under K_SERVICE.
       DEPLOY_ENV: local
       INTAKE: pubsub
       LLM_BACKEND: meridian

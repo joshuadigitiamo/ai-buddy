@@ -3,6 +3,7 @@
 import logging
 import socket
 from collections.abc import Callable, Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -10,6 +11,7 @@ from google.cloud import firestore
 from google.oauth2 import id_token
 
 from buddy_bot import cli
+from buddy_bot.chat_api import GoogleChatApi, RecordingChatApi
 from buddy_bot.cli import main
 from buddy_bot.config import BotSettings
 from buddy_bot.intake.http import HttpIntake
@@ -67,6 +69,7 @@ def valid_env(monkeypatch: pytest.MonkeyPatch) -> Callable[..., None]:
             "GOOGLE_CLOUD_PROJECT": "demo-ai-buddy",
             "MCP_URL": "http://localhost:8000/mcp",
             "MCP_AUTH": "none",
+            "DEPLOY_ENV": "local",
             "INTAKE": "pubsub",
             "PUBSUB_SUBSCRIPTION": "projects/demo-ai-buddy/subscriptions/chat-events",
             "VIDEO_THUMBNAIL_URL": "https://example.invalid/video-thumbnail.png",
@@ -108,7 +111,8 @@ def test_pubsub_intake_receives_the_service_handler(
     assert handler.__name__ == "handle"
     lines = [line for line in capsys.readouterr().err.splitlines() if line.startswith("INFO")]
     assert lines == [
-        "INFO buddy_bot starting: intake pubsub, llm backend api, 2 allowed user(s), memory turns 3"
+        "INFO buddy_bot starting: intake pubsub, llm backend api, chat api google, "
+        "2 allowed user(s), memory turns 3"
     ]
 
 
@@ -156,6 +160,46 @@ def test_google_id_token_auth_is_wired_without_fetching_a_token(
     assert main([], run=run_stub) == 0
 
     assert fetched == []
+
+
+def test_google_chat_api_is_the_default_adapter(
+    valid_env: Callable[..., None], run_stub: RunStub
+) -> None:
+    valid_env()
+
+    assert main([], run=run_stub) == 0
+
+    handler: Any = run_stub.handler
+    assert isinstance(handler.__self__._chat, GoogleChatApi)
+
+
+def test_recording_chat_api_is_wired_and_google_is_never_built(
+    valid_env: Callable[..., None],
+    run_stub: RunStub,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "chat.jsonl"
+    valid_env(CHAT_API="recording", CHAT_RECORD_PATH=str(path))
+    built: list[str] = []
+
+    def refuse(*args: Any, **kwargs: Any) -> None:
+        built.append("build_chat_client")
+        raise AssertionError("the Google Chat client must not be built in recording mode")
+
+    monkeypatch.setattr(cli, "build_chat_client", refuse)
+
+    assert main([], run=run_stub) == 0
+
+    handler: Any = run_stub.handler
+    chat = handler.__self__._chat
+    assert isinstance(chat, RecordingChatApi)
+    assert chat._path == path
+    assert built == []
+    info = [line for line in capsys.readouterr().err.splitlines() if line.startswith("INFO")]
+    assert "chat api recording" in info[0]
+    assert str(path) not in info[0]
 
 
 def test_startup_makes_no_network_call(
@@ -225,8 +269,23 @@ def test_missing_google_cloud_project_is_named(
         pytest.param({"LANGSMITH_TRACING": "true"}, "LANGSMITH_TRACING", id="tracing"),
         pytest.param({"LANGCHAIN_TRACING_V2": "true"}, "LANGSMITH_TRACING", id="legacy-tracing"),
         pytest.param(
-            {"MCP_AUTH": "none", "K_SERVICE": "buddy-bot"}, "MCP_AUTH", id="auth-none-on-cloud-run"
+            {"MCP_AUTH": "none", "K_SERVICE": "buddy-bot"}, "K_SERVICE", id="auth-none-on-cloud-run"
         ),
+        pytest.param(
+            {"MCP_AUTH": "none", "DEPLOY_ENV": None}, "MCP_AUTH", id="auth-none-no-marker"
+        ),
+        pytest.param(
+            {
+                "CHAT_API": "recording",
+                "CHAT_RECORD_PATH": "/tmp/chat.jsonl",
+                "DEPLOY_ENV": None,
+                "MCP_AUTH": "google_id_token",
+                "MCP_AUDIENCE": "https://mcp.example.invalid",
+            },
+            "CHAT_API",
+            id="recording-no-marker",
+        ),
+        pytest.param({"CHAT_API": "recording"}, "CHAT_RECORD_PATH", id="recording-no-path"),
         pytest.param(
             {"THREAD_KEY_SECRET": SHORT_SECRET_SENTINEL}, "THREAD_KEY_SECRET", id="short-secret"
         ),

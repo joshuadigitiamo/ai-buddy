@@ -17,14 +17,14 @@ import httpx2
 from google.cloud import firestore
 from pydantic import ValidationError
 
-from buddy_bot.chat_api import GoogleChatApi, build_chat_client
+from buddy_bot.chat_api import GoogleChatApi, RecordingChatApi, build_chat_client
 from buddy_bot.config import BotSettings
 from buddy_bot.intake.http import ACK_SECONDS, ChatTokenVerifier, HttpIntake
 from buddy_bot.intake.pubsub import PubSubIntake
 from buddy_bot.llm import build_llm_client
 from buddy_bot.mcp_client import FastMcpConnector, GoogleIdTokenAuth
 from buddy_bot.memory import FirestoreThreadMemory
-from buddy_bot.ports import EventHandler, IntakePort
+from buddy_bot.ports import ChatApi, EventHandler, IntakePort
 from buddy_bot.service import BotService
 from buddy_bot.workflow import WorkflowConfig, WorkflowDeps
 from buddy_core.escalation import EscalationTableError, load_escalation_table
@@ -107,6 +107,13 @@ def _build_intake(settings: BotSettings) -> IntakePort:
     return HttpIntake(verifier, host=settings.bot_host, port=settings.port, ack_seconds=ACK_SECONDS)
 
 
+def _build_chat_api(settings: BotSettings) -> ChatApi:
+    if settings.chat_api == "recording":
+        assert settings.chat_record_path is not None  # BotSettings requires it for recording
+        return RecordingChatApi(settings.chat_record_path)
+    return GoogleChatApi(build_chat_client)
+
+
 def _run(logger: logging.Logger, run: RunFn) -> int:
     settings = BotSettings()
     project = settings.google_cloud_project
@@ -136,7 +143,7 @@ def _run(logger: logging.Logger, run: RunFn) -> int:
     deps = WorkflowDeps(llm, connector, config, load_escalation_table())
     service = BotService(
         allowed_users=settings.allowed_users,
-        chat=GoogleChatApi(build_chat_client),
+        chat=_build_chat_api(settings),
         deps=deps,
         memory=memory,
         memory_turns=settings.memory_turns,
@@ -146,9 +153,10 @@ def _run(logger: logging.Logger, run: RunFn) -> int:
     )
     intake = _build_intake(settings)
     logger.info(
-        "starting: intake %s, llm backend %s, %d allowed user(s), memory turns %d",
+        "starting: intake %s, llm backend %s, chat api %s, %d allowed user(s), memory turns %d",
         settings.intake,
         settings.llm_backend,
+        settings.chat_api,
         len(settings.allowed_users),
         settings.memory_turns,
     )

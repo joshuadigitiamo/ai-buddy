@@ -36,6 +36,9 @@ _ENV_VARIABLES = (
     "LANGSMITH_TRACING",
     "LANGCHAIN_TRACING_V2",
     "K_SERVICE",
+    "DEPLOY_ENV",
+    "CHAT_API",
+    "CHAT_RECORD_PATH",
 )
 
 SENTINEL_ANTHROPIC = "sentinella-segreto-anthropic"
@@ -61,6 +64,7 @@ def settings_env(monkeypatch: pytest.MonkeyPatch, **overrides: str | None) -> No
         "THREAD_KEY_SECRET": SENTINEL_THREAD,
         "MCP_URL": "http://mcp.invalid/mcp",
         "MCP_AUTH": "none",
+        "DEPLOY_ENV": "local",
         "INTAKE": "pubsub",
         "PUBSUB_SUBSCRIPTION": "projects/demo-ai-buddy/subscriptions/chat",
         "VIDEO_THUMBNAIL_URL": "https://example.invalid/thumb.png",
@@ -189,21 +193,114 @@ def test_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.port == 8080
 
 
-# --- T-03-18, T-03-16: no unauthenticated MCP on Cloud Run, no tracing export --------------
+# --- T-03-18, T-04-09, T-04-10: local-only knobs need an explicit DEPLOY_ENV=local ---------
+
+
+def test_deploy_env_defaults_to_production(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = load(monkeypatch, DEPLOY_ENV=None, MCP_AUTH="google_id_token", MCP_AUDIENCE="x")
+
+    assert settings.deploy_env == "production"
+    assert settings.chat_api == "google"
+    assert settings.chat_record_path is None
+
+
+def test_deploy_env_refuses_an_unknown_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert "deploy_env" in refusal(monkeypatch, DEPLOY_ENV="staging")
+
+
+def test_mcp_auth_none_without_deploy_env_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    text = refusal(monkeypatch, DEPLOY_ENV=None, MCP_AUTH="none")
+
+    assert "MCP_AUTH" in text
+    assert "DEPLOY_ENV" in text
+
+
+def test_mcp_auth_none_with_deploy_env_production_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    text = refusal(monkeypatch, DEPLOY_ENV="production", MCP_AUTH="none")
+
+    assert "MCP_AUTH" in text
+    assert "DEPLOY_ENV" in text
+
+
+def test_mcp_auth_none_with_deploy_env_local_loads(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = load(monkeypatch, DEPLOY_ENV="local", MCP_AUTH="none")
+
+    assert settings.deploy_env == "local"
+    assert settings.mcp_auth == "none"
+
+
+def test_deploy_env_local_is_refused_when_k_service_is_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("K_SERVICE", "ai-buddy-bot")
+
+    text = refusal(monkeypatch, DEPLOY_ENV="local", MCP_AUTH="google_id_token", MCP_AUDIENCE="x")
+
+    assert "DEPLOY_ENV" in text
+    assert "K_SERVICE" in text
 
 
 def test_no_mcp_auth_on_cloud_run_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("K_SERVICE", "ai-buddy-bot")
 
     assert "K_SERVICE" in refusal(monkeypatch, MCP_AUTH="none")
+    assert "MCP_AUTH" in refusal(monkeypatch, DEPLOY_ENV=None, MCP_AUTH="none")
 
 
 def test_id_token_auth_on_cloud_run_loads(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("K_SERVICE", "ai-buddy-bot")
 
-    settings = load(monkeypatch, MCP_AUTH="google_id_token", MCP_AUDIENCE="https://mcp.invalid")
+    settings = load(
+        monkeypatch,
+        DEPLOY_ENV=None,
+        MCP_AUTH="google_id_token",
+        MCP_AUDIENCE="https://mcp.invalid",
+    )
 
     assert settings.mcp_auth == "google_id_token"
+    assert settings.deploy_env == "production"
+
+
+@pytest.mark.parametrize("deploy_env", [None, "production"])
+@pytest.mark.parametrize("k_service", [False, True])
+def test_every_value_but_local_refuses_the_local_only_knobs(
+    monkeypatch: pytest.MonkeyPatch, deploy_env: str | None, k_service: bool
+) -> None:
+    if k_service:
+        monkeypatch.setenv("K_SERVICE", "ai-buddy-bot")
+
+    assert "MCP_AUTH" in refusal(monkeypatch, DEPLOY_ENV=deploy_env, MCP_AUTH="none")
+    text = refusal(
+        monkeypatch,
+        DEPLOY_ENV=deploy_env,
+        MCP_AUTH="google_id_token",
+        MCP_AUDIENCE="x",
+        CHAT_API="recording",
+        CHAT_RECORD_PATH="/tmp/chat.jsonl",
+    )
+    assert "CHAT_API" in text
+    assert "DEPLOY_ENV" in text
+
+
+def test_chat_api_recording_with_deploy_env_local_loads(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = load(monkeypatch, CHAT_API="recording", CHAT_RECORD_PATH="/tmp/chat.jsonl")
+
+    assert settings.chat_api == "recording"
+    assert str(settings.chat_record_path) == "/tmp/chat.jsonl"
+
+
+def test_chat_api_recording_without_a_record_path_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    text = refusal(monkeypatch, CHAT_API="recording", CHAT_RECORD_PATH=None)
+
+    assert "CHAT_RECORD_PATH" in text
+
+
+def test_chat_api_refuses_an_unknown_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert "chat_api" in refusal(monkeypatch, CHAT_API="fake")
 
 
 @pytest.mark.parametrize(
@@ -276,6 +373,8 @@ REFUSALS: list[dict[str, str | None]] = [
     {"LLM_BACKEND": "meridian"},
     {"ANTHROPIC_API_KEY": None},
     {"MCP_AUTH": "google_id_token"},
+    {"DEPLOY_ENV": None},
+    {"CHAT_API": "recording", "CHAT_RECORD_PATH": None},
     {"INTAKE": "http", "PUBSUB_SUBSCRIPTION": None},
     {"THREAD_KEY_SECRET": SENTINEL_THREAD_SHORT},
     {"THREAD_KEY_SECRET": None},

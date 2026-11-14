@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import re
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -60,6 +61,7 @@ class BotSettings(BaseSettings):
     memory_collection: str = "thread_memory"
     google_cloud_project: str | None = None
     mcp_url: str
+    deploy_env: Literal["local", "production"] = "production"
     mcp_auth: Literal["google_id_token", "none"] = "google_id_token"
     mcp_audience: str | None = None
     intake: Literal["pubsub", "http"]
@@ -71,6 +73,8 @@ class BotSettings(BaseSettings):
     video_thumbnail_url: str
     help_command_id: str | None = None
     run_deadline_seconds: float = Field(default=120, gt=0)
+    chat_api: Literal["google", "recording"] = "google"
+    chat_record_path: Path | None = None
 
     @field_validator("allowed_users", mode="before")
     @classmethod
@@ -121,12 +125,22 @@ class BotSettings(BaseSettings):
             applies=self.llm_backend == "api",
             needs=(("ANTHROPIC_API_KEY", self.anthropic_api_key),),
         )
-        # Mirror of Phase 2 D-13. K_SERVICE is Cloud Run's marker; a different host in Phase 4
-        # must add its own.
-        if self.mcp_auth == "none" and "K_SERVICE" in os.environ:
+        # Mirror of the MCP server rule (Phase 4, D-13): DEPLOY_ENV defaults to production and
+        # only an explicit local unlocks the local-only knobs; K_SERVICE (Cloud Run) forces
+        # production, so no host can run them by accident.
+        if self.deploy_env == "local" and "K_SERVICE" in os.environ:
             raise ValueError(
-                "MCP_AUTH=none is refused when K_SERVICE is set (deployed on Cloud Run)"
+                "DEPLOY_ENV=local is refused when K_SERVICE is set (deployed on Cloud Run)"
             )
+        if self.mcp_auth == "none" and self.deploy_env != "local":
+            raise ValueError("MCP_AUTH=none requires DEPLOY_ENV=local")
+        if self.chat_api == "recording" and self.deploy_env != "local":
+            raise ValueError("CHAT_API=recording requires DEPLOY_ENV=local")
+        _require(
+            "CHAT_API=recording",
+            applies=self.chat_api == "recording",
+            needs=(("CHAT_RECORD_PATH", self.chat_record_path),),
+        )
         _require(
             "MCP_AUTH=google_id_token",
             applies=self.mcp_auth == "google_id_token",

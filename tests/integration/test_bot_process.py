@@ -47,6 +47,7 @@ _BASE_ENV = {
     "GOOGLE_CLOUD_PROJECT": PROJECT,
     "MCP_URL": "http://127.0.0.1:9/mcp",
     "MCP_AUTH": "none",
+    "DEPLOY_ENV": "local",
     "VIDEO_THUMBNAIL_URL": "https://example.invalid/video-thumbnail.png",
     "LANGSMITH_TRACING": "false",
 }

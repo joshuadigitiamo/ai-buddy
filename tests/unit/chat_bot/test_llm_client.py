@@ -52,6 +52,9 @@ _ENV_VARIABLES = (
     "LANGSMITH_TRACING",
     "LANGCHAIN_TRACING_V2",
     "K_SERVICE",
+    "DEPLOY_ENV",
+    "CHAT_API",
+    "CHAT_RECORD_PATH",
 )
 
 FAKE_API_KEY = "sk-test-fake"
@@ -80,6 +83,7 @@ def settings_env(monkeypatch: pytest.MonkeyPatch, **overrides: str | None) -> No
         "THREAD_KEY_SECRET": "s" * 40,
         "MCP_URL": "http://mcp.invalid/mcp",
         "MCP_AUTH": "none",
+        "DEPLOY_ENV": "local",
         "INTAKE": "pubsub",
         "PUBSUB_SUBSCRIPTION": "projects/demo-ai-buddy/subscriptions/chat",
         "VIDEO_THUMBNAIL_URL": "https://example.invalid/thumb.png",
