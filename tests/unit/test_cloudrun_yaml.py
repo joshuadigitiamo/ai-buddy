@@ -310,7 +310,7 @@ def test_meridian_sidecar_is_loopback_only_and_has_no_exposed_port() -> None:
 def test_meridian_sidecar_startup_probe_is_a_supported_http_probe_on_the_health_route() -> None:
     probe = _bot_container("meridian")["startupProbe"]
     assert set(probe) - {"periodSeconds", "timeoutSeconds", "failureThreshold"} == {"httpGet"}, (
-        "Cloud Run supports httpGet, tcpSocket and grpc probes, never exec (04-07 used exec on kind)"
+        "Cloud Run supports httpGet, tcpSocket and grpc probes, never exec (kind used exec, 04-07)"
     )
     assert probe["httpGet"]["port"] == 3456
     assert probe["httpGet"]["path"] == "/health", (
@@ -325,7 +325,8 @@ def test_meridian_credentials_fuse_volume_is_mounted_read_write_in_meridian_only
     assert creds["driver"] == "gcsfuse.run.googleapis.com"
     assert creds["readOnly"] is False, "the OAuth refresh must be written back"
     assert creds["volumeAttributes"]["bucketName"] == "${PROJECT_ID}-ai-buddy-claude"
-    options = dict(item.split("=", 1) for item in creds["volumeAttributes"]["mountOptions"].split(","))
+    mount_options = str(creds["volumeAttributes"]["mountOptions"])
+    options = dict(item.split("=", 1) for item in mount_options.split(","))
     assert options["uid"] == options["gid"] == "1000", "the Meridian image user owns the files"
     mounts = {
         name: {mount["name"]: mount["mountPath"] for mount in container.get("volumeMounts", [])}

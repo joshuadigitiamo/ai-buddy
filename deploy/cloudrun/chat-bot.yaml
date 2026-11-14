@@ -1,0 +1,170 @@
+# Cloud Run service definition for the Google Chat bot with the Meridian sidecar (INFRA-04, D-11,
+# D-12, D-13).
+#
+# This is a template: scripts/render-cloudrun.sh replaces the dollar-brace placeholders from
+# environment variables (PROJECT_ID, PROJECT_NUMBER, IMAGE_TAG, MERIDIAN_TAG, CHAT_JWT_ISSUER_EMAIL,
+# VIDEO_THUMBNAIL_URL, HELP_COMMAND_ID) and refuses to leave one behind. The comments hold no
+# placeholder marker, so a leftover is a bug. No project id, project number, personal id or secret
+# value is committed. Deploy the rendered file with `gcloud run services replace`.
+#
+# Shape (RESEARCH Pattern 2): the bot is the ingress container (the only one with a port); Meridian,
+# the Claude Max proxy, is a sidecar on 127.0.0.1:3456 that starts first. The Max login lives in a
+# private bucket mounted through GCS FUSE into the Meridian container only (D-12).
+#
+# One user, one instance: Meridian runs on one person's Claude Max login, so maxScale stays '1'
+# (D1a) and ALLOWED_USERS, read from a secret, carries one entry (the bot refuses more at start).
+# One Meridian is also the only writer of the credentials file on the FUSE volume (Pitfall 4).
+#
+# Billing: request-based (04-01 billing_mode (a)), so there is deliberately no
+# run.googleapis.com/cpu-throttling annotation. Prepared fallback, NOT applied: if the live check in
+# 04-13 shows a slow answer never replacing its placeholder (the work after the 25 s ack gets no CPU
+# between requests, Pitfall 1), add run.googleapis.com/cpu-throttling: 'false' to the template
+# annotations of this service only. That changes the billing mode and the wording of the roadmap
+# criterion, so it needs Joshua's consent first.
+#
+# DEPLOY_ENV and CHAT_API are left unset on purpose: DEPLOY_ENV defaults to production (fail
+# closed), so MCP_AUTH=none and CHAT_API=recording are refused here (04-03, T-04-10). PORT is
+# injected by Cloud Run from containerPort; it must not be set.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: chat-bot
+  annotations:
+    # Chat calls this endpoint with its own signed JWT, which the bot verifies in the app (D-13).
+    run.googleapis.com/invoker-iam-disabled: 'true'
+spec:
+  template:
+    metadata:
+      annotations:
+        # GCS volume mounts need the second-generation execution environment.
+        run.googleapis.com/execution-environment: gen2
+        autoscaling.knative.dev/minScale: '0'
+        autoscaling.knative.dev/maxScale: '1'
+        run.googleapis.com/startup-cpu-boost: 'true'
+        # JSON, not YAML flow style: meridian must be started and healthy before chat-bot starts.
+        run.googleapis.com/container-dependencies: '{"chat-bot":["meridian"]}'
+    spec:
+      serviceAccountName: "sa-chat-bot@${PROJECT_ID}.iam.gserviceaccount.com"
+      containers:
+        - name: chat-bot
+          image: "europe-west8-docker.pkg.dev/${PROJECT_ID}/ai-buddy/chat-bot:${IMAGE_TAG}"
+          ports:
+            - containerPort: 8080
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 20
+          resources:
+            limits:
+              cpu: '1'
+              memory: 512Mi
+          env:
+            - name: INTAKE
+              value: http
+            - name: BOT_HOST
+              value: 0.0.0.0
+            - name: LLM_BACKEND
+              value: meridian
+            - name: LLM_BASE_URL
+              value: http://localhost:3456
+            - name: MCP_AUTH
+              value: google_id_token
+            # Equal to MCP_PUBLIC_BASE_URL of mcp-server; MCP_URL is that URL plus /mcp. A test in
+            # tests/unit/test_cloudrun_yaml.py keeps the two files in step.
+            - name: MCP_AUDIENCE
+              value: "https://mcp-server-${PROJECT_NUMBER}.europe-west8.run.app"
+            - name: MCP_URL
+              value: "https://mcp-server-${PROJECT_NUMBER}.europe-west8.run.app/mcp"
+            # The HTTP endpoint URL configured in the Chat app (Authentication Audience).
+            - name: CHAT_JWT_AUDIENCE
+              value: "https://chat-bot-${PROJECT_NUMBER}.europe-west8.run.app"
+            - name: CHAT_JWT_ISSUER_EMAIL
+              value: "${CHAT_JWT_ISSUER_EMAIL}"
+            - name: GOOGLE_CLOUD_PROJECT
+              value: "${PROJECT_ID}"
+            - name: VIDEO_THUMBNAIL_URL
+              value: "${VIDEO_THUMBNAIL_URL}"
+            - name: HELP_COMMAND_ID
+              value: "${HELP_COMMAND_ID}"
+            # BOT-11: prompts and questions never leave the host, so tracing stays off.
+            - name: LANGSMITH_TRACING
+              value: 'false'
+            - name: ALLOWED_USERS
+              valueFrom:
+                secretKeyRef:
+                  name: allowed-users
+                  key: latest
+            - name: THREAD_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: thread-key-secret
+                  key: latest
+            - name: MERIDIAN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: meridian-api-key
+                  key: latest
+        - name: meridian
+          image: "europe-west8-docker.pkg.dev/${PROJECT_ID}/ai-buddy/meridian:${MERIDIAN_TAG}"
+          # No port: nothing outside the instance can reach Meridian. Cloud Run offers no exec
+          # probe, so the start-up probe is httpGet. Path /health, not /readyz: /readyz answers 503
+          # "no profiles configured" for the single credentials file this deployment seeds, and
+          # /health answers 200 once the login is read (04-07 measured both on kind). Whether a
+          # Cloud Run probe reaches a loopback-bound port is not stated in the docs; 04-13 checks
+          # it, and the README names the fallbacks (tcpSocket probe, or MERIDIAN_HOST 0.0.0.0, which
+          # is still unreachable from outside because only the ingress container takes traffic).
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3456
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 40
+          resources:
+            limits:
+              cpu: '1'
+              memory: 1Gi
+          env:
+            - name: MERIDIAN_HOST
+              value: 127.0.0.1
+            - name: MERIDIAN_PORT
+              value: '3456'
+            - name: MERIDIAN_HOST_ID
+              value: meridian-cloudrun
+            # BOT-11: no per-request log lines (they would carry question text).
+            - name: MERIDIAN_SILENT
+              value: '1'
+            # Meridian keeps one transcript per request under ~/.claude/projects; without a
+            # retention period they pile up in the bucket (Pitfall 4).
+            - name: MERIDIAN_TRANSCRIPT_RETENTION_DAYS
+              value: '7'
+            # The session store is file based and must not sit on the FUSE volume or the overlay.
+            - name: MERIDIAN_SESSION_DIR
+              value: /meridian-sessions
+            - name: MERIDIAN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: meridian-api-key
+                  key: latest
+          volumeMounts:
+            - name: claude-creds
+              mountPath: /home/claude/.claude
+            - name: meridian-sessions
+              mountPath: /meridian-sessions
+      volumes:
+        - name: claude-creds
+          csi:
+            driver: gcsfuse.run.googleapis.com
+            # Read-write: the OAuth refresh writes the credentials file back.
+            readOnly: false
+            volumeAttributes:
+              bucketName: "${PROJECT_ID}-ai-buddy-claude"
+              # The bucket objects show up as root-owned by default; the Meridian image runs as
+              # uid 1000 (claude) and must own them to write the refreshed login.
+              mountOptions: uid=1000,gid=1000
+        - name: meridian-sessions
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi
