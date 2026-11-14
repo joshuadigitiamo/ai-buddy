@@ -58,7 +58,7 @@ Compose reads `MERIDIAN_API_KEY` and `GOOGLE_CLOUD_PROJECT` from `.env` and refu
 | `ARTIFACTS_DIR` | `./artifacts` | Host directory with the published index. Mounted read-only into the MCP server. |
 | `BOT_UID`, `BOT_GID` | `1000`, `1000` | User the bot container runs as in dev. The image's own user (10001) cannot read a key file kept at mode 600, so dev uses the host user instead. |
 
-The compose file sets these for the bot itself: `INTAKE=pubsub`, `LLM_BACKEND=meridian`, `LLM_BASE_URL=http://meridian:3456`, `MCP_URL=http://localhost:8000/mcp` (the bot shares the MCP server's network namespace, because the server admits plain http only for loopback hosts), `MCP_AUTH=none`, `PORT=8080`, `FIRESTORE_EMULATOR_HOST=firestore:8080`, `LANGSMITH_TRACING=false`.
+The compose file sets these for the bot itself: `INTAKE=pubsub`, `LLM_BACKEND=meridian`, `LLM_BASE_URL=http://meridian:3456`, `MCP_URL=http://localhost:8000/mcp` (the bot shares the MCP server's network namespace, because the server admits plain http only for loopback hosts), `DEPLOY_ENV=local`, `MCP_AUTH=none`, `PORT=8080`, `FIRESTORE_EMULATOR_HOST=firestore:8080`, `LANGSMITH_TRACING=false`.
 
 `PORT` matters: `.env.example` has `PORT=8000`, which is the MCP server's port. The compose file sets the bot's `PORT` explicitly so that value does not leak in.
 
@@ -91,7 +91,8 @@ Every setting comes from the process environment (`--env-file .env`; no env file
 | `MEMORY_COLLECTION` | `thread_memory` | Firestore collection for thread memory (`[A-Za-z0-9_-]+`). |
 | `GOOGLE_CLOUD_PROJECT` | none | Project of the Firestore that holds thread memory and the gap log. |
 | `MCP_URL` | none, required | URL of the MCP server, including `/mcp`. |
-| `MCP_AUTH` | `google_id_token` | `google_id_token` or `none`. `none` is refused when `K_SERVICE` is set (Cloud Run). |
+| `DEPLOY_ENV` | `production` | `local` or `production`. `local` only on a developer machine, compose and kind: it unlocks `MCP_AUTH=none` and `CHAT_API=recording`, and is refused when `K_SERVICE` is set (Cloud Run). Leave it unset on every deployed host. |
+| `MCP_AUTH` | `google_id_token` | `google_id_token` or `none`. `none` is accepted only with `DEPLOY_ENV=local`. |
 | `MCP_AUDIENCE` | none | Required with `MCP_AUTH=google_id_token`. Must equal the MCP server's `MCP_PUBLIC_BASE_URL`, without `/mcp`. |
 | `INTAKE` | none, required | `pubsub` or `http`. |
 | `PUBSUB_SUBSCRIPTION` | none | Required with `INTAKE=pubsub`: `projects/<id>/subscriptions/<name>`. |
@@ -102,6 +103,8 @@ Every setting comes from the process environment (`--env-file .env`; no env file
 | `VIDEO_THUMBNAIL_URL` | none, required | Real `https://` image shown on video cards. Startup fails without it. There is no default: supply your own image in `.env`. |
 | `HELP_COMMAND_ID` | none | Command id of the `/aiuto` slash command, as shown in the Chat app configuration. Without it `/aiuto` is matched by its text prefix only. |
 | `RUN_DEADLINE_SECONDS` | `120` | Whole-run deadline; on expiry an error text replaces the placeholder. |
+| `CHAT_API` | `google` | `google` or `recording`. `recording` is for local smoke runs only (needs `DEPLOY_ENV=local`): the bot writes each placeholder and answer as a JSON line to `CHAT_RECORD_PATH` instead of calling Google Chat. |
+| `CHAT_RECORD_PATH` | none | Path of the recording file, required with `CHAT_API=recording`. The file is appended to; its parent directory must exist. |
 
 Also read from the environment: `LANGSMITH_TRACING` and `LANGCHAIN_TRACING_V2`. The bot refuses to start if either is `true`.
 
