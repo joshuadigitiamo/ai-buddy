@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Infrastructure and CI/CD
 status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-11-14T11:47:06.081Z"
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-11-14T11:53:45.681Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 04 execution started
-state_head: d4ae2bc633c1bc51d857a57b5ec94a72bb0c7340
+state_head: 4be59eafa9eb1642897867f7fa980fe94f3daf88
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 44
-  completed_plans: 32
+  completed_plans: 33
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 04 (Infrastructure and CI/CD) — EXECUTING
-Plan: 3 of 14
+Plan: 4 of 14
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 04 execution started
 
@@ -88,6 +88,7 @@ Progress: [██████░░░░] 60%
 | Phase 03 P12 | n/a | 3 tasks | 11 files |
 | Phase 04 P02 | 15 min | 3 tasks | 15 files |
 | Phase 04 P01 | 25 min | 3 tasks | 3 files |
+| Phase 04 P03 | 5 min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -169,6 +170,7 @@ Recent decisions affecting current work:
 - [Phase 04]: video_fetch (a): Joshua downloads release videos to .cache/videos; upload-videos reads both directories (interprets D-17)
 - [Phase 04]: token_chain (b): fresh separate claude login seeds the Cloud Run bucket; local volume keeps its own chain (keeps D-12)
 - [Phase 04]: org_policy (yes): project ai-buddy-dev under digitiamo.com, billing linked; org policies may apply to 04-08 and 04-13 (information)
+- [Phase 04]: 04-03: bot mirrors the server DEPLOY_ENV rule; MCP_AUTH=none and CHAT_API=recording need explicit DEPLOY_ENV=local, local refused under K_SERVICE — RecordingChatApi is a config-selected second adapter of the ChatApi port so compose and kind can prove a chat round trip with no Google Chat API (Chat has no emulator); CHAT_API and CHAT_RECORD_PATH stay out of .env.example
 
 ### Pending Todos
 
@@ -198,6 +200,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T11:47:05.896Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-11-14T11:53:45.499Z
+Stopped at: Completed 04-03-PLAN.md
 Resume file: None
