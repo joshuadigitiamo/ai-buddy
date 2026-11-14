@@ -6,7 +6,7 @@ All entries are from docs/research/*.md (DOC, lowest precedence). Where they con
 - source: docs/research/01-handbook-inventory.md
 - Handbook = ClickUp Doc [ClickUp doc ID removed], 23 pages, ~4.000 words, ~8k tokens: "L'intero handbook entra comodamente in un singolo contesto LLM". Italian, 16/23 pages unchanged since June 2025.
 - Quality problems listed: contradictory legal address across two pages; contradictory leave process (Factorial vs ClickUp form); Team page empty; L.O.V.E. values only as image/video; "Luoghi utili" titles only; incomplete root index; stale "Posizioni Aperte"; stale company closures; no owner or review date on policy pages; no IT channel (IT support = HR).
-- Chat tool: handbook mentions no chat tool; ClickUp Chat active with 40 channels (hypothesis: main internal channel); Google Chat unconfirmed.
+- Chat tool: handbook mentions no chat tool; ClickUp Chat active with 40 channels (hypothesis: main internal channel); Google Chat unconfirmed. (Update 2026-11-14: ClickUp is shut down; ClickUp Chat is no longer an option, the team chat is Google Chat.)
 - Roles: HR is contact for nearly everything; no named persons in text; de facto owner to be confirmed.
 - Gaps: org chart/who-does-what, communication channels, working hours, tools/access list, IT/security policy, expense process, offboarding, glossary, FAQ.
 

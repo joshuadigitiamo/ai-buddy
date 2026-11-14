@@ -213,7 +213,7 @@ Alternative valutate e scartate: Spec Kit (manca il piano di eval già pronto), 
 
 ## 10. Domande aperte
 
-1. Chat reale del team: Google Chat o ClickUp Chat? L'inventario vede 40 canali ClickUp attivi.
+1. Chat reale del team: Google Chat. (Aggiornamento 14/11/2026: ClickUp viene dismesso, l'opzione ClickUp Chat è scartata.)
 2. Budget per il passaggio a Claude Team?
 3. CCNL applicato (serve per le pagine ferie, permessi e malattia)?
 4. Chi è l'owner ufficiale dell'handbook?
