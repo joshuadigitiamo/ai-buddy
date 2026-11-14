@@ -143,13 +143,13 @@ Plans:
   3. Cloud Run YAMLs for `mcp_server`, `chat_bot` and the sync job target europe-west8 with scale-to-zero and request-based billing, a nightly Cloud Scheduler trigger exists for sync, and the SYNC-07 handoff mechanism is wired in.
   4. A change under `services/mcp_server` triggers only that service's workflow, which runs `run-unit-tests.sh --all` (ruff, mypy, pytest with coverage) and blocks the image push on failure; on success it pushes to Artifact Registry and deploys, authenticating through Workload Identity Federation with no key file in the repo or secrets.
   5. Guide videos play inline in the browser from access-controlled hosting (not GitHub release downloads) and the Guarda button opens at the section's timestamp; timestamp coverage in the guides index improved beyond the 238/2524 scene-mapped rows. (Carried over from the Phase 3 live check, deferred by Joshua; recommended path: Cloud Storage with video/mp4 served inline, access-controlled because the Guides are private.)
-**Plans**: 14 plans
+**Plans**: 1/14 plans executed
 **Note**: Live deploy needs a GCP project with an active billing account (Admin Google). Without it, criteria 3 and 4 are verified statically (YAML schema validation, workflow lint, dry runs) and the live deploy check is recorded as pending.
 
 Plans:
 **Wave 1**
 - [ ] 04-01-PLAN.md — Gate: google-cloud-storage pin and Meridian commit approval, six open decisions recorded (billing, D-18 reading, sections authoring, video fetch, token chain, org policy)
-- [ ] 04-02-PLAN.md — MCP server seams: DEPLOY_ENV fail-closed, MCP_ALLOWED_HOSTS, /healthz, WR-02/WR-05 hardening, env contract
+- [x] 04-02-PLAN.md — MCP server seams: DEPLOY_ENV fail-closed, MCP_ALLOWED_HOSTS, /healthz, WR-02/WR-05 hardening, env contract
 - [ ] 04-03-PLAN.md — Bot seams: DEPLOY_ENV fail-closed, recording Chat adapter (CHAT_API), README
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -196,5 +196,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Content Sync | 11/11 | Complete    | 2026-11-03 |
 | 2. MCP Server and Skill | 7/7 | Complete    | 2026-11-06 |
 | 3. Google Chat Bot | 12/12 | Complete    | 2026-11-07 |
-| 4. Infrastructure and CI/CD | 0/0 | Not started | - |
+| 4. Infrastructure and CI/CD | 1/14 | In Progress | - |
 | 5. Evaluation and Milestone Gate | 0/0 | Not started | - |

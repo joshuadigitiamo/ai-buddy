@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Infrastructure and CI/CD
 status: executing
-stopped_at: Phase 4 context gathered
-last_updated: "2026-11-14T11:00:22.334Z"
-last_activity: 2026-11-07
-last_activity_desc: Phase 03 complete, transitioned to Phase 4
-state_head: 8da7920049e1996c7de6ae5cd2e0f94628d5e316
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-11-14T11:25:53.655Z"
+last_activity: 2026-11-14
+last_activity_desc: Phase 04 execution started
+state_head: 69828bdd9ec34280baaa2812ca5b931db390789a
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 44
-  completed_plans: 30
+  completed_plans: 31
   percent: 60
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-07)
 
 **Core value:** An employee gets an answer only from official sources with the source cited, or an honest "non lo so, chiedi a ..." with the gap logged. Never an invented policy.
-**Current focus:** Phase 03 — Google Chat Bot
+**Current focus:** Phase 04 — Infrastructure and CI/CD
 
 ## Current Position
 
-Phase: 04 (Infrastructure and CI/CD) — READY TO EXECUTE
-Plan: Not started
+Phase: 04 (Infrastructure and CI/CD) — EXECUTING
+Plan: 2 of 14
 Status: Ready to execute
-Last activity: 2026-11-07 — Phase 03 complete, transitioned to Phase 4
+Last activity: 2026-11-14 — Phase 04 execution started
 
 Progress: [██████░░░░] 60%
 
@@ -86,6 +86,7 @@ Progress: [██████░░░░] 60%
 | Phase 03 P10 | 12 min | 3 tasks | 11 files |
 | Phase 03 P11 | 25 min | 3 tasks | 10 files |
 | Phase 03 P12 | n/a | 3 tasks | 11 files |
+| Phase 04 P02 | 15 min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -159,6 +160,8 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-11: fastmcp and anthropic loggers floored at INFO in buddy_bot.cli.main so FASTMCP_LOG_LEVEL=DEBUG or ANTHROPIC_LOG=debug cannot log question text or prompts (BOT-11)
 - [Phase 03]: 03-11: SIGTERM left at the interpreter default in python -m buddy_bot; Phase 4 may add a drain handler for Cloud Run
 - [Phase 03]: 03-12: add-on Chat apps publish to Pub/Sub as the gsuiteaddons service agent (not chat-api-push); bot shares the MCP server network namespace for the loopback Host guard; live check approved 2026-11-07
+- [Phase 04]: DEPLOY_ENV (default production) is the explicit marker for auth-off guards; AUTH_MODE=off only with DEPLOY_ENV=local, and local is refused whenever K_SERVICE is set — K_SERVICE-only guard failed open on kind and any non-Cloud-Run host (audit warning 4, WR-01)
+- [Phase 04]: MCP_ALLOWED_HOSTS widens the Host guard by exact-match bare hostnames only; /healthz is a FastMCP custom route outside the auth provider, Host-guarded — Pod-to-pod Service names got 421; guard must stay on (INFRA-03); AUTH_MODE=on test proved route is unauthenticated
 
 ### Pending Todos
 
@@ -188,6 +191,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T09:53:07.864Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-infrastructure-and-ci-cd/04-CONTEXT.md
+Last session: 2026-11-14T11:25:53.484Z
+Stopped at: Completed 04-02-PLAN.md
+Resume file: None

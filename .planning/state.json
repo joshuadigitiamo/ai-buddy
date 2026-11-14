@@ -21,7 +21,7 @@
     {
       "number": "4",
       "name": "Infrastructure and CI/CD",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "5",
@@ -34,5 +34,5 @@
     "label": "Advance to the next step",
     "reason": "Phase 4 of 5 · 60% · executing"
   },
-  "updated_at": "2026-11-14T11:00:22.349Z"
+  "updated_at": "2026-11-14T11:25:52.183Z"
 }
