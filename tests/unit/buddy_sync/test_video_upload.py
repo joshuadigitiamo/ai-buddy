@@ -1,5 +1,6 @@
 """Video upload and URL rewrite (D-16, D-17): bucket upload, md5 skip, rewritten index links."""
 
+import json
 import logging
 import shutil
 from collections.abc import Callable, Mapping
@@ -21,7 +22,7 @@ from buddy_sync.video_map import (
     parse_readme_videos,
     resolve_video_links,
 )
-from buddy_sync.video_upload import UploadReport, VideoUploadError, upload_videos
+from buddy_sync.video_upload import UploadReport, upload_videos
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
 README_TEXT = (FIXTURES / "guides_videos" / "README.md").read_text(encoding="utf-8")
@@ -55,11 +56,16 @@ def test_upload_stores_every_readme_video_with_private_inline_headers(tmp_path: 
 
 
 def test_gcs_video_url_rewrites_a_readme_url_to_the_authenticated_object_url() -> None:
-    rewrite = gcs_video_url("b")
+    rewrite = gcs_video_url(BUCKET)
     assert (
         rewrite("https://github.com/o/r/releases/download/videos/demo.mp4")
-        == "https://storage.cloud.google.com/b/videos/demo.mp4"
+        == f"{GCS_PREFIX}demo.mp4"
     )
+
+
+def test_gcs_video_url_refuses_an_invalid_bucket_name() -> None:
+    with pytest.raises(ValueError, match="bucket name"):
+        gcs_video_url("B")
 
 
 def test_resolve_video_links_rewrite_points_every_link_at_the_bucket() -> None:
@@ -78,7 +84,9 @@ def test_resolve_video_links_rewrite_points_every_link_at_the_bucket() -> None:
 
 def test_resolve_video_links_without_url_for_keeps_the_readme_urls() -> None:
     links = resolve_video_links(FIXTURES / "guides_videos", all_chunks(), logger=LOGGER)
-    assert all(link.video_url.startswith("https://videos.example.invalid/") for link in links.values())
+    assert all(
+        link.video_url.startswith("https://videos.example.invalid/") for link in links.values()
+    )
 
 
 # --- pipeline and CLI ------------------------------------------------------------------------
@@ -172,3 +180,17 @@ def test_upload_videos_cli_prints_the_counts_and_returns_zero(
 def test_a_basename_that_is_not_a_plain_mp4_name_cannot_become_an_object_name() -> None:
     with pytest.raises(VideoMapError):
         gcs_video_url(BUCKET)("https://h.example.invalid/..%2Fx.mp4")
+
+
+def test_pipeline_run_repoints_kept_links_when_video_bucket_is_set_later(
+    sync_env: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["run"]) == 0
+    capsys.readouterr()
+    assert _video_urls(sync_env) == {"https://videos.example.invalid/demo.mp4"}
+    monkeypatch.setenv("VIDEO_BUCKET", BUCKET)
+    assert main(["run"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["guides_rebuilt"] is False
+    assert report["artifact_written"] is True
+    assert _video_urls(sync_env) == {f"{GCS_PREFIX}demo.mp4"}

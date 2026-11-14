@@ -24,7 +24,7 @@ from buddy_sync.guides_index import check_guides_index
 from buddy_sync.handbook import EmptyDenylistError, sync_handbook
 from buddy_sync.handbook_files import SOURCE_ID, read_handbook_dir
 from buddy_sync.redaction import REDACTION_VERSION, Redactor
-from buddy_sync.video_map import resolve_video_links
+from buddy_sync.video_map import gcs_video_url, resolve_video_links, rewrite_links
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,13 +103,19 @@ def run_sync(
             logger=logger,
         )
         drift = 0
+        url_for = gcs_video_url(settings.video_bucket) if settings.video_bucket else None
         if synced.rebuilt:
-            videos = resolve_video_links(checkout.path, synced.chunks, logger=logger)
+            videos = resolve_video_links(
+                checkout.path, synced.chunks, logger=logger, url_for=url_for
+            )
             drift = len(
                 check_guides_index(checkout.path, synced.outline, strict=strict, logger=logger)
             )
         else:
             videos = previous.video_links() if previous is not None else {}
+            if url_for is not None:
+                # The Guides did not change but VIDEO_BUCKET may have: re-point the kept links.
+                videos = rewrite_links(videos, url_for)
 
         content = IndexContent(
             handbook=handbook.pages,

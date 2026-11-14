@@ -50,7 +50,26 @@ def test_settings_hold_exactly_the_documented_fields() -> None:
         "guides_branch",
         "guides_checkout_dir",
         "artifact_dir",
+        "video_bucket",
     }
+
+
+def test_video_bucket_is_optional_and_an_empty_value_means_unset(
+    example_env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert SyncSettings().video_bucket is None
+    monkeypatch.setenv("VIDEO_BUCKET", "demo-ai-buddy-videos")
+    assert SyncSettings().video_bucket == "demo-ai-buddy-videos"
+
+
+def test_video_bucket_rejects_a_malformed_name_without_echoing_it(
+    example_env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("VIDEO_BUCKET", "Not A Bucket")
+    with pytest.raises(ValidationError) as excinfo:
+        SyncSettings()
+    assert "video_bucket" in str(excinfo.value)
+    assert ("Not A Bucket" in str(excinfo.value)) is False
 
 
 def test_page_files_and_domains_parse_comma_separated(

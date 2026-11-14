@@ -14,6 +14,7 @@ from typing import Annotated, Any
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+from buddy_core.store import check_bucket_name
 from buddy_sync.handbook_files import PAGE_FILE_RE
 
 _BRANCH_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
@@ -43,6 +44,12 @@ class SyncSettings(BaseSettings):
     guides_branch: str = "master"
     guides_checkout_dir: Path
     artifact_dir: Path
+    video_bucket: str | None = None
+
+    @field_validator("video_bucket")
+    @classmethod
+    def _check_video_bucket(cls, value: str | None) -> str | None:
+        return None if value is None else check_bucket_name(value)
 
     @field_validator("redact_page_files", mode="before")
     @classmethod

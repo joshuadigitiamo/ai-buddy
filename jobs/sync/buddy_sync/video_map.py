@@ -16,20 +16,24 @@ import json
 import logging
 import math
 import re
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Final, Literal
+from urllib.parse import urlsplit
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from buddy_core.models import GuideChunk, VideoLink
+from buddy_core.store import check_bucket_name
 
 SECTIONS_GLOB: Final = "videos/*/sections.yaml"
 DURATIONS_RELPATH: Final = "out/durations.json"
 README_NAME: Final = "README.md"
 MAX_SECTIONS_BYTES: Final = 262_144
+VIDEO_OBJECT_DIR: Final = "videos"
+GCS_VIDEO_HOST: Final = "https://storage.cloud.google.com"
 
 _GUIDE_LINK: Final = re.compile(r"\[[^\]]*\]\(([^)\s]+\.md)\)")
 _VIDEO_LINK: Final = re.compile(r"\[([^\]]*)\]\((https://[^)\s]+\.mp4)\)")
@@ -38,6 +42,9 @@ _SEPARATOR_CELL: Final = re.compile(r"^:?-+:?$")
 _CELL_SPLIT: Final = re.compile(r"(?<!\\)\|")
 _DASHES: Final = frozenset({"-", "–", "—"})
 _SCENE_PART: Final = re.compile(r"^P(\d+)S")
+_VIDEO_NAME: Final = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\.mp4")
+
+UrlFor = Callable[[str], str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,6 +124,59 @@ def _parts_from_links(guide: str, links: list[tuple[str, str]]) -> list[VideoPar
             raise VideoMapError(f"README row for guide {guide!r} repeats part {number}")
         parts[number] = url
     return [VideoPart(part=n, url=parts[n]) for n in sorted(parts)]
+
+
+def video_basename(url: str) -> str:
+    """The plain ``<name>.mp4`` file name of a README video URL (T-04-43).
+
+    The name becomes an object name under ``videos/``, so anything that is not a plain file name
+    (separators, percent escapes, spaces, a query or fragment) is refused.
+    """
+    parts = urlsplit(url)
+    name = parts.path.rsplit("/", 1)[-1]
+    if parts.query or parts.fragment or _VIDEO_NAME.fullmatch(name) is None:
+        raise VideoMapError(f"README video file name {name!r} is not a plain *.mp4 name")
+    return name
+
+
+def video_names(readme_videos: Mapping[str, Sequence[VideoPart]]) -> list[str]:
+    """Sorted distinct file names of every README part; two different URLs may not share one."""
+    owners: dict[str, str] = {}
+    for parts in readme_videos.values():
+        for part in parts:
+            name = video_basename(part.url)
+            if owners.setdefault(name, part.url) != part.url:
+                raise VideoMapError(f"two different README video URLs share the name {name!r}")
+    return sorted(owners)
+
+
+def gcs_video_url(bucket: str) -> UrlFor:
+    """Map a README video URL to its authenticated object URL in the private bucket (D-16).
+
+    The result is ``https://storage.cloud.google.com/<bucket>/videos/<name>.mp4`` with no query
+    string: access stays an IAM grant plus the Google login, never a public or signed URL.
+    """
+    check_bucket_name(bucket)
+
+    def rewrite(url: str) -> str:
+        return f"{GCS_VIDEO_HOST}/{bucket}/{VIDEO_OBJECT_DIR}/{video_basename(url)}"
+
+    return rewrite
+
+
+def _rewrite_parts(
+    readme_parts: Mapping[str, list[VideoPart]], url_for: UrlFor
+) -> dict[str, list[VideoPart]]:
+    video_names(readme_parts)  # refuses invalid names and two URLs sharing one name
+    return {
+        guide: [replace(part, url=url_for(part.url)) for part in parts]
+        for guide, parts in readme_parts.items()
+    }
+
+
+def rewrite_links(links: Mapping[str, VideoLink], url_for: UrlFor) -> dict[str, VideoLink]:
+    """Apply ``url_for`` to the base URL of already resolved links (idempotent for the GCS form)."""
+    return {key: replace(link, video_url=url_for(link.video_url)) for key, link in links.items()}
 
 
 def load_sections_file(path: Path) -> SectionsFile:
@@ -227,9 +287,17 @@ def _targets_for(
 
 
 def resolve_video_links(
-    root: Path, chunks: Sequence[GuideChunk], *, logger: logging.Logger
+    root: Path,
+    chunks: Sequence[GuideChunk],
+    *,
+    logger: logging.Logger,
+    url_for: UrlFor | None = None,
 ) -> dict[str, VideoLink]:
-    """Map chunk_key to its VideoLink for every chunk of a guide that has a README video."""
+    """Map chunk_key to its VideoLink for every chunk of a guide that has a README video.
+
+    ``url_for`` rewrites each README part URL (the hosted copy, D-16); the README stays the
+    source of the part list. Without it the README URLs are kept.
+    """
     sections_paths = sorted(root.glob(SECTIONS_GLOB))
     readme = root / README_NAME
     if not readme.is_file():
@@ -241,6 +309,8 @@ def resolve_video_links(
         readme_parts = parse_readme_videos(readme.read_text(encoding="utf-8"))
     except OSError as exc:
         raise VideoMapError(f"{readme}: cannot read ({type(exc).__name__})") from exc
+    if url_for is not None:
+        readme_parts = _rewrite_parts(readme_parts, url_for)
 
     by_file: dict[str, list[GuideChunk]] = {}
     for chunk in sorted(chunks, key=lambda c: (c.file, c.line_start, c.part_index)):

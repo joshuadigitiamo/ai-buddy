@@ -1,4 +1,6 @@
-"""Command line for the sync job: ``python -m buddy_sync <run|guides-index|search|publish>``.
+"""Command line for the sync job: ``python -m buddy_sync <subcommand>``.
+
+Subcommands: ``run``, ``guides-index``, ``search``, ``publish`` and ``upload-videos``.
 
 This is the only place real adapters (git, the local artifact directory, the GCS bucket) are
 built. Output is limited to counts, ids, redacted titles and source locations; page content and
@@ -43,7 +45,8 @@ from buddy_sync.handbook_files import HandbookFilesError
 from buddy_sync.pipeline import run_sync
 from buddy_sync.publish import PublishError, publish_index
 from buddy_sync.redaction import Redactor
-from buddy_sync.video_map import VideoMapError
+from buddy_sync.video_map import README_NAME, VideoMapError, parse_readme_videos
+from buddy_sync.video_upload import VideoUploadError, upload_videos
 
 LOGGER_NAME: Final = "buddy_sync"
 LOG_FORMAT: Final = "%(levelname)s %(name)s %(message)s"
@@ -57,6 +60,7 @@ _EXPECTED_ERRORS: Final = (
     HandbookFilesError,
     GuidesGitError,
     VideoMapError,
+    VideoUploadError,
     GuidesIndexDriftError,
     IndexFormatError,
     PublishError,
@@ -99,6 +103,28 @@ class PublishSettings(BaseSettings):
         return check_object_prefix(value)
 
 
+class VideoUploadSettings(BaseSettings):
+    """Environment of ``upload-videos``: the private bucket that holds the Guides videos (D-16).
+
+    ADC comes from GOOGLE_APPLICATION_CREDENTIALS, read by the storage client. Errors name
+    variables, never values.
+    """
+
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        env_ignore_empty=True,
+        extra="ignore",
+        hide_input_in_errors=True,
+    )
+
+    video_bucket: str
+
+    @field_validator("video_bucket")
+    @classmethod
+    def _check_bucket(cls, value: str) -> str:
+        return check_bucket_name(value)
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="buddy_sync", description="AI Buddy content sync job")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -114,6 +140,18 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     sub.add_parser("publish", help="publish the local index.db to the private bucket (D-06)")
+
+    videos = sub.add_parser(
+        "upload-videos", help="upload the Guides README videos to the private bucket (D-16, D-17)"
+    )
+    videos.add_argument("--guides-dir", required=True, type=Path, help="Guides tree with README.md")
+    videos.add_argument(
+        "--videos-dir",
+        required=True,
+        action="append",
+        type=Path,
+        help="directory searched recursively for the mp4 files; repeatable",
+    )
 
     index = sub.add_parser("guides-index", help="write GUIDES_INDEX.md into a Guides checkout")
     index.add_argument("--checkout", required=True, type=Path, help="Guides checkout directory")
@@ -160,6 +198,18 @@ def _publish(bucket_factory: BucketFactory) -> int:
         store = GcsArtifactStore(bucket, settings.artifact_prefix, Path(cache))
         result = publish_index(settings.artifact_dir, store, bucket)
     print(f"{result.status} build_id={result.build_id}")
+    return 0
+
+
+def _upload_videos(
+    guides_dir: Path, video_dirs: Sequence[Path], bucket_factory: BucketFactory
+) -> int:
+    settings = VideoUploadSettings()
+    readme = (guides_dir / README_NAME).read_text(encoding="utf-8")
+    report = upload_videos(
+        parse_readme_videos(readme), video_dirs, bucket_factory(settings.video_bucket)
+    )
+    print(f"uploaded={report.uploaded} unchanged={report.unchanged}")
     return 0
 
 
@@ -214,6 +264,8 @@ def main(
                 return _run(args, logger, clock)
             case "publish":
                 return _publish(bucket_factory or GcsBucket)
+            case "upload-videos":
+                return _upload_videos(args.guides_dir, args.videos_dir, bucket_factory or GcsBucket)
             case "guides-index":
                 return _guides_index(args.checkout)
             case _:
