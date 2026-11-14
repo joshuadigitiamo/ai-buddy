@@ -1,4 +1,4 @@
-"""video-coverage: scene and fallback rows per guide, from the index and from a Guides tree (D-18)."""
+"""video-coverage: scene and fallback rows per guide, from the index and a Guides tree (D-18)."""
 
 import logging
 import shutil
@@ -198,5 +198,12 @@ def test_the_report_holds_only_paths_labels_and_counts(
 ) -> None:
     main(["video-coverage", "--artifact-dir", str(artifact_dir), "--guides-dir", str(tree)])
     out = capsys.readouterr().out
-    for forbidden in ("Synthetic chunk text", "Basics", "Chunking", "Recap", "example.invalid", "http"):
+    for forbidden in (
+        "Synthetic chunk text",
+        "Basics",
+        "Chunking",
+        "Recap",
+        "example.invalid",
+        "http",
+    ):
         assert forbidden not in out

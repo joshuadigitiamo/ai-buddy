@@ -157,6 +157,25 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
   --videos-dir /guides-src/videos --videos-dir /videos-extra
 ```
 
+### `python -m buddy_sync video-coverage [--artifact-dir DIR] [--guides-dir DIR]`
+
+Timestamp coverage (D-18). Counts, per guide file, the Guides chunks that have a video link, split into scene rows (a `sections.yaml` entry gave the chunk its own `#t=` offset) and fallback rows (the current part's full video, no offset). The last line is the total next to the baseline measured on 2026-11-14:
+
+```
+<file>  rows=<n> scene=<s> fallback=<f>  [<label>]
+scene=<S> fallback=<F> rows=<T> (baseline 238/2524)
+```
+
+- Without `--guides-dir` it reads the published `index.db` in `--artifact-dir` (default `ARTIFACT_DIR`, then `artifacts`). No label is printed.
+- With `--guides-dir` it projects the report from that Guides working tree over the chunks of the same index: its `videos/*/sections.yaml` and `videos/<topic>/out/durations.json` are applied, committed or not, so a draft map can be measured before it is committed. Each guide gets a label: `sections.yaml` (a map names the guide), `durations only` (the topic has `durations.json` but no map) or `no durations`. The topic is the README video file name without `.mp4` and without a `_partN` suffix. A broken `sections.yaml` ends with one `ERROR` line and exit 1, as in `run`.
+- A section with no scene entry keeps the D-18 fallback (start at 0 of the current part). It does not inherit the offset of the section before it (04-01 `coverage_inheritance`, option (a)), so there is no `inherited` count.
+- The output holds file paths, labels and counts only: no heading, chunk text or URL.
+
+```bash
+buddy ai-buddy-test python -m buddy_sync video-coverage
+buddy ai-buddy-test python -m buddy_sync video-coverage --guides-dir /guides-src
+```
+
 ## One command: scripts/sync-and-publish.sh
 
 `scripts/sync-and-publish.sh` is the laptop command that refreshes the hosted index end to end. It needs `HANDBOOK_SRC_DIR`, `GUIDES_SRC_DIR` and `REDACT_PAGE_FILES`; `PROJECT_ID` enables the publish steps.

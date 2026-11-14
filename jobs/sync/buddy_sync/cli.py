@@ -1,6 +1,7 @@
 """Command line for the sync job: ``python -m buddy_sync <subcommand>``.
 
-Subcommands: ``run``, ``guides-index``, ``search``, ``publish`` and ``upload-videos``.
+Subcommands: ``run``, ``guides-index``, ``search``, ``publish``, ``upload-videos`` and
+``video-coverage``.
 
 This is the only place real adapters (git, the local artifact directory, the GCS bucket) are
 built. Output is limited to counts, ids, redacted titles and source locations; page content and
@@ -37,6 +38,7 @@ from buddy_core.store import (
 )
 from buddy_sync.chunker import heading_outline
 from buddy_sync.config import SyncSettings
+from buddy_sync.coverage import coverage_from_index, coverage_from_tree, format_report
 from buddy_sync.guides import select_guide_files
 from buddy_sync.guides_git import GitGuidesSource, GuidesGitError
 from buddy_sync.guides_index import GuidesIndexDriftError, write_guides_index
@@ -153,6 +155,17 @@ def _build_parser() -> argparse.ArgumentParser:
         help="directory searched recursively for the mp4 files; repeatable",
     )
 
+    coverage = sub.add_parser(
+        "video-coverage", help="report scene and fallback video rows per guide (D-18)"
+    )
+    coverage.add_argument("--artifact-dir", type=Path, default=None)
+    coverage.add_argument(
+        "--guides-dir",
+        type=Path,
+        default=None,
+        help="project the report from this Guides working tree instead of the published index",
+    )
+
     index = sub.add_parser("guides-index", help="write GUIDES_INDEX.md into a Guides checkout")
     index.add_argument("--checkout", required=True, type=Path, help="Guides checkout directory")
 
@@ -222,8 +235,23 @@ def _guides_index(checkout: Path) -> int:
     return 0
 
 
+def _artifact_root(artifact_dir: Path | None) -> Path:
+    return artifact_dir or Path(os.environ.get("ARTIFACT_DIR") or DEFAULT_ARTIFACT_DIR)
+
+
+def _video_coverage(artifact_dir: Path | None, guides_dir: Path | None) -> int:
+    index_path = _artifact_root(artifact_dir) / INDEX_NAME
+    rows = (
+        coverage_from_index(index_path)
+        if guides_dir is None
+        else coverage_from_tree(guides_dir, index_path)
+    )
+    print(format_report(rows))
+    return 0
+
+
 def _search(query: str, limit: int, artifact_dir: Path | None) -> int:
-    root = artifact_dir or Path(os.environ.get("ARTIFACT_DIR") or DEFAULT_ARTIFACT_DIR)
+    root = _artifact_root(artifact_dir)
     with open_index(root / INDEX_NAME) as reader:
         for hit in reader.search_guides(query, limit):
             chunk = hit.chunk
@@ -266,6 +294,8 @@ def main(
                 return _publish(bucket_factory or GcsBucket)
             case "upload-videos":
                 return _upload_videos(args.guides_dir, args.videos_dir, bucket_factory or GcsBucket)
+            case "video-coverage":
+                return _video_coverage(args.artifact_dir, args.guides_dir)
             case "guides-index":
                 return _guides_index(args.checkout)
             case _:
