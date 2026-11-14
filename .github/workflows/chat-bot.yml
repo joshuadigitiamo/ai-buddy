@@ -1,0 +1,49 @@
+# Chat bot pipeline (INFRA-05, INFRA-06, D-04): test, then build, push and deploy.
+#
+# The paths are the COPY sources of the chat_bot stage in the Dockerfile plus what renders and
+# deploys it. The bot image copies two files of the MCP server (buddy_mcp/__init__.py and models.py),
+# so those two trigger this workflow as well as mcp-server.yml; every other server file triggers only
+# mcp-server.yml. deploy/meridian.version is listed because the rendered service pins the sidecar tag.
+# tests/unit/test_workflows.py fails when the paths drift from the Dockerfile.
+name: chat-bot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/chat_bot/**"
+      - "packages/buddy_core/**"
+      - "services/mcp_server/buddy_mcp/__init__.py"
+      - "services/mcp_server/buddy_mcp/models.py"
+      - "requirements.txt"
+      - "Dockerfile"
+      - "deploy/cloudrun/chat-bot.yaml"
+      - "deploy/meridian.version"
+      - "scripts/render-cloudrun.sh"
+      - ".github/workflows/chat-bot.yml"
+      - ".github/workflows/_test.yml"
+      - ".github/workflows/_deploy.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+# Deploys never cancel one another: two quick pushes deploy one after the other.
+concurrency:
+  group: deploy-chat-bot
+  cancel-in-progress: false
+
+jobs:
+  test:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/_test.yml
+
+  deploy:
+    needs: test
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      service: chat-bot
+      target: chat_bot

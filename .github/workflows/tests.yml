@@ -1,0 +1,30 @@
+# Test-only pipeline: runs the full test gate for changes that no service image copies.
+#
+# Service workflows already run the same gate for their own paths. This one covers the rest: tests,
+# tool configuration, the compose files and the scripts, so a broken test or manifest is caught even
+# when no image is rebuilt. It builds nothing and has no cloud access.
+name: tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tests/**"
+      - "pyproject.toml"
+      - "requirements-dev.txt"
+      - "run-unit-tests.sh"
+      - "docker-compose*.yml"
+      - "deploy/k8s/**"
+      - "deploy/compose/**"
+      - "scripts/**"
+      - ".github/workflows/tests.yml"
+      - ".github/workflows/_test.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  test:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/_test.yml

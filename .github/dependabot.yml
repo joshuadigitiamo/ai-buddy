@@ -1,0 +1,8 @@
+# Weekly pull requests that move the SHA-pinned third-party actions to their newest release.
+# The commit pin stays in place and the version comment next to it is updated with it.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

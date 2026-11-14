@@ -1,0 +1,93 @@
+# Meridian sidecar image (D-14): built only from the commit recorded in deploy/meridian.version.
+#
+# Meridian is a third-party proxy that holds a Claude Max login. Its source is never taken from a
+# branch or a tag: a change to deploy/meridian.version (reviewed in a commit) is the only way a new
+# build starts. The chat-bot deploy refuses to run when the tag built here is missing in the registry.
+# The job is skipped while the variable GCP_PROJECT_ID is unset (before the bootstrap in 04-13).
+name: meridian
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "deploy/meridian.version"
+      - ".github/workflows/meridian.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+# Pushes never cancel one another: a second push builds after the first.
+concurrency:
+  group: deploy-meridian
+  cancel-in-progress: false
+
+jobs:
+  test:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/_test.yml
+
+  push:
+    needs: test
+    if: vars.GCP_PROJECT_ID != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read the approved Meridian commit
+        id: version
+        run: |
+          sha="$(tr -d '[:space:]' < deploy/meridian.version)"
+          if ! [[ "${sha}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::deploy/meridian.version must hold a full 40-character commit"
+            exit 1
+          fi
+          echo "sha=${sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Mask the project identifiers in the public log
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+          DEPLOYER_SA: ${{ vars.GCP_DEPLOYER_SA }}
+          WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+        run: |
+          for value in "${PROJECT_ID}" "${PROJECT_NUMBER}" "${DEPLOYER_SA}" "${WIF_PROVIDER}"; do
+            if [ -n "${value}" ]; then
+              echo "::add-mask::${value}"
+            fi
+          done
+
+      - name: Authenticate to Google Cloud with Workload Identity Federation
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+          token_format: access_token
+
+      - name: Log in to Artifact Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: europe-west8-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build Meridian from the approved commit and push it
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: https://github.com/rynfar/meridian.git#${{ steps.version.outputs.sha }}
+          push: true
+          tags: europe-west8-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/ai-buddy/meridian:${{ steps.version.outputs.sha }}
