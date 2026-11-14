@@ -50,8 +50,8 @@ Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requireme
 
 ### Infrastructure and CI/CD
 
-- [ ] **INFRA-01**: One Dockerfile per service (`mcp_server`, `chat_bot`, `jobs/sync`) on Python 3.12; the same image is used in compose, kind and Cloud Run.
-- [ ] **INFRA-02**: `docker compose` starts all services plus Firestore and Pub/Sub emulators with separate services, and a chat event completes a round trip locally.
+- [x] **INFRA-01**: One Dockerfile per service (`mcp_server`, `chat_bot`, `jobs/sync`) on Python 3.12; the same image is used in compose, kind and Cloud Run.
+- [x] **INFRA-02**: `docker compose` starts all services plus Firestore and Pub/Sub emulators with separate services, and a chat event completes a round trip locally.
 - [ ] **INFRA-03**: kind manifests (Kustomize base + overlays) deploy the services to a local kind cluster, and pass manifest validation (KUBERNETES_GUIDE).
 - [ ] **INFRA-04**: Cloud Run service/job YAMLs for `mcp_server`, `chat_bot` and the sync job (europe-west8, request-based, scale-to-zero, stateless), with a nightly Cloud Scheduler trigger for sync and the `ArtifactStore` implementation chosen in Phase 4 per D-12 (bucket read or baked image) wired in.
 - [ ] **INFRA-05**: GitHub Actions workflows are path-filtered per service: build, push to Artifact Registry, deploy, authenticating with Workload Identity Federation (no key files or long-lived credentials).
@@ -139,8 +139,8 @@ Each requirement maps to exactly one phase. Updated during roadmap creation.
 | BOT-09 | Phase 3 | Complete |
 | BOT-10 | Phase 3 | Complete |
 | BOT-11 | Phase 3 | Complete |
-| INFRA-01 | Phase 4 | Pending |
-| INFRA-02 | Phase 4 | Pending |
+| INFRA-01 | Phase 4 | Complete |
+| INFRA-02 | Phase 4 | Complete |
 | INFRA-03 | Phase 4 | Pending |
 | INFRA-04 | Phase 4 | Pending |
 | INFRA-05 | Phase 4 | Pending |
