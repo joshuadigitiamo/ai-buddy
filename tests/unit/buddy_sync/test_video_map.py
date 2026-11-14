@@ -172,6 +172,27 @@ def test_guide_with_video_but_no_map_uses_readme_fallback() -> None:
         )
 
 
+def test_unmapped_section_after_a_mapped_one_keeps_the_fallback_and_does_not_inherit() -> None:
+    """D-18, 04-01 coverage_inheritance (a): no offset is borrowed from the section before."""
+    links = resolve()
+    chunks = multi_chunks()
+    mapped, appendix = by_key(links, chunks[5]), by_key(links, chunks[6])  # Other, then Appendix
+    assert (mapped.source, mapped.part, mapped.start_seconds) == ("scene", 2, 0.0)
+    assert (appendix.source, appendix.part, appendix.start_seconds) == ("readme_fallback", 2, None)
+    assert appendix.video_url == mapped.video_url
+    assert "#t=" not in video_link(appendix)
+    only = by_key(links, demo_chunks()[2])  # follows the mapped Basics sections of the same part
+    assert (only.source, only.start_seconds) == ("readme_fallback", None)
+    assert "#t=" not in video_link(only)
+
+
+def test_only_scene_links_carry_an_offset_and_no_inherited_source_exists() -> None:
+    links = resolve()
+    assert {link.source for link in links.values()} == {"scene", "readme_fallback"}
+    for link in links.values():
+        assert (link.start_seconds is not None) == (link.source == "scene")
+
+
 def test_guide_without_video_gets_no_entry() -> None:
     chunks = all_chunks()
     links = resolve()
