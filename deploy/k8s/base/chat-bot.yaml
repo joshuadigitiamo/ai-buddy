@@ -1,0 +1,186 @@
+# Chat bot with Meridian as a native sidecar (initContainers entry with restartPolicy Always),
+# mirroring the Cloud Run sidecar: the bot reaches the LLM proxy at http://localhost:3456.
+# No Secret is defined here; the Secrets named below (meridian-credentials, bot-secrets) are
+# created imperatively by scripts/kind-up.sh and only their names appear in git.
+#
+# The bot has no HTTP port in Pub/Sub intake mode, so it has no HTTP probe. Meridian listens on
+# the loopback only (no other pod can reach it), and kubelet httpGet probes target the pod IP, so
+# Meridian's probes run inside its container with node (the same way its own HEALTHCHECK does).
+# Start-up and readiness use /health (200 once the login is read); /readyz is not usable here
+# because it also needs a Meridian profile and answers 503 "no profiles configured" for the
+# single credentials file this deployment seeds. Liveness uses /livez.
+# Meridian runs with MERIDIAN_CREDENTIALS_READONLY=1: this copy never refreshes or writes the
+# OAuth credentials, so it cannot invalidate the token chain used elsewhere (04-01 token_chain).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-bot
+  labels:
+    app.kubernetes.io/name: chat-bot
+    app.kubernetes.io/part-of: ai-buddy
+    app.kubernetes.io/component: chat-bot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: chat-bot
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: chat-bot
+        app.kubernetes.io/part-of: ai-buddy
+        app.kubernetes.io/component: chat-bot
+    spec:
+      automountServiceAccountToken: false
+      initContainers:
+        # Copies the read-only Secret file into a writable emptyDir so Meridian finds its usual
+        # credentials directory. Runs as the Meridian image user (uid 1000), the owner Meridian expects.
+        - name: seed-credentials
+          image: ai-buddy/meridian
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - cp /secrets/.credentials.json /home/claude/.claude/.credentials.json && chmod 600 /home/claude/.claude/.credentials.json
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: meridian-credentials
+              mountPath: /secrets
+              readOnly: true
+            - name: meridian-home
+              mountPath: /home/claude/.claude
+        - name: meridian
+          image: ai-buddy/meridian
+          imagePullPolicy: IfNotPresent
+          restartPolicy: Always
+          env:
+            - name: MERIDIAN_HOST
+              value: 127.0.0.1
+            - name: MERIDIAN_PORT
+              value: "3456"
+            - name: MERIDIAN_HOST_ID
+              value: meridian-kind
+            - name: MERIDIAN_SILENT
+              value: "1"
+            - name: MERIDIAN_CREDENTIALS_READONLY
+              value: "1"
+            - name: MERIDIAN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bot-secrets
+                  key: MERIDIAN_API_KEY
+          startupProbe:
+            exec:
+              command:
+                - node
+                - -e
+                - fetch('http://127.0.0.1:3456/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+            periodSeconds: 3
+            timeoutSeconds: 5
+            failureThreshold: 40
+          readinessProbe:
+            exec:
+              command:
+                - node
+                - -e
+                - fetch('http://127.0.0.1:3456/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - node
+                - -e
+                - fetch('http://127.0.0.1:3456/livez').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: meridian-home
+              mountPath: /home/claude/.claude
+      containers:
+        - name: chat-bot
+          image: ai-buddy/chat-bot
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: LLM_BACKEND
+              value: meridian
+            - name: LLM_BASE_URL
+              value: http://localhost:3456
+            - name: MCP_URL
+              value: http://mcp-server:8000/mcp
+            - name: INTAKE
+              value: pubsub
+            - name: LANGSMITH_TRACING
+              value: "false"
+            - name: HOME
+              value: /tmp
+            - name: THREAD_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bot-secrets
+                  key: THREAD_KEY_SECRET
+            - name: MERIDIAN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bot-secrets
+                  key: MERIDIAN_API_KEY
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: meridian-home
+          emptyDir: {}
+        - name: meridian-credentials
+          secret:
+            secretName: meridian-credentials

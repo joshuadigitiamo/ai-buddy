@@ -11,3 +11,16 @@ spec:
           envFrom:
             - configMapRef:
                 name: mcp-server-local
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-bot
+spec:
+  template:
+    spec:
+      containers:
+        - name: chat-bot
+          envFrom:
+            - configMapRef:
+                name: chat-bot-local

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # In-cluster smoke for the kind dev overlay (INFRA-03, ROADMAP criterion 2).
 #
-# From a one-off pod (the already loaded mcp-server image, no new image) it GETs
+# It requires the pubsub-init Job complete and the chat-bot pod Ready (Meridian sidecar started),
+# then, from a one-off pod (the already loaded mcp-server image, no new image), it GETs
 # http://mcp-server:8000/healthz and POSTs one tools/call guides_search to the MCP server by its
 # Service name. The last line printed is the success marker; any failure exits non-zero.
 #
@@ -26,8 +27,16 @@ die() { echo "[kind-smoke] ERROR: $*" >&2; exit 1; }
 [[ "${SMOKE_QUERY}" =~ ^[^\"\\]+$ ]] || die "SMOKE_QUERY must not contain double quotes or backslashes"
 [[ -f "${KUBECONFIG}" ]] || die "no kubeconfig at ${KUBECONFIG}; run scripts/kind-up.sh first"
 
-log "Waiting for the mcp-server rollout ..."
+log "Waiting for the mcp-server rollout, the pubsub-init Job and the chat-bot pod ..."
 kubectl -n "${NAMESPACE}" rollout status deployment/mcp-server --timeout="${WAIT_TIMEOUT}"
+kubectl -n "${NAMESPACE}" wait --for=condition=complete job/pubsub-init --timeout="${WAIT_TIMEOUT}"
+kubectl -n "${NAMESPACE}" wait --for=condition=Ready pod -l app.kubernetes.io/name=chat-bot \
+  --timeout="${WAIT_TIMEOUT}"
+# Ready covers every container, the Meridian native sidecar included; this names it explicitly.
+SIDECAR_STARTED="$(kubectl -n "${NAMESPACE}" get pod -l app.kubernetes.io/name=chat-bot \
+  -o jsonpath='{.items[0].status.initContainerStatuses[?(@.name=="meridian")].started}')"
+[[ "${SIDECAR_STARTED}" == "true" ]] || die "the Meridian sidecar of the chat-bot pod is not started"
+log "pubsub-init complete, chat-bot Ready, Meridian sidecar started"
 
 PROBE='
 import json, os, sys, urllib.request

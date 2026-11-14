@@ -4,3 +4,6 @@ kind: Kustomization
 # injected, so a selector never changes behind a reader's back.
 resources:
   - mcp-server.yaml
+  - emulators.yaml
+  - pubsub-init.yaml
+  - chat-bot.yaml

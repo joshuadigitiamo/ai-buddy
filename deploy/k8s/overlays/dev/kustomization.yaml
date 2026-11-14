@@ -5,9 +5,14 @@ resources:
   - ../../base
   - namespace.yaml
 # Tags match what scripts/kind-up.sh builds and loads into the node; nothing is pulled or pushed.
+# The Meridian tag is the commit in deploy/meridian.version (a unit test asserts they are equal).
 images:
   - name: ai-buddy/mcp-server
     newTag: dev
+  - name: ai-buddy/chat-bot
+    newTag: dev
+  - name: ai-buddy/meridian
+    newTag: cafdcf780f1b40c8f0dee17481132f47b4cbb353
 # Non-secret configuration only. Secrets are created by scripts/kind-up.sh, never written here.
 configMapGenerator:
   - name: mcp-server-local
@@ -20,7 +25,22 @@ configMapGenerator:
       - ARTIFACT_DIR=/artifacts
       - MCP_ALLOWED_HOSTS=mcp-server
       - GUIDES_WEB_BASE=https://github.com/example-org/guides
+      - FIRESTORE_EMULATOR_HOST=firestore-emulator:8080
       - GOOGLE_CLOUD_PROJECT=demo-ai-buddy
+  - name: chat-bot-local
+    options:
+      disableNameSuffixHash: true
+    literals:
+      - DEPLOY_ENV=local
+      - MCP_AUTH=none
+      - CHAT_API=recording
+      - CHAT_RECORD_PATH=/tmp/chat.jsonl
+      - PUBSUB_SUBSCRIPTION=projects/demo-ai-buddy/subscriptions/chat-events
+      - PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
+      - FIRESTORE_EMULATOR_HOST=firestore-emulator:8080
+      - GOOGLE_CLOUD_PROJECT=demo-ai-buddy
+      - ALLOWED_USERS=users/111111111111111111111
+      - VIDEO_THUMBNAIL_URL=https://example.invalid/video-thumbnail.png
 patches:
   - path: local-env.yaml
   - path: artifacts-hostpath.yaml
