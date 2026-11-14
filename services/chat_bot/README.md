@@ -17,13 +17,13 @@ The bot is a client of the MCP server (`MCP_URL`); it contains no search code an
 
 ## Run it locally
 
-The live development stack is `docker-compose.dev.yml` at the repository root: Meridian, the MCP server, the bot and the Firestore emulator. No service publishes a port to the host. Phase 4 replaces this file with the real deployment definitions.
+`docker-compose.yml` at the repository root runs everything. Its default services are hermetic (both emulators, the sync job, the MCP server, a stub LLM and this bot with the recording Chat adapter), see "Hermetic smoke" below. Its `live` profile is the real stack: Meridian, the MCP server and this bot against the real Chat API and Joshua's Max login. No service publishes a port to the host.
 
 ### Prerequisites
 
 - A Google Cloud project with the Chat API and the Pub/Sub API enabled, the Chat app configured as described below, and a pull subscription on the Chat topic.
 - A service-account key file for the bot, kept **outside** the repository.
-- A published index in `./artifacts` (see `jobs/sync/README.md`), or any directory set in `ARTIFACTS_DIR`.
+- The handbook snapshot folder and a checkout of the Guides repository. The `sync` service of the compose file builds the index from them into the `artifacts` volume (see `jobs/sync/README.md` for what it reads).
 - Joshua's Claude login on the host (`~/.claude/.credentials.json`), used once to seed Meridian.
 
 ### Seed the Meridian credentials (once)
@@ -39,34 +39,48 @@ docker run --rm \
     && chown -R 1000:1000 /dest && chmod 600 /dest/.credentials.json'
 ```
 
-The compose file declares the volume `external: true`, so `docker compose up` refuses to start until it exists. Uid 1000 is the user Meridian runs as. If the login expires or is revoked, repeat the seeding with a fresh login.
+The compose file declares the volume `external: true`, so the `live` profile refuses to start until it exists. Compose keeps this volume writable, so Meridian can refresh its own login (04-01 token_chain (b)). Uid 1000 is the user Meridian runs as. If the login expires or is revoked, repeat the seeding with a fresh login.
 
 ### Start
 
-Put the variables below in `.env` (gitignored), export the key file path, then start the stack:
+Put the variables below in `.env` (gitignored), export the host paths, then start the live profile. Name the services: without names, compose would also start the hermetic bot.
 
 ```bash
 export BOT_SA_KEY_FILE=/path/outside/the/repo/bot-sa-key.json
-docker compose -f docker-compose.dev.yml up --build
+export HANDBOOK_SRC_DIR=/path/to/the/handbook/snapshot
+export GUIDES_SRC_DIR=/path/to/the/Guides/checkout
+docker compose --profile live up --build mcp-server meridian chat-bot-live
 ```
 
-Compose reads `MERIDIAN_API_KEY` and `GOOGLE_CLOUD_PROJECT` from `.env` and refuses to start without them. Compose-only host variables:
+`mcp-server` depends on the `sync` one-shot, so compose runs the sync over those two folders first and the server waits for it to finish successfully. Compose reads `MERIDIAN_API_KEY` from `.env` and refuses to start without it. Compose-only host variables:
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
 | `BOT_SA_KEY_FILE` | none, required | Host path of the bot service-account key. Mounted read-only at `/secrets/bot-sa.json`. |
-| `ARTIFACTS_DIR` | `./artifacts` | Host directory with the published index. Mounted read-only into the MCP server. |
-| `BOT_UID`, `BOT_GID` | `1000`, `1000` | User the bot container runs as in dev. The image's own user (10001) cannot read a key file kept at mode 600, so dev uses the host user instead. |
+| `HANDBOOK_SRC_DIR` | none, required | Handbook snapshot folder. Mounted read-only into `sync`. |
+| `GUIDES_SRC_DIR` | none, required | Guides git checkout. Mounted read-only into `sync`; only committed content is indexed. |
+| `REDACT_PAGE_FILES` | none, required | Comma-separated handbook page files kept out of the index. Compose refuses an unset or empty value, so name at least one page file. |
+| `HOST_UID`, `HOST_GID` | `1000`, `1000` | User the live bot container runs as. The image's own user (10001) cannot read a key file kept at mode 600, so the live bot uses the host user instead. |
 
-The compose file sets these for the bot itself: `INTAKE=pubsub`, `LLM_BACKEND=meridian`, `LLM_BASE_URL=http://meridian:3456`, `MCP_URL=http://localhost:8000/mcp` (the bot shares the MCP server's network namespace, because the server admits plain http only for loopback hosts), `DEPLOY_ENV=local`, `MCP_AUTH=none`, `PORT=8080`, `FIRESTORE_EMULATOR_HOST=firestore:8080`, `LANGSMITH_TRACING=false`.
+The index lives in the named volume `artifacts`, owned by uid 10001, which the images run as. If you point a container at a host directory for the artifacts instead (for example `docker run -v "$PWD/artifacts:/artifacts" ...`), that directory must be writable by uid 10001, or the container must run with `--user "$(id -u):$(id -g)"`.
 
-`PORT` matters: `.env.example` has `PORT=8000`, which is the MCP server's port. The compose file sets the bot's `PORT` explicitly so that value does not leak in.
+The live bot gets from compose: `INTAKE=pubsub`, `CHAT_API=google`, `LLM_BACKEND=meridian`, `LLM_BASE_URL=http://meridian:3456`, `MCP_URL=http://mcp-server:8000/mcp` (the bot calls the Service name, which the server admits through `MCP_ALLOWED_HOSTS=mcp-server`), `DEPLOY_ENV=local`, `MCP_AUTH=none`, `PORT=8080`, `FIRESTORE_EMULATOR_HOST=firestore:8080`, `LANGSMITH_TRACING=false`. `PUBSUB_SUBSCRIPTION` and your other settings come from `.env`; the live bot has no `PUBSUB_EMULATOR_HOST`, so it pulls the real subscription.
 
-The Firestore emulator holds the thread memory and the gap log in dev. It is lost on restart, which is fine for development. Read the gap log from the emulator:
+`PORT` matters: `.env.example` has `PORT=8000`, which is the MCP server's port. The compose file sets the live bot's `PORT` explicitly so that value does not leak in.
+
+The Firestore emulator holds the thread memory and the gap log in compose. It is lost on restart, which is fine for development. The MCP server writes gaps under the project `demo-ai-buddy`. Read the gap log from the emulator:
 
 ```bash
-docker compose -f docker-compose.dev.yml exec firestore curl -s \
-  "http://localhost:8080/v1/projects/$GOOGLE_CLOUD_PROJECT/databases/(default)/documents/gaps"
+docker compose --profile live exec firestore curl -s \
+  "http://localhost:8080/v1/projects/demo-ai-buddy/databases/(default)/documents/gaps"
+```
+
+### Hermetic smoke
+
+`scripts/compose-smoke.sh` runs the default compose services with no real service involved: it builds a throwaway Guides git repository from the fixtures, starts both emulators, the sync one-shot, the MCP server, a stub LLM (`deploy/compose/stub_llm.py`) and this bot with `CHAT_API=recording`, publishes `tests/fixtures/chat_events/legacy_dm_message.json` to the Pub/Sub emulator topic and waits until the recorded final message carries `Fonte: Manuale` and `handbook://02-ferie`. It prints `round trip ok` and exits 0, or exits non-zero with `timeout after N s` after `SMOKE_TIMEOUT_SECONDS` (default 120), printing the last service log lines. It tears the stack and its volume down on exit. The recording file is `/tmp/chat.jsonl` inside the `chat-bot` container. Redelivery of the same Pub/Sub message is not exercised here; the per-process message-name dedupe covers it.
+
+```bash
+scripts/compose-smoke.sh
 ```
 
 ## Environment variables
@@ -127,7 +141,7 @@ These cannot be set from code. Configure them in Google Cloud Console, Google Ch
   - **Legacy format** (non-add-on apps only): `chat-api-push@system.gserviceaccount.com`.
   - The grant is on the topic itself, not on the project, and that single service account is the only publisher. Remove the grant of the format you do not use.
 - Grant `roles/pubsub.subscriber` on the subscription to the bot service account.
-- The bot service-account key stays outside the repository. Its path goes in the `BOT_SA_KEY_FILE` environment variable of your shell and the compose file mounts it read-only. It is never in `.env.example`, this README or the repository.
+- The bot service-account key stays outside the repository. Its path goes in the `BOT_SA_KEY_FILE` environment variable of your shell and the `live` profile of the compose file mounts it read-only. The hermetic default stack has no key and no credentials at all. It is never in `.env.example`, this README or the repository.
 
 ## ALLOWED_USERS
 
@@ -141,8 +155,8 @@ Chat events do not always carry `user.email`. If yours do not, use the id. To le
 
 Meridian is a third-party proxy that lets the bot use Joshua's Claude Max login through the Anthropic Messages API (D1a). It is for one person only, and only while Joshua is the sole user.
 
-- It is built only from the source commit approved at 03-01 (pinned in `docker-compose.dev.yml` as a 40-character SHA), with the repository's own Dockerfile.
-- It publishes no port. It is reachable only on the compose network, at `http://meridian:3456`, and every API route requires `MERIDIAN_API_KEY`.
+- It is built only from the source commit approved at 03-01 (pinned in `docker-compose.yml` as a 40-character SHA that equals `deploy/meridian.version`), with the repository's own Dockerfile.
+- It belongs to the `live` profile, publishes no port and is reachable only on the compose network, at `http://meridian:3456`; every API route requires `MERIDIAN_API_KEY`.
 - Its credentials are the `meridian-claude` volume described above, never an image layer and never the host `~/.claude`.
 - Auth header: the Anthropic SDK sends the key as `Authorization: Bearer`, and Meridian accepted it at the live check (2026-11-07). No `x-api-key` override is needed.
 - Logging: the compose file sets `MERIDIAN_SILENT=1`, which drops Meridian's routine per-request `[PROXY]` stderr lines. At the pinned commit the `msgs=` field of that line holds only roles and content types (for example `user[string]`), never question text, but the flag keeps a later change from printing prompts unnoticed (BOT-11). Meridian has no other logging option, and `MERIDIAN_DEBUG` must stay unset: it turns on verbose request and session logging.

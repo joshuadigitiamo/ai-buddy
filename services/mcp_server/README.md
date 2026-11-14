@@ -53,13 +53,29 @@ docker run --rm --env-file .env -p 127.0.0.1:8000:8000 \
 
 The index is read once, at cold start. After a new sync, restart the server.
 
+### With compose
+
+`docker-compose.yml` at the repository root runs the server from this image next to the `sync` one-shot, both emulators, a stub LLM and the chat bot. The server uses `ARTIFACT_STORE=local` over the named volume `artifacts`, which `sync` writes and the server mounts read-only; compose starts the server only after `sync` exits successfully, so an empty handbook folder never gives an empty or stale index. The bot calls the server at `http://mcp-server:8000/mcp`, and the server lists `mcp-server` in `MCP_ALLOWED_HOSTS` so its Host guard admits that name on plain http (`DEPLOY_ENV=local`, `AUTH_MODE=off`). The compose healthcheck calls `/healthz`. The images run as uid 10001: a host directory used for the artifacts instead of the named volume must be writable by that uid, or the container must run with `--user`. `scripts/compose-smoke.sh` proves the whole path offline (see `services/chat_bot/README.md`, "Hermetic smoke").
+
+### Where the index comes from
+
+The server loads one published `index.db`, and which store it comes from depends on the deployment:
+
+- **Compose and kind (D-10):** a local directory, `ARTIFACT_DIR`, filled by the `sync` job.
+- **Cloud Run (D-06):** a private bucket, `ARTIFACT_BUCKET` under `ARTIFACT_PREFIX`. The server reads the pointer `<prefix>index.manifest.json` first, then the object `index-<build_id>.db` that the pointer names. Publishing writes the pointer last, so a reader never sees a pointer to an object that is not there yet.
+- Before loading, the server checks the sha256 and the size recorded in the pointer against the downloaded object, and refuses a mismatch with a fixed error text.
+- The index is loaded at cold start only. A new revision picks up a new index (D-08); an already running revision keeps the index it started with.
+
 ## Environment variables
 
 Every setting comes from the environment (`--env-file .env`; no env file is read by the code). `.env.example` lists the non-secret variables; `.env` is gitignored.
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
-| `ARTIFACT_DIR` | none, required | Directory holding the published `index.db`. It is never created or written by the server. |
+| `ARTIFACT_STORE` | `local` | `local` or `gcs`. `local` reads the published index from `ARTIFACT_DIR` (compose and kind, D-10); `gcs` reads it from a private bucket (Cloud Run, D-06). See the index-source paragraph below. |
+| `ARTIFACT_DIR` | none, required with `ARTIFACT_STORE=local` | Directory holding the published `index.db`. It is never created or written by the server. With `gcs` it is optional and names the directory for the server's disposable local copy (default `/tmp/buddy-index`). |
+| `ARTIFACT_BUCKET` | none, required with `ARTIFACT_STORE=gcs` | Name of the private bucket that holds the published index. |
+| `ARTIFACT_PREFIX` | empty | Object-name prefix inside the bucket; the pointer is `<prefix>index.manifest.json`. |
 | `GUIDES_WEB_BASE` | none, required | `https://` base URL of the Guides repository, used to build Guides `source_url` links. |
 | `GOOGLE_CLOUD_PROJECT` | none, required | Project of the Firestore that stores gaps and, with `OAUTH_STORAGE=firestore`, OAuth state. |
 | `MCP_HOST` | `0.0.0.0` | Interface to bind. |

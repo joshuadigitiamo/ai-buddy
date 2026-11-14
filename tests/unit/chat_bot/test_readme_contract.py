@@ -69,4 +69,7 @@ def test_readme_documents_markdown_syntax_and_silent_meridian() -> None:
     text = _text()
     assert "Markup syntax: MARKDOWN" in text
     assert "MERIDIAN_SILENT=1" in text
-    assert "network namespace" in text
+    # 04-06: compose no longer shares the server's network namespace; the bot calls the Service
+    # name and the server admits it through MCP_ALLOWED_HOSTS.
+    assert "MCP_ALLOWED_HOSTS=mcp-server" in text
+    assert "network namespace" not in text

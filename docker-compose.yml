@@ -180,5 +180,64 @@ services:
       firestore:
         condition: service_healthy
 
+  # ---- profile live: Joshua's real Chat bot and Meridian (replaces docker-compose.dev.yml) ----
+
+  # Built only from the commit in deploy/meridian.version (approved at 03-01; test_compose.py
+  # asserts the SHA below equals that file).
+  meridian:
+    profiles: [live]
+    build:
+      context: https://github.com/rynfar/meridian.git#cafdcf780f1b40c8f0dee17481132f47b4cbb353
+    environment:
+      MERIDIAN_HOST: 0.0.0.0
+      MERIDIAN_PORT: "3456"
+      MERIDIAN_HOST_ID: meridian-dev
+      MERIDIAN_API_KEY: ${MERIDIAN_API_KEY:?set MERIDIAN_API_KEY in .env}
+      # BOT-11: drops Meridian's routine per-request [PROXY] stderr lines (docs/configuration.md).
+      # Meridian has no other option to reduce request logging; debug flags stay unset.
+      MERIDIAN_SILENT: "1"
+    volumes:
+      - meridian-claude:/home/claude/.claude
+
+  chat-bot-live:
+    profiles: [live]
+    build:
+      context: .
+      target: chat_bot
+    # The image runs as uid 10001, which cannot read a key file kept at mode 600 by its owner.
+    # Live use runs as the host user instead, so the key file needs no chmod.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      HOME: /tmp
+      # MCP_AUTH=none is accepted only with DEPLOY_ENV=local; local is refused under K_SERVICE.
+      DEPLOY_ENV: local
+      INTAKE: pubsub
+      CHAT_API: google
+      LLM_BACKEND: meridian
+      LLM_BASE_URL: http://meridian:3456
+      MERIDIAN_API_KEY: ${MERIDIAN_API_KEY:?set MERIDIAN_API_KEY in .env}
+      # The Service name, admitted by the server's MCP_ALLOWED_HOSTS (same rule in kind).
+      MCP_URL: http://mcp-server:8000/mcp
+      MCP_AUTH: none
+      # .env carries the MCP server's PORT=8000; the bot's own port is set here.
+      PORT: "8080"
+      FIRESTORE_EMULATOR_HOST: firestore:8080
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/bot-sa.json
+      LANGSMITH_TRACING: "false"
+    volumes:
+      - ${BOT_SA_KEY_FILE:?set BOT_SA_KEY_FILE (path of the bot service-account key)}:/secrets/bot-sa.json:ro
+    depends_on:
+      meridian:
+        condition: service_started
+      mcp-server:
+        condition: service_healthy
+      firestore:
+        condition: service_healthy
+
 volumes:
   artifacts:
+  meridian-claude:
+    external: true
