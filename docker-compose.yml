@@ -1,0 +1,184 @@
+# INFRA-02 stack: the whole system from the per-service images, with both emulators.
+#
+# The default services are hermetic: Firestore and Pub/Sub emulators, a stub LLM, the recording
+# Chat adapter and the demo-ai-buddy project id. Nothing reaches the real Google Chat API,
+# Joshua's Max session, a service-account key or a real GCP project.
+#
+#   HANDBOOK_SRC_DIR=... GUIDES_SRC_DIR=... REDACT_PAGE_FILES=... THREAD_KEY_SECRET=... \
+#     docker compose up --build
+#   scripts/compose-smoke.sh        # hermetic round trip over the repository fixtures
+#
+# Start order is fixed by depends_on conditions: firestore and pubsub healthy, then pubsub-init
+# and the sync one-shot completed successfully, then mcp-server healthy, then chat-bot. A failed
+# sync (for example an empty handbook folder) therefore keeps mcp-server and chat-bot down.
+#
+# No service publishes a port to the host; secrets come only by ${...} interpolation.
+# The images run as uid 10001: a host directory mounted for writing must be writable by that
+# uid, or the container must run with --user. Host read-only inputs must be world-readable.
+#
+# Host variables read by compose: HANDBOOK_SRC_DIR, GUIDES_SRC_DIR, REDACT_PAGE_FILES,
+# THREAD_KEY_SECRET (at least 32 characters), GUIDES_BRANCH, GUIDES_WEB_BASE, VIDEO_THUMBNAIL_URL,
+# and for the live profile MERIDIAN_API_KEY, BOT_SA_KEY_FILE, HOST_UID and HOST_GID.
+#
+# Profile `live` is Joshua's real Chat bot and Meridian (it replaces docker-compose.dev.yml):
+#   docker compose --profile live up mcp-server meridian chat-bot-live
+# with HANDBOOK_SRC_DIR and GUIDES_SRC_DIR pointing at the real snapshot and Guides checkout
+# (run the sync service once first so the artifacts volume holds an index).
+# - Meridian credentials live in the external named volume `meridian-claude` (03-01 decision,
+#   04-01 token_chain (b)): seed it once as services/chat_bot/README.md describes. They are never
+#   baked into an image and the host ~/.claude is never mounted. The compose Meridian stays
+#   writable so it can refresh its own login.
+# - Meridian is built only from the commit recorded in deploy/meridian.version.
+services:
+  firestore:
+    image: google/cloud-sdk:592.0.0-emulators
+    command: gcloud emulators firestore start --host-port=0.0.0.0:8080
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/"]
+      interval: 2s
+      timeout: 3s
+      retries: 45
+
+  pubsub:
+    image: google/cloud-sdk:592.0.0-emulators
+    command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=demo-ai-buddy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8085/"]
+      interval: 2s
+      timeout: 3s
+      retries: 45
+
+  # Creates the topic and subscription through the emulator REST API; 200 and 409 both mean ready.
+  pubsub-init:
+    image: google/cloud-sdk:592.0.0-emulators
+    restart: "no"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        base=http://pubsub:8085/v1/projects/demo-ai-buddy
+        put() {
+          code=$$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Type: application/json' -d "$$2" "$$base/$$1")
+          case "$$code" in 200|409) ;; *) echo "pubsub-init: $$1 returned $$code" >&2; exit 1 ;; esac
+        }
+        put topics/chat-events '{}'
+        put subscriptions/chat-events '{"topic":"projects/demo-ai-buddy/topics/chat-events"}'
+        echo "pubsub-init: topic and subscription ready"
+    depends_on:
+      pubsub:
+        condition: service_healthy
+
+  # One-shot: builds index.db from the read-only handbook snapshot and Guides checkout into the
+  # artifacts volume (D-10: compose serves a local store). A non-zero exit keeps the stack down.
+  sync:
+    build:
+      context: .
+      target: sync
+    restart: "no"
+    environment:
+      HANDBOOK_DIR: /handbook
+      GUIDES_REPO_URL: /guides-src
+      GUIDES_BRANCH: ${GUIDES_BRANCH:-master}
+      GUIDES_CHECKOUT_DIR: /app/.cache/guides
+      ARTIFACT_DIR: /artifacts
+      REDACT_PAGE_FILES: ${REDACT_PAGE_FILES:?set REDACT_PAGE_FILES (comma-separated page files kept out of the index)}
+    # Long syntax so a relative HANDBOOK_SRC_DIR or GUIDES_SRC_DIR is read as a path, never as a
+    # named volume.
+    volumes:
+      - type: bind
+        source: ${HANDBOOK_SRC_DIR:?set HANDBOOK_SRC_DIR (handbook snapshot folder)}
+        target: /handbook
+        read_only: true
+      - type: bind
+        source: ${GUIDES_SRC_DIR:?set GUIDES_SRC_DIR (Guides git checkout)}
+        target: /guides-src
+        read_only: true
+      - artifacts:/artifacts
+
+  mcp-server:
+    build:
+      context: .
+      target: mcp_server
+    # No env_file: the server receives only the variables listed here, never the bot's secrets
+    # (THREAD_KEY_SECRET, MERIDIAN_API_KEY, ANTHROPIC_API_KEY).
+    environment:
+      DEPLOY_ENV: local
+      AUTH_MODE: "off"
+      ARTIFACT_STORE: local
+      ARTIFACT_DIR: /artifacts
+      # The Service name the bot calls; the Host guard admits it on plain http (04-02).
+      MCP_ALLOWED_HOSTS: mcp-server
+      MCP_HOST: 0.0.0.0
+      PORT: "8000"
+      GUIDES_WEB_BASE: ${GUIDES_WEB_BASE:-https://github.com/example-org/guides}
+      GAP_TTL_DAYS: ${GAP_TTL_DAYS:-90}
+      GAP_COLLECTION: ${GAP_COLLECTION:-gaps}
+      RATE_LIMIT_RPS: ${RATE_LIMIT_RPS:-5}
+      RATE_LIMIT_BURST: ${RATE_LIMIT_BURST:-30}
+      FIRESTORE_EMULATOR_HOST: firestore:8080
+      GOOGLE_CLOUD_PROJECT: demo-ai-buddy
+    volumes:
+      - artifacts:/artifacts:ro
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    depends_on:
+      sync:
+        condition: service_completed_successfully
+      firestore:
+        condition: service_healthy
+
+  # Anthropic Messages-compatible stub (deploy/compose/stub_llm.py): deterministic answers, so
+  # the round trip needs neither a model nor a Max session. It runs from the chat_bot image.
+  stub-llm:
+    build:
+      context: .
+      target: chat_bot
+    command: ["python", "/stub/stub_llm.py"]
+    volumes:
+      - ./deploy/compose:/stub:ro
+
+  chat-bot:
+    build:
+      context: .
+      target: chat_bot
+    # No env_file and no credentials: this bot cannot reach a real service.
+    environment:
+      DEPLOY_ENV: local
+      INTAKE: pubsub
+      PUBSUB_SUBSCRIPTION: projects/demo-ai-buddy/subscriptions/chat-events
+      PUBSUB_EMULATOR_HOST: pubsub:8085
+      LLM_BACKEND: meridian
+      LLM_BASE_URL: http://stub-llm:8090
+      MCP_URL: http://mcp-server:8000/mcp
+      MCP_AUTH: none
+      CHAT_API: recording
+      CHAT_RECORD_PATH: /tmp/chat.jsonl
+      ALLOWED_USERS: users/111111111111111111111
+      THREAD_KEY_SECRET: ${THREAD_KEY_SECRET:?set THREAD_KEY_SECRET (at least 32 characters)}
+      VIDEO_THUMBNAIL_URL: ${VIDEO_THUMBNAIL_URL:-https://example.invalid/video-thumbnail.png}
+      FIRESTORE_EMULATOR_HOST: firestore:8080
+      GOOGLE_CLOUD_PROJECT: demo-ai-buddy
+      LANGSMITH_TRACING: "false"
+    depends_on:
+      pubsub-init:
+        condition: service_completed_successfully
+      # Also direct, so a failed sync stops the bot even if mcp-server's own gate is changed.
+      sync:
+        condition: service_completed_successfully
+      mcp-server:
+        condition: service_healthy
+      stub-llm:
+        condition: service_started
+      firestore:
+        condition: service_healthy
+
+volumes:
+  artifacts:
