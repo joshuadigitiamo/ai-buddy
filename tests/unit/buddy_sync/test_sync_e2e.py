@@ -167,3 +167,89 @@ def test_end_to_end(
     joined = "".join(seen_output) + caplog.text
     for secret in (b"Wf9-synthetic-wifi-value", b"Zq9-synthetic-not-real"):
         assert (secret.decode() in joined) is False
+
+
+# --- video links across runs with and without VIDEO_BUCKET (WR-08, T-04-44) ------------------
+
+README_VIDEO_URL = "https://videos.example.invalid/demo.mp4"
+PRIVATE_HOST = "https://storage.cloud.google.com/"
+
+
+def _video_run_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, git_repo_factory: RepoFactory
+) -> Path:
+    """Environment for repeated ``run`` calls over fixtures; returns the artifact dir."""
+    repo = git_repo_factory(_guides_tree(tmp_path))
+    handbook = tmp_path / "handbook"
+    shutil.copytree(FIXTURES / "handbook", handbook)
+    monkeypatch.delenv("VIDEO_BUCKET", raising=False)
+    for name, value in {
+        "HANDBOOK_DIR": str(handbook),
+        "REDACT_PAGE_FILES": "04-rete-ospiti.md",
+        "GUIDES_REPO_URL": str(repo),
+        "GUIDES_BRANCH": "master",
+        "GUIDES_CHECKOUT_DIR": str(tmp_path / "checkout"),
+        "ARTIFACT_DIR": str(tmp_path / "artifacts"),
+    }.items():
+        monkeypatch.setenv(name, value)
+    return tmp_path / "artifacts"
+
+
+def _run_ok(capsys: pytest.CaptureFixture[str]) -> dict[str, Any]:
+    assert main(["run"]) == 0
+    report: dict[str, Any] = json.loads(capsys.readouterr().out)
+    return report
+
+
+def _video_urls(artifact_dir: Path) -> set[str]:
+    with open_index(artifact_dir / "index.db") as reader:
+        return {link.video_url for link in reader.video_links().values()}
+
+
+def test_local_only_run_after_a_published_run_drops_bucket_links(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    git_repo_factory: RepoFactory,
+) -> None:
+    artifact_dir = _video_run_env(tmp_path, monkeypatch, git_repo_factory)
+    monkeypatch.setenv("VIDEO_BUCKET", "demo-ai-buddy-videos")
+    _run_ok(capsys)
+    assert _video_urls(artifact_dir) == {f"{PRIVATE_HOST}demo-ai-buddy-videos/videos/demo.mp4"}
+
+    monkeypatch.delenv("VIDEO_BUCKET")
+    report = _run_ok(capsys)
+    assert report["guides_rebuilt"] is False
+    assert report["artifact_written"] is True
+    urls = _video_urls(artifact_dir)
+    assert not any(url.startswith(PRIVATE_HOST) for url in urls)
+    assert urls == {README_VIDEO_URL}
+
+
+def test_two_runs_with_the_same_video_bucket_keep_the_links_on_it(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    git_repo_factory: RepoFactory,
+) -> None:
+    artifact_dir = _video_run_env(tmp_path, monkeypatch, git_repo_factory)
+    monkeypatch.setenv("VIDEO_BUCKET", "demo-ai-buddy-videos")
+    _run_ok(capsys)
+    report = _run_ok(capsys)
+    assert report["artifact_written"] is False
+    assert _video_urls(artifact_dir) == {f"{PRIVATE_HOST}demo-ai-buddy-videos/videos/demo.mp4"}
+
+
+def test_a_changed_video_bucket_with_the_same_commit_repoints_the_links(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    git_repo_factory: RepoFactory,
+) -> None:
+    artifact_dir = _video_run_env(tmp_path, monkeypatch, git_repo_factory)
+    monkeypatch.setenv("VIDEO_BUCKET", "demo-ai-buddy-videos")
+    _run_ok(capsys)
+    monkeypatch.setenv("VIDEO_BUCKET", "other-ai-buddy-videos")
+    report = _run_ok(capsys)
+    assert report["guides_rebuilt"] is False
+    assert _video_urls(artifact_dir) == {f"{PRIVATE_HOST}other-ai-buddy-videos/videos/demo.mp4"}
