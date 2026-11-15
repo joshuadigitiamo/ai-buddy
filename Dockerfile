@@ -3,8 +3,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONPATH=/app/packages/buddy_core:/app/jobs/sync:/app/services/mcp_server:/app/services/chat_bot
+# The base digest is the newest python:3.12-slim but ships zlib1g 1+b1 (CVE-2026-76844,
+# CVE-2026-85091); the exact fixed version comes from trixie-security until upstream rebuilds.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git \
+    && apt-get install -y --no-install-recommends git zlib1g=1:1.3.dfsg+really1.3.1-1+deb13u1 \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY requirements-dev.lock ./
@@ -21,6 +23,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONPATH=/app/packages/buddy_core:/app/services/mcp_server
+# The base digest is the newest python:3.12-slim but ships zlib1g 1+b1 (CVE-2026-76844,
+# CVE-2026-85091); the exact fixed version comes from trixie-security until upstream rebuilds.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends zlib1g=1:1.3.dfsg+really1.3.1-1+deb13u1 \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY services/mcp_server/requirements.lock services/mcp_server/requirements.lock
 RUN pip install --require-hashes -r services/mcp_server/requirements.lock
@@ -39,6 +46,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONPATH=/app/packages/buddy_core:/app/services/mcp_server:/app/services/chat_bot \
     LANGSMITH_TRACING=false
+# The base digest is the newest python:3.12-slim but ships zlib1g 1+b1 (CVE-2026-76844,
+# CVE-2026-85091); the exact fixed version comes from trixie-security until upstream rebuilds.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends zlib1g=1:1.3.dfsg+really1.3.1-1+deb13u1 \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY services/chat_bot/requirements.lock services/chat_bot/requirements.lock
 RUN pip install --require-hashes -r services/chat_bot/requirements.lock
@@ -60,8 +72,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONPATH=/app/packages/buddy_core:/app/jobs/sync
+# The base digest is the newest python:3.12-slim but ships zlib1g 1+b1 (CVE-2026-76844,
+# CVE-2026-85091); the exact fixed version comes from trixie-security until upstream rebuilds.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git \
+    && apt-get install -y --no-install-recommends git zlib1g=1:1.3.dfsg+really1.3.1-1+deb13u1 \
     && rm -rf /var/lib/apt/lists/* \
     && git config --system --add safe.directory /guides-src && git config --system --add safe.directory /guides-src/.git
 WORKDIR /app

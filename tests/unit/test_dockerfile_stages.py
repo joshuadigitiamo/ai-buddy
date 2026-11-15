@@ -85,9 +85,10 @@ def test_every_stage_uses_the_same_digest_pinned_base() -> None:
     assert len({m["digest"] for m in matches if m}) == 1, "stages use different base digests"
 
 
-# The pinned base digest is the newest python:3.12-slim, but it ships zlib1g 1:1.3.dfsg+really1.3.1-1+b1
-# (CVE-2026-76844, CVE-2026-85091, HIGH, fixed). Until upstream rebuilds, every stage installs
-# the exact fixed version from trixie-security so the deploy scan gate (04-23, fixable) passes.
+# The pinned base digest is the newest python:3.12-slim, but it ships zlib1g
+# 1:1.3.dfsg+really1.3.1-1+b1 (CVE-2026-76844, CVE-2026-85091, HIGH, fixed). Until upstream
+# rebuilds, every stage installs the exact fixed version from trixie-security so the deploy
+# scan gate (04-23, fixable) passes.
 # Drop this pin, and this test, once a new base digest carries the fixed zlib1g.
 ZLIB1G_FIXED = "zlib1g=1:1.3.dfsg+really1.3.1-1+deb13u1"
 
