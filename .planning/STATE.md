@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Infrastructure and CI/CD
 status: executing
-stopped_at: Completed 04-24-PLAN.md
-last_updated: "2026-11-15T15:26:13.144Z"
+stopped_at: Completed 04-23-PLAN.md
+last_updated: "2026-11-15T15:37:56.211Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 04 execution started
-state_head: 7850b8ec3383578d9dbced4f4d90139c553e7ab0
+state_head: c28d47afbb71f15451dcd623f8ce62f14265d9b2
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 56
-  completed_plans: 52
+  completed_plans: 53
   percent: 60
 ---
 
@@ -106,6 +106,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P21 | 20 min | 2 tasks | 7 files |
 | Phase 04 P22 | 35 min | 2 tasks | 10 files |
 | Phase 04 P24 | 35 min | 2 tasks | 9 files |
+| Phase 04 P23 | 40min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -218,6 +219,7 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-22: serving revision read from status.traffic (resolved list); spec.traffic carries no revisionName in latest-revision mode
 - [Phase 04]: 04-22: manual replace without SERVING_REVISION pins traffic to the new revision; runbook gives --to-latest and --remove-tags candidate to restore latest-revision mode
 - [Phase 04]: 04-24: sync image gets only a one-hour sa-publisher token (GCS_ACCESS_TOKEN_FILE); owner gcloud login mounted only into digest-pinned gcloud minting containers; owner loses bucket objectAdmin in bootstrap (live removal deferred to 04-26)
+- [Phase 04]: 04-23: scan-policy fixable (ignore-unfixed true), Trivy v0.76.2, trivy-action pinned to v0.36.0 commit; first deploy needs the zlib1g base-digest bump
 
 ### Pending Todos
 
@@ -246,6 +248,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-15T15:26:12.931Z
-Stopped at: Completed 04-24-PLAN.md
+Last session: 2026-11-15T15:37:55.996Z
+Stopped at: Completed 04-23-PLAN.md
 Resume file: None
