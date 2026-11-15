@@ -129,11 +129,11 @@ def test_mcp_server_reads_its_index_from_the_private_bucket() -> None:
     assert "ARTIFACT_DIR" not in environment, "the bucket copy lands in the default cache directory"
 
 
-def test_mcp_server_image_is_pinned_by_a_tag_placeholder_never_latest() -> None:
+def test_mcp_server_image_is_pinned_by_a_digest_placeholder_never_latest() -> None:
     image = str(_mcp_container()["image"])
-    assert image.endswith(":${IMAGE_TAG}")
-    assert not image.endswith(":latest")
-    assert "/ai-buddy/mcp-server:" in image
+    assert image.endswith("@${IMAGE_DIGEST}")
+    assert ":latest" not in image
+    assert "/ai-buddy/mcp-server@" in image
 
 
 def test_mcp_server_secrets_come_only_from_secret_manager() -> None:
