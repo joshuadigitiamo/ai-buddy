@@ -141,8 +141,10 @@ spec:
             - name: MERIDIAN_TRANSCRIPT_RETENTION_DAYS
               value: '7'
             # The session store is file based and must not sit on the FUSE volume or the overlay.
+            # A subfolder, not the mount point: Meridian chmods the folder, and the Cloud Run mount
+            # point is root-owned (04-13 live: EPERM chmod '/meridian-sessions' as uid 1000).
             - name: MERIDIAN_SESSION_DIR
-              value: /meridian-sessions
+              value: /meridian-sessions/store
             - name: MERIDIAN_API_KEY
               valueFrom:
                 secretKeyRef:

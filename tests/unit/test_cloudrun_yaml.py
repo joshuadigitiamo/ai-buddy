@@ -350,7 +350,8 @@ def test_meridian_transcripts_expire_and_the_session_store_stays_in_memory() -> 
     assert volumes[memory[0]]["emptyDir"]["medium"] == "Memory"
     assert volumes[memory[0]]["emptyDir"]["sizeLimit"]
     mounts = {m["name"]: m["mountPath"] for m in _bot_container("meridian")["volumeMounts"]}
-    assert environment["MERIDIAN_SESSION_DIR"]["value"] == mounts[memory[0]]
+    # A subfolder Meridian creates and owns: it chmods it, and the mount point is root-owned.
+    assert environment["MERIDIAN_SESSION_DIR"]["value"].startswith(mounts[memory[0]] + "/")
     assert len(volumes) == 2, "the credentials volume and the in-memory volume only"
 
 
