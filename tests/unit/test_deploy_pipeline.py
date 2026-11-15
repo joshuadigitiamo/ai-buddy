@@ -282,7 +282,7 @@ TRIVY_IGNORE_FILE = ROOT / ".trivyignore.yaml"
 
 
 def test_scan_policy_matches_the_recorded_decision() -> None:
-    # Joshua's choice is recorded once in the plan summary; the gate has to enforce exactly that option.
+    # The choice is recorded once in the plan summary; the gate has to enforce exactly that option.
     recorded = re.findall(
         r"^scan-policy: (strict|fixable|strict-with-ignores)$",
         SCAN_SUMMARY.read_text(encoding="utf-8"),
