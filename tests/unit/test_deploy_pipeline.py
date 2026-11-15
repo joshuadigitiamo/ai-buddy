@@ -219,3 +219,59 @@ def test_server_allows_the_candidate_host() -> None:
     assert value == "candidate---mcp-server-${PROJECT_NUMBER}.europe-west8.run.app"
     host = value.replace("${PROJECT_NUMBER}", "123456789012")
     assert _HOSTNAME.fullmatch(host), "the Host guard setting accepts the rendered name"
+
+
+# --- cache, attestations and scan (INFRA-05/06, 04-23) ----------------------------------------
+
+TRIVY_ACTION = "aquasecurity/trivy-action"
+TRIVY_COMMIT = "ed142fd0673e97e23eac54620cfb913e5ce36c25"
+# The malicious binary of GHSA-69fq-xp46-6x23 (March 2026) and the DockerHub images that followed.
+COMPROMISED_TRIVY = {"v0.69.4", "v0.69.5", "v0.69.6"}
+
+
+def _scan_step() -> dict[str, Any]:
+    return _uses_step(_load_workflow("_deploy.yml"), TRIVY_ACTION)
+
+
+def test_builds_use_a_per_image_gha_cache() -> None:
+    deploy = _uses_step(_load_workflow("_deploy.yml"), "docker/build-push-action")["with"]
+    assert deploy["cache-from"] == "type=gha,scope=${{ inputs.service }}"
+    assert deploy["cache-to"] == "type=gha,scope=${{ inputs.service }},mode=max"
+    meridian = _uses_step(_load_workflow("meridian.yml"), "docker/build-push-action")["with"]
+    assert meridian["cache-from"] == "type=gha,scope=meridian"
+    assert meridian["cache-to"] == "type=gha,scope=meridian,mode=max"
+
+
+def test_service_images_carry_sbom_and_provenance() -> None:
+    build = _uses_step(_load_workflow("_deploy.yml"), "docker/build-push-action")["with"]
+    assert build["sbom"] is True
+    assert build["provenance"] == "mode=max"
+
+
+def test_the_pushed_digest_is_scanned_before_render() -> None:
+    deploy = _load_workflow("_deploy.yml")
+    scan = _scan_step()
+    assert scan["name"] == "Scan the pushed image"
+    assert scan["uses"] == f"{TRIVY_ACTION}@{TRIVY_COMMIT}"
+    options = scan["with"]
+    assert options["image-ref"] == (
+        "europe-west8-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/ai-buddy/${{ inputs.service }}"
+        "@${{ steps.build.outputs.digest }}"
+    ), "the scanned digest is the digest the render step deploys"
+    assert options["severity"] == "CRITICAL,HIGH"
+    assert options["exit-code"] == "1"
+    assert options["format"] == "table"
+    version = str(options["version"])
+    assert re.fullmatch(r"v\d+\.\d+\.\d+", version), "the Trivy binary is set explicitly"
+    assert version not in COMPROMISED_TRIVY
+    assert scan["env"] == {
+        "TRIVY_USERNAME": "oauth2accesstoken",
+        "TRIVY_PASSWORD": "${{ steps.auth.outputs.access_token }}",
+    }
+
+    steps = [step for _, step in _steps(deploy)]
+    build_at = steps.index(_uses_step(deploy, "docker/build-push-action"))
+    assert steps.index(scan) == build_at + 1, "the scan follows the push at once"
+    assert steps.index(scan) < steps.index(_step_named("Find the serving revision"))
+    assert steps.index(scan) < steps.index(_render_step())
+    assert _render_step()["env"]["IMAGE_DIGEST"] == "${{ steps.build.outputs.digest }}"
