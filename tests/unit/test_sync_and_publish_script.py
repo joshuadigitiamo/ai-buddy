@@ -35,3 +35,23 @@ def test_forced_revision_suffix_is_unique_per_run() -> None:
     assert "${BUILD_PART:0:32}" in code, "the build part is cut to 32 characters"
     assert re.search(r"\$\{#REVISION_SUFFIX\}\s*-gt\s*44|\$\{#REVISION_SUFFIX\}\s*>\s*44", code)
     assert code.index("REVISION_SUFFIX=") < code.index("run services update")
+
+
+def test_forced_revision_waits_for_latest_revision_traffic() -> None:
+    """Traffic pinned by an unfinished staged deploy must stop the forced revision."""
+    code = _code()
+    update = code.index("run services update")
+    before = code[:update]
+    assert re.search(r"run services describe .*--format\s+'?json'?", before), (
+        "the guard reads the service as JSON before it forces a revision"
+    )
+    assert "spec" in before and "traffic" in before, "it reads spec.traffic, the requested list"
+    assert "latestRevision" in before, "it accepts only latest-revision mode"
+    assert "python3 -c" in before, "the JSON is parsed in the gcloud image, not on the host"
+    assert re.search(r'TRAFFIC_MODE.*!=\s*"latest"', before), "anything but latest stops the script"
+    refusal = [line for line in before.splitlines() if "pinned to a named revision" in line]
+    assert len(refusal) == 1
+    assert "${SERVICE}" in refusal[0], "the message names the service"
+    assert "index is already published" in refusal[0]
+    assert "next successful ${SERVICE} deploy will load it" in refusal[0]
+    assert 'echo "${TRAFFIC_JSON}"' not in code, "the describe output is never printed"
