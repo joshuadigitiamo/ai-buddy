@@ -210,13 +210,12 @@ None yet.
 - [Phase 1] Per-scene video clips: source is the Guides README (full-video URLs); scene-clip URLs may not exist yet, fall back to full video
 - [Phase 1] RESOLVED: no ClickUp token needed. ClickUp is shut down (D-25); the handbook comes from the local gitignored snapshot and the Guides from a local checkout, with no tokens
 - [Phase 2] RESOLVED: Bot-to-MCP authentication mechanism defined by D-12 and tested in 02-05 (Google-signed service-account ID token, BOT_SA_EMAILS allowlist). 02-07 verified the user OAuth flow live; a live bot ID-token call was not run (covered by offline tests, revisit with the Phase 3 bot)
-- [Phase 4] Live Cloud Run deploy still open: Workload Identity Federation setup (Admin Google); region europe-west8 still "da confermare" (D7). The GCP project `ai-buddy-dev` exists under the digitiamo.com organization with billing linked; org policies may apply to deploys
+- [Phase 4] Live Cloud Run deploy done 2026-11-15 (04-13): europe-west8, WIF keyless CI, both services green; 9 gaps recorded in 04-13-SUMMARY for /gsd-plan-phase 04 --gaps
 - [Phase 4] Cost of chat_bot service, Pub/Sub, CI and kind is not covered by research 07; ~0 EUR/month holds for the MCP server only
+- [Phase 4] chat_bot cost observation for OPS-01: request-based billing; cold start about 17 s (bot + Meridian) plus about 8 s (mcp-server) on the first message
 - [Later] Videos must move to Google Drive before any non-dev user (D15); `LLM_BACKEND` must move to API key before any second user (D1a)
 - [Later] Re-check the thread-memory privacy posture (D-11: HMAC key, N turns, 24 h TTL) before any second user, together with the LLM_BACKEND switch (D1a)
 - [Later] Open: real team chat channel, Team license budget, CCNL, official handbook owner, which Guides go company-wide, formal data-sovereignty constraint
-- [Phase 4] claude.ai connector live check (02-UAT test 10, deferred): org owner likely unreachable; try a member-level personal custom connector once hosted
-- [Phase 4] non-digitiamo account rejection not yet tested live (02-UAT test 9 passed by user decision; Internal consent screen blocks external accounts at Google)
 
 ## Deferred Items
 

@@ -10,15 +10,17 @@ requires:
 provides:
   - "Offline gate result before any live step (Task 1)"
   - "Live-readiness list, names only"
+  - "Both services live on Cloud Run europe-west8 through keyless CI; Chat app on the HTTP endpoint"
+  - "Live check results and 9 gaps for /gsd-plan-phase 04 --gaps"
 affects: [04-13, 04-14]
 
 plan_head_before: d08baaa4b30f770aca4d99c691729d3bcca0401d
-status: in-progress
+status: complete
 ---
 
-# Phase 4 Plan 13: Live deploy checkpoint (partial: Task 1 done, stopped at Task 2) Summary
+# Phase 4 Plan 13: Live deploy checkpoint Summary
 
-**Offline gate green: all five steps exit 0. In the worktree, `./run-unit-tests.sh --all` failed 2 git-index tests that cannot run from a worktree (environment artifact); the re-run from the primary checkout passed 1475 tests, 26 skipped, coverage 97.60%. Both Cloud Run YAMLs render with no placeholder left. Live steps (Tasks 2 and 3) are not started: they wait for Joshua.**
+**Offline gate green: all five steps exit 0. In the worktree, `./run-unit-tests.sh --all` failed 2 git-index tests that cannot run from a worktree (environment artifact); the re-run from the primary checkout passed 1475 tests, 26 skipped, coverage 97.60%. Both Cloud Run YAMLs render with no placeholder left. Live deploy done 2026-11-15: both services serve from europe-west8 through keyless CI, AI Buddy answers in Chat with cited sources, and 9 gaps go to `--gaps`.**
 
 ## Offline gate
 
@@ -129,8 +131,8 @@ Run 2026-11-15 by Claude through Chrome (Joshua's session) and Docker gcloud, at
 4. Bot-to-MCP ID token: **passed.** `POST /mcp` 200 from the bot in the mcp-server log.
 5. Slow question (billing_mode a): **passed, no stall.** A three-part first-person question had its placeholder replaced within about a minute; the content was the designed personal-case route ("Per il tuo caso specifico chiedi a HR.").
 6. Cold start: **observed.** First message after deploy: about 17 s for the bot instance (Meridian probe passed after 2 attempts) plus about 8 s for mcp-server, which was also cold. Not yet re-measured after 20 minutes idle.
-7. claude.ai connector: **blocked by the claude.ai org.** In Settings → Connectors, "Aggiungi connettore personalizzato" is disabled with "ask an organization owner to add it for your team": only an owner of the claude.ai Team org can add the custom connector. Not a defect in the service.
-8. Non-digitiamo rejection: **deferred.** Needs Joshua to sign in with a non-digitiamo account.
+7. claude.ai connector: **removed by Joshua.** The claude.ai Team org lets only an org owner add a custom connector, and the owner cannot be asked. The MCP OAuth login on Cloud Run is therefore covered by unit tests only, not live; the Chat bot does not use that path.
+8. Non-digitiamo rejection: **removed by Joshua** ("no one is going to try that"). Offline coverage stays: `tests/unit/mcp_server/test_auth.py` rejects other domains and a hosted-domain mismatch; the OAuth consent screen is Internal.
 9. Firestore TTL (D-05): **passed.** `expire_at` ACTIVE on `gaps` and `thread_memory`.
 10. Guarda playback (D-16, Pitfall 13): **partial.** The video opened in a new tab from the private bucket through Joshua's Google session and played inline (not a download), but from 0:00: the opened page had no `#t=` fragment, although `buddy_core/models.py` appends `#t=<seconds>`. The fragment is lost in the Chat button or the storage.cloud.google.com redirect.
 11. Forced revision after publish (D-08): **passed.** `date_edited` of one handbook page changed locally; `sync-and-publish.sh` published build `20261115T114311Z-57b88ae9e574` and forced revision `mcp-server-00005`; the next answer cited that page with "revisione 2026-11-15" (was 2025-06-12). The date was restored and the original content republished.
@@ -167,5 +169,5 @@ The plan's `files_modified` lists STATE.md and WINDOWS.md. Neither was touched: 
 ## Task Commits
 
 1. **Task 1: Offline gate and live-readiness list** - this SUMMARY only (no code or planning file changed)
-2. **Task 2:** pending (checkpoint:human-action)
-3. **Task 3:** pending (checkpoint:human-verify)
+2. **Task 2: Bootstrap, publish, first CI deploy** - fixes `16db709`, `119950b`, `b3f9237`, `4f28c2a`; record `233ebe0`
+3. **Task 3: Live checks** - `cd4e859`, `810547c` and this close-out (checks 7 and 8 removed by Joshua)

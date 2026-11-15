@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 4
+open_count: 3
 waived_count: 1
-fixed_count: 3
+fixed_count: 4
 total_count: 8
-last_updated: 2026-11-14T13:38:24.525Z
+last_updated: 2026-11-15T11:46:07.422Z
 ---
 
 # Broken Windows Ledger
@@ -15,7 +15,7 @@ last_updated: 2026-11-14T13:38:24.525Z
 
 | id | phase | kind | file | line | description | status | reason | recorded_at | resolved_at |
 |----|-------|------|------|------|-------------|--------|--------|-------------|-------------|
-| 1 | 03 | unrun-verify | services/chat_bot/buddy_bot/mcp_client.py |  | 03-11: live bot-to-MCP Google ID token call (SA file or metadata server, BOT_SA_EMAILS check) not run offline; checked at 03-12 | open |  | 2026-11-07T12:36:13.913Z |  |
+| 1 | 03 | unrun-verify | services/chat_bot/buddy_bot/mcp_client.py |  | 03-11: live bot-to-MCP Google ID token call (SA file or metadata server, BOT_SA_EMAILS check) not run offline; checked at 03-12 | fixed |  | 2026-11-07T12:36:13.913Z | 2026-11-15T11:46:07.422Z |
 | 2 | 03 | unrun-verify | services/chat_bot/buddy_bot/service.py |  | 03-12: room @mention and bare '@AI Buddy' with blank argumentText not exercised live (03-04/03-09 risk) | fixed |  | 2026-11-07T13:51:16.980Z | 2026-11-07T15:33:38.024Z |
 | 3 | 03 | unrun-verify | services/chat_bot/buddy_bot/render.py |  | 03-12: Guarda button #t= scene offset not verified live (Chat buttons expose no href) | waived | Superseded: live check ran 2026-11-07; browser downloads mp4 instead of playing (hosting issue, tracked in new entry). Deferred to Phase 4 by Joshua | 2026-11-07T13:51:17.091Z | 2026-11-07T15:33:38.348Z |
 | 4 | 03 | unrun-verify | services/chat_bot/buddy_bot/service.py |  | 03-12: intro message on install not verified (first ADDED_TO_SPACE hit the publish permission error, not re-triggered) | fixed |  | 2026-11-07T13:51:17.235Z | 2026-11-07T15:33:38.131Z |
@@ -33,10 +33,10 @@ last_updated: 2026-11-14T13:38:24.525Z
     "file": "services/chat_bot/buddy_bot/mcp_client.py",
     "line": null,
     "description": "03-11: live bot-to-MCP Google ID token call (SA file or metadata server, BOT_SA_EMAILS check) not run offline; checked at 03-12",
-    "status": "open",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-11-07T12:36:13.913Z",
-    "resolved_at": null,
+    "resolved_at": "2026-11-15T11:46:07.422Z",
     "milestone": null
   },
   {
