@@ -167,11 +167,12 @@ read -rs VALUE && printf '%s' "$VALUE" | gh secret set GCP_PROJECT_ID && unset V
 ```
 
 An existing setup holds the five as variables. Move each without printing it, then delete the variable
-only after a deploy run is green with the secrets:
+only after a deploy run is green with the secrets. The value is read through the REST API, because older
+gh releases (2.46, the Ubuntu package) have no variable read command; `printf '%s'` drops the newline:
 
 ```bash
 for NAME in GCP_PROJECT_ID GCP_PROJECT_NUMBER GCP_DEPLOYER_SA GCP_WIF_PROVIDER GCP_OAUTH_CLIENT_ID; do
-  gh variable get "$NAME" | gh secret set "$NAME"
+  printf '%s' "$(gh api "repos/{owner}/{repo}/actions/variables/$NAME" --jq .value)" | gh secret set "$NAME"
 done
 # after a green deploy:
 for NAME in GCP_PROJECT_ID GCP_PROJECT_NUMBER GCP_DEPLOYER_SA GCP_WIF_PROVIDER GCP_OAUTH_CLIENT_ID; do

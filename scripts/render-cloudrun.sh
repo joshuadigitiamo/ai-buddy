@@ -3,7 +3,7 @@
 #
 # The templates under deploy/cloudrun carry ${PLACEHOLDER} markers instead of project identifiers, so
 # the public repository holds no project id, project number or personal id. This script fills them
-# from environment variables, for CI (GitHub repository variables) and for a laptop alike.
+# from environment variables, for CI (GitHub repository secrets and variables) and for a laptop alike.
 #
 # Usage:
 #   PROJECT_ID=... PROJECT_NUMBER=... IMAGE_DIGEST=sha256:... DEPLOY_ID=... \

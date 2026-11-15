@@ -549,7 +549,9 @@ def test_runbook_stores_the_gcp_identifiers_as_secrets() -> None:
     for name in GITHUB_VARIABLES:
         assert f"`{name}`" in variables, f"{name} must sit in the variables table"
         assert f"`{name}`" not in secrets, f"{name} is not a secret"
-    for needle in ("gh secret set", "gh variable get", "gh variable delete", "masked"):
+    # `gh variable get` is missing from gh 2.46 (Ubuntu); the REST read works on every release.
+    assert "gh variable get" not in section, "use the gh api read, gh variable get is not portable"
+    for needle in ("gh secret set", "actions/variables/", "gh variable delete", "masked"):
         assert needle in section, f"the section does not mention {needle!r}"
     assert "none of them is a secret" not in text
     assert "GitHub repository variables" not in text
