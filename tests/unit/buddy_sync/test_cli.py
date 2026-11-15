@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+from tests.unit.buddy_core.conftest import FakeBucket
 
 from buddy_sync.chunker import heading_outline
 from buddy_sync.cli import main
@@ -234,3 +235,95 @@ def test_search_uses_artifact_dir_from_environment(
     code, out, _err = cli("search", "chunking")
     assert code == 0
     assert "DEMO_GUIDE.md" in out
+
+
+# --- token file credentials (04-24, WR-03) -----------------------------------------------------
+
+
+class _TokenFileWiring:
+    """Stands in for the two seams the CLI reads: the token-file client factory and GcsBucket."""
+
+    def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self.factory_calls: list[tuple[Path, str | None]] = []
+        self.buckets: list[tuple[str, object]] = []
+        self.client_factory: Callable[[], object] = lambda: object()
+        monkeypatch.setattr("buddy_sync.cli.token_file_client_factory", self._token_factory)
+        monkeypatch.setattr("buddy_sync.cli.GcsBucket", self._gcs_bucket)
+
+    def _token_factory(self, token_file: Path, project: str | None) -> Callable[[], object]:
+        self.factory_calls.append((token_file, project))
+        return self.client_factory
+
+    def _gcs_bucket(
+        self, name: str, *, client_factory: Callable[[], object] | None = None
+    ) -> FakeBucket:
+        self.buckets.append((name, client_factory))
+        return FakeBucket()
+
+
+@pytest.fixture
+def wiring(monkeypatch: pytest.MonkeyPatch) -> _TokenFileWiring:
+    return _TokenFileWiring(monkeypatch)
+
+
+def _publish_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("ARTIFACT_DIR", str(tmp_path / "artifacts"))
+    monkeypatch.setenv("ARTIFACT_BUCKET", "demo-ai-buddy-index")
+    monkeypatch.setattr(
+        "buddy_sync.cli.publish_index",
+        lambda *_args, **_kwargs: type("R", (), {"status": "published", "build_id": "b1"})(),
+    )
+
+
+def test_publish_uses_the_token_file_when_set(
+    wiring: _TokenFileWiring, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _publish_env(monkeypatch, tmp_path)
+    monkeypatch.setenv("GCS_ACCESS_TOKEN_FILE", str(tmp_path / "token"))
+    monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "demo-project")
+
+    assert main(["publish"]) == 0
+
+    assert wiring.factory_calls == [(tmp_path / "token", "demo-project")]
+    assert wiring.buckets == [("demo-ai-buddy-index", wiring.client_factory)]
+
+
+def test_publish_without_a_token_file_keeps_the_default_bucket(
+    wiring: _TokenFileWiring, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _publish_env(monkeypatch, tmp_path)
+    monkeypatch.delenv("GCS_ACCESS_TOKEN_FILE", raising=False)
+
+    assert main(["publish"]) == 0
+
+    assert wiring.factory_calls == []
+    assert wiring.buckets == [("demo-ai-buddy-index", None)]
+
+
+def test_upload_videos_uses_the_token_file_when_set(
+    wiring: _TokenFileWiring, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    guides = tmp_path / "guides"
+    guides.mkdir()
+    (guides / "README.md").write_text("# Guides\n", encoding="utf-8")
+    monkeypatch.setenv("VIDEO_BUCKET", "demo-ai-buddy-videos")
+    monkeypatch.setenv("GCS_ACCESS_TOKEN_FILE", str(tmp_path / "token"))
+    monkeypatch.delenv("GOOGLE_CLOUD_PROJECT", raising=False)
+
+    code = main(["upload-videos", "--guides-dir", str(guides), "--videos-dir", str(tmp_path)])
+
+    assert code == 0
+    assert wiring.factory_calls == [(tmp_path / "token", None)]
+    assert wiring.buckets == [("demo-ai-buddy-videos", wiring.client_factory)]
+
+
+def test_an_injected_bucket_factory_wins_over_the_token_file(
+    wiring: _TokenFileWiring, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _publish_env(monkeypatch, tmp_path)
+    monkeypatch.setenv("GCS_ACCESS_TOKEN_FILE", str(tmp_path / "token"))
+    chosen = FakeBucket()
+
+    assert main(["publish"], bucket_factory=lambda _name: chosen) == 0
+
+    assert wiring.buckets == []

@@ -92,3 +92,12 @@ class GcsBucket:
             raise BucketError(type(exc).__name__) from None
         digest = blob.md5_hash
         return digest if isinstance(digest, str) else None
+
+
+def token_file_client_factory(token_file: Path, project: str | None) -> Callable[[], storage.Client]:
+    """RED stub: replaced by the implementation in the next commit."""
+
+    def build() -> storage.Client:
+        raise NotImplementedError
+
+    return build

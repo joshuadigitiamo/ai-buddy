@@ -24,7 +24,7 @@ from typing import Final
 from pydantic import ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from buddy_core.gcs_bucket import BucketError, GcsBucket
+from buddy_core.gcs_bucket import BucketError, GcsBucket, token_file_client_factory  # noqa: F401
 from buddy_core.index_reader import IndexFormatError, open_index
 from buddy_core.models import video_link
 from buddy_core.store import (

@@ -6,8 +6,9 @@ from unittest.mock import MagicMock
 
 import pytest
 from google.api_core.exceptions import Forbidden, NotFound, ServiceUnavailable
+from google.oauth2.credentials import Credentials
 
-from buddy_core.gcs_bucket import BucketError, GcsBucket
+from buddy_core.gcs_bucket import BucketError, GcsBucket, token_file_client_factory
 
 SECRET = "token=sentinel-secret-5d2e https://storage.example.invalid/b/o"
 
@@ -215,3 +216,45 @@ def test_client_construction_failure_is_a_bucket_error_without_its_message() -> 
     with pytest.raises(BucketError) as caught:
         bucket.read_bytes("x")
     assert str(caught.value) == "CredentialsMissing"
+
+
+# --- token file credentials (04-24, WR-03) -----------------------------------------------------
+
+
+def test_token_file_factory_reads_the_token_at_first_use(tmp_path: Path) -> None:
+    token_file = tmp_path / "gcs-token"
+    factory = token_file_client_factory(token_file, "demo-project")  # the file does not exist yet
+    token_file.write_text("  ya29.sentinel-token-value\n", encoding="utf-8")
+
+    client = factory()
+
+    assert isinstance(client._credentials, Credentials)
+    assert client._credentials.token == "ya29.sentinel-token-value"
+    assert client.project == "demo-project"
+
+
+@pytest.mark.parametrize("content", [None, "", " \n\t "])
+def test_missing_or_empty_token_file_is_a_names_only_error(
+    tmp_path: Path, content: str | None
+) -> None:
+    token_file = tmp_path / "private-dir" / "gcs-token"
+    if content is not None:
+        token_file.parent.mkdir()
+        token_file.write_text(content, encoding="utf-8")
+    factory = token_file_client_factory(token_file, None)
+
+    with pytest.raises(BucketError) as caught:
+        factory()
+
+    message = str(caught.value)
+    assert "GCS_ACCESS_TOKEN_FILE" in message
+    assert str(token_file) not in message
+
+
+def test_a_bucket_over_the_token_file_factory_reports_a_bad_token_file_as_bucket_error(
+    tmp_path: Path,
+) -> None:
+    bucket = GcsBucket("bucket-x", client_factory=token_file_client_factory(tmp_path / "gone", None))
+
+    with pytest.raises(BucketError, match="GCS_ACCESS_TOKEN_FILE"):
+        bucket.read_bytes("a")
