@@ -8,11 +8,15 @@ from tests.unit.test_repo_layout import ROOT, _dockerfile_stage, _lines, _pins
 
 RUNTIME_STAGES = ("mcp_server", "chat_bot", "sync")
 SYNC_COPY_SOURCES = [
-    "requirements.txt",
-    "jobs/sync/requirements.txt",
+    "jobs/sync/requirements.lock",
     "packages/buddy_core",
     "jobs/sync",
 ]
+STAGE_LOCK = {
+    "mcp_server": "services/mcp_server/requirements.lock",
+    "chat_bot": "services/chat_bot/requirements.lock",
+    "sync": "jobs/sync/requirements.lock",
+}
 PRIVATE_PREFIXES = ("artifacts", "docs", "tests", ".env", ".cache")
 CREDENTIAL_NAME = re.compile(r"credential|secret|token|service[-_]?account|api[-_]?key", re.I)
 PIN_FILES = (
@@ -149,9 +153,27 @@ def test_sync_requirements_are_pinned_and_agree_with_the_other_files() -> None:
     )
 
 
+def _pip_installs(stage: str) -> list[str]:
+    return [args for args in _instructions(stage, "RUN") if args.startswith("pip install")]
+
+
+@pytest.mark.parametrize("stage", RUNTIME_STAGES)
+def test_runtime_stages_install_only_their_hashed_lock(stage: str) -> None:
+    lock = STAGE_LOCK[stage]
+    assert _pip_installs(stage) == [f"pip install --require-hashes -r {lock}"]
+    assert lock in _copy_sources(stage), f"{stage} does not copy {lock}"
+    plain = [s for s in _copy_sources(stage) if s.endswith("requirements.txt")]
+    assert plain == [], f"{stage} still copies unhashed requirement files {plain}"
+
+
 def test_test_image_installs_the_sync_requirements() -> None:
+    """The tested set includes the sync dependencies: requirements-dev.txt pulls them in, and
+    requirements-dev.lock (installed hash-checked by the test stage) pins the same version."""
     assert "-r jobs/sync/requirements.txt" in _lines("requirements-dev.txt")
-    assert "COPY jobs/sync/requirements.txt jobs/sync/requirements.txt" in _dockerfile_stage("base")
+    pin = f"google-cloud-storage=={_pins('jobs/sync/requirements.txt')['google-cloud-storage']}"
+    assert pin in (ROOT / "requirements-dev.lock").read_text()
+    assert pin in (ROOT / "jobs/sync/requirements.lock").read_text()
+    assert "requirements-dev.lock" in " ".join(_instructions("base", "COPY")).split()
 
 
 def test_dockerignore_keeps_private_paths_out_of_the_build_context() -> None:
