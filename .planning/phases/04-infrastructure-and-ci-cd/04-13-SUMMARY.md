@@ -129,11 +129,11 @@ Run 2026-11-15 by Claude through Chrome (Joshua's session) and Docker gcloud, at
 4. Bot-to-MCP ID token: **passed.** `POST /mcp` 200 from the bot in the mcp-server log.
 5. Slow question (billing_mode a): **passed, no stall.** A three-part first-person question had its placeholder replaced within about a minute; the content was the designed personal-case route ("Per il tuo caso specifico chiedi a HR.").
 6. Cold start: **observed.** First message after deploy: about 17 s for the bot instance (Meridian probe passed after 2 attempts) plus about 8 s for mcp-server, which was also cold. Not yet re-measured after 20 minutes idle.
-7. claude.ai connector: **deferred.** Not run in this session.
+7. claude.ai connector: **blocked by the claude.ai org.** In Settings → Connectors, "Aggiungi connettore personalizzato" is disabled with "ask an organization owner to add it for your team": only an owner of the claude.ai Team org can add the custom connector. Not a defect in the service.
 8. Non-digitiamo rejection: **deferred.** Needs Joshua to sign in with a non-digitiamo account.
 9. Firestore TTL (D-05): **passed.** `expire_at` ACTIVE on `gaps` and `thread_memory`.
 10. Guarda playback (D-16, Pitfall 13): **partial.** The video opened in a new tab from the private bucket through Joshua's Google session and played inline (not a download), but from 0:00: the opened page had no `#t=` fragment, although `buddy_core/models.py` appends `#t=<seconds>`. The fragment is lost in the Chat button or the storage.cloud.google.com redirect.
-11. Forced revision after publish (D-08): **deferred.**
+11. Forced revision after publish (D-08): **passed.** `date_edited` of one handbook page changed locally; `sync-and-publish.sh` published build `20261115T114311Z-57b88ae9e574` and forced revision `mcp-server-00005`; the next answer cited that page with "revisione 2026-11-15" (was 2025-06-12). The date was restored and the original content republished.
 12. Meridian token across a revision (D-12): **partly shown.** Answers worked on three consecutive chat-bot revisions seeded once from the bucket; not yet checked after a token refresh.
 
 ## Gaps for --gaps
