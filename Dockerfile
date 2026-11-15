@@ -7,13 +7,15 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY requirements.txt requirements-dev.txt ./
+COPY requirements.txt requirements-dev.txt requirements-dev.lock ./
 COPY services/mcp_server/requirements.txt services/mcp_server/requirements.txt
 COPY services/chat_bot/requirements.txt services/chat_bot/requirements.txt
 COPY jobs/sync/requirements.txt jobs/sync/requirements.txt
 
+# The tested dependency set: every distribution pinned and hash-checked (WR-04). Regenerate the
+# locks with scripts/lock-requirements.sh.
 FROM base AS test
-RUN pip install -r requirements-dev.txt
+RUN pip install --require-hashes -r requirements-dev.lock
 
 # Runtime image for the MCP server: only buddy_core and buddy_mcp code, non-root. The index is
 # not baked in; ARTIFACT_DIR points at a mounted directory (handoff decided in Phase 4).

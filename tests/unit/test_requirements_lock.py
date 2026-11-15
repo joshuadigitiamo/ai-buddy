@@ -7,7 +7,6 @@ Pure text parsing, no network. Regenerate the locks with scripts/lock-requiremen
 import re
 
 import pytest
-from tests.unit.test_dockerfile_stages import _instructions
 from tests.unit.test_repo_layout import ROOT, _lines, _pins
 
 REGENERATE = "run scripts/lock-requirements.sh"
@@ -66,7 +65,8 @@ def _parse_lock(text: str) -> tuple[dict[str, tuple[str, list[str]]], list[str]]
             continue
         current = _normalise(match["name"])
         entries[current] = (match["version"], [])
-    problems.extend(f"{name}: no sha256 hash" for name, (_, hashes) in entries.items() if not hashes)
+    unhashed = [name for name, (_, hashes) in entries.items() if not hashes]
+    problems.extend(f"{name}: no sha256 hash" for name in unhashed)
     if not entries:
         problems.append("no hashed requirement line at all")
     return entries, problems
@@ -133,8 +133,9 @@ def test_stage_lock_agrees_with_its_input_pins(name: str) -> None:
 
 def test_input_pin_drift_names_the_package_and_an_equal_pin_passes() -> None:
     """Edge INFRA-06 adjacency: equal pins pass, any difference is reported by package name."""
-    lock = {"pydantic": ("2.14.2", []), "pyyaml": ("6.0.3", [])}
-    assert _drift(DEV_LOCK, lock, {"requirements.txt": {"pydantic": "2.14.2", "PyYAML": "6.0.3"}}) == []
+    lock: dict[str, tuple[str, list[str]]] = {"pydantic": ("2.14.2", []), "pyyaml": ("6.0.3", [])}
+    equal = {"requirements.txt": {"pydantic": "2.14.2", "PyYAML": "6.0.3"}}
+    assert _drift(DEV_LOCK, lock, equal) == []
     drifted = _drift(DEV_LOCK, lock, {"requirements.txt": {"pydantic": "2.14.3"}})
     assert drifted == [f"pydantic: requirements.txt pins 2.14.3, {DEV_LOCK} has 2.14.2"]
     assert _drift(DEV_LOCK, lock, {"requirements.txt": {"absent": "1.0"}}) == [
@@ -154,9 +155,21 @@ def test_stage_lock_versions_equal_the_dev_lock(name: str) -> None:
     assert differing == [], f"{differing}; {REGENERATE}"
 
 
+def _stage_instructions(stage: str, keyword: str) -> list[str]:
+    """Arguments of every `keyword` instruction of one stage, whatever its FROM image."""
+    text = (ROOT / "Dockerfile").read_text().replace("\\\n", " ")
+    match = re.search(rf"^FROM \S+ AS {stage}$(.*?)(?=^FROM |\Z)", text, re.M | re.S)
+    assert match, f"Dockerfile has no {stage} stage"
+    return [
+        line.split(None, 1)[1].strip()
+        for line in match[1].splitlines()
+        if line.split(None, 1)[:1] == [keyword]
+    ]
+
+
 def test_test_stage_installs_the_dev_lock_with_require_hashes() -> None:
-    assert _instructions("test", "RUN") == [f"pip install --require-hashes -r {DEV_LOCK}"]
-    assert DEV_LOCK in _instructions("base", "COPY")[0].split()
+    assert _stage_instructions("test", "RUN") == [f"pip install --require-hashes -r {DEV_LOCK}"]
+    assert DEV_LOCK in " ".join(_stage_instructions("base", "COPY")).split()
 
 
 def test_lock_script_pins_the_approved_pip_tools_and_generates_hashes() -> None:
