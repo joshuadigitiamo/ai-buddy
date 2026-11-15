@@ -512,6 +512,60 @@ def _bind_calls(script: str) -> list[str]:
     return sorted(calls)
 
 
+GCP_IDENTIFIERS = (
+    "GCP_PROJECT_ID",
+    "GCP_PROJECT_NUMBER",
+    "GCP_DEPLOYER_SA",
+    "GCP_WIF_PROVIDER",
+    "GCP_OAUTH_CLIENT_ID",
+)
+GITHUB_VARIABLES = ("GUIDES_WEB_BASE", "CHAT_JWT_ISSUER_EMAIL", "VIDEO_THUMBNAIL_URL", "HELP_COMMAND_ID")
+
+
+def _between(text: str, start: str, end: str | None) -> str:
+    """The text from the first `start` to the next `end` (or the end of the text)."""
+    assert start in text, f"missing {start!r}"
+    tail = text[text.index(start) :]
+    return tail if end is None or end not in tail[len(start) :] else tail[: tail.index(end, len(start))]
+
+
+def test_runbook_stores_the_gcp_identifiers_as_secrets() -> None:
+    text = RUNBOOK.read_text(encoding="utf-8")
+    section = _between(text, "## GitHub repository secrets and variables", "\n## ")
+    secrets = _between(section, "### Repository secrets", "### Repository variables")
+    variables = _between(section, "### Repository variables", None)
+    for name in GCP_IDENTIFIERS:
+        assert f"`{name}`" in secrets, f"{name} must sit in the secrets table"
+        assert f"`{name}`" not in variables, f"{name} must not sit in the variables table"
+    for name in GITHUB_VARIABLES:
+        assert f"`{name}`" in variables, f"{name} must sit in the variables table"
+        assert f"`{name}`" not in secrets, f"{name} is not a secret"
+    for needle in ("gh secret set", "gh variable get", "gh variable delete", "masked"):
+        assert needle in section, f"the section does not mention {needle!r}"
+    assert "none of them is a secret" not in text
+    assert "GitHub repository variables" not in text
+
+
+def test_runbook_secret_names_equal_the_workflow_call_secret_names() -> None:
+    workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "_deploy.yml").read_text())
+    declared = workflow.get("on", workflow.get(True))["workflow_call"]["secrets"]
+    assert tuple(sorted(declared)) == tuple(sorted(GCP_IDENTIFIERS))
+
+
+def test_bootstrap_prints_the_identifiers_as_secrets_and_the_rest_as_variables() -> None:
+    script = BOOTSTRAP.read_text(encoding="utf-8")
+    final = script[script.index("# 10. What to do next") :]
+    secrets = _between(final, "repository secrets", "repository variables")
+    variables = _between(final, "repository variables", "Secret Manager")
+    for name in GCP_IDENTIFIERS:
+        assert name in secrets, f"{name} must be printed under the repository secrets"
+        assert name not in variables
+    for name in GITHUB_VARIABLES:
+        assert name in variables, f"{name} must be printed under the repository variables"
+    assert "gh secret set" in final
+    assert "stdin" in secrets
+
+
 def test_bootstrap_binds_exactly_these_roles() -> None:
     """IN-03: a commented-out, moved or widened binding changes this set and fails here."""
     calls = _bind_calls(BOOTSTRAP.read_text(encoding="utf-8"))
