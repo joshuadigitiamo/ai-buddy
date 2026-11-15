@@ -108,7 +108,8 @@ def test_revision_step_runs_with_an_access_token_file() -> None:
     assert '-v "${TOKEN_DIR}/owner:/run/owner-token:ro"' in gcloud
     assert "-e CLOUDSDK_CONFIG=/tmp/gcloud" in gcloud
     assert ".config/gcloud" not in gcloud, "the revision step never mounts the gcloud login"
-    assert re.search(r'^GCLOUD_IMAGE="google/cloud-sdk:592\.0\.0-emulators@sha256:[0-9a-f]{64}"$', code, re.M)
+    pinned = r'^GCLOUD_IMAGE="google/cloud-sdk:592\.0\.0-emulators@sha256:[0-9a-f]{64}"$'
+    assert re.search(pinned, code, re.M)
     assert code.index("mint_owner_token\n") < code.index("GCLOUD=(")
     assert code.index("GCLOUD=(") < code.index("run services describe")
 

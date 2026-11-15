@@ -14,7 +14,8 @@
 # ids and the sync report (counts and ids).
 #
 # Credentials (WR-03): the owner's gcloud login (long-lived refresh token) is mounted only into
-# the digest-pinned google/cloud-sdk image that mints tokens. The sync image, which runs third-party
+# the digest-pinned google/cloud-sdk containers that mint tokens (one for sa-publisher, one for the
+# owner's own Cloud Run steps, which then run on a one-hour token without the login). The sync image, which runs third-party
 # Python packages, only ever sees a one-hour access token of the sa-publisher service account
 # (write access to the index and videos buckets and nothing else), minted right before the step
 # that needs it and mounted read-only as GCS_ACCESS_TOKEN_FILE. The owner needs
@@ -43,7 +44,9 @@
 set -euo pipefail
 
 IMAGE_NAME="ai-buddy-sync:laptop"
-GCLOUD_IMAGE="google/cloud-sdk:592.0.0-emulators"
+# Pinned by digest (docker buildx imagetools inspect google/cloud-sdk:592.0.0-emulators): this image
+# is what sees the owner's gcloud login, and only to mint a token.
+GCLOUD_IMAGE="google/cloud-sdk:592.0.0-emulators@sha256:808708b26bdf6705e2b42ed48ab53ad4abe0ce171ec8e78074669d28f5cb8dcc"
 REGION="europe-west8"
 SERVICE="mcp-server"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -104,6 +107,19 @@ mint_publisher_token() {
   fi
   chmod 600 "${token_file}"
   [[ -s "${token_file}" ]] || fail "the minted publisher token is empty"
+}
+
+# Mint a one-hour access token of the owner into ${TOKEN_DIR}/owner, for the Cloud Run steps. Same
+# rule as above: the gcloud login is mounted into this minting container only.
+mint_owner_token() {
+  local token_file="${TOKEN_DIR}/owner"
+  if ! (umask 077 && docker run --rm "${HOST_USER[@]}" \
+    -e CLOUDSDK_CONFIG=/gcloud -v "${HOME}/.config/gcloud:/gcloud" "${GCLOUD_IMAGE}" \
+    gcloud auth print-access-token >"${token_file}" 2>/dev/null); then
+    fail "could not mint an access token for the owner; run gcloud auth login"
+  fi
+  chmod 600 "${token_file}"
+  [[ -s "${token_file}" ]] || fail "the minted owner token is empty"
 }
 
 # Bucket steps (video upload now, publish later) need a project and credentials: check both before
@@ -216,7 +232,10 @@ case "${PUBLISH_STATUS}" in
   *) fail "publish returned an unknown status" ;;
 esac
 
-GCLOUD=(docker run --rm "${HOST_USER[@]}" -e CLOUDSDK_CONFIG=/gcloud -v "${HOME}/.config/gcloud:/gcloud" "${GCLOUD_IMAGE}" gcloud)
+# The Cloud Run steps run on the owner's one-hour token; the gcloud login itself is not mounted, and
+# the throwaway CLOUDSDK_CONFIG inside the container is discarded with it.
+mint_owner_token
+GCLOUD=(docker run --rm "${HOST_USER[@]}" -e CLOUDSDK_CONFIG=/tmp/gcloud -v "${TOKEN_DIR}/owner:/run/owner-token:ro" "${GCLOUD_IMAGE}" gcloud --access-token-file=/run/owner-token)
 
 # The first publish happens before the first deploy: with no service there is nothing to refresh.
 if ! DESCRIBE_ERR="$("${GCLOUD[@]}" run services describe "${SERVICE}" --region "${REGION}" --project "${PROJECT_ID}" --format 'value(metadata.name)' 2>&1 >/dev/null)"; then
