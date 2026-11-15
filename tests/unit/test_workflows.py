@@ -133,8 +133,11 @@ def test_deploy_steps_run_in_the_required_order() -> None:
         deploy,
         lambda s: "services replace" in s.get("run", "") and "--dry-run" not in s.get("run", ""),
     )
-    check = _step_index(deploy, lambda s: "curl" in s.get("run", ""))
-    assert build < render < dry < replace < check
+    serving = _step_index(deploy, lambda s: s.get("id") == "serving")
+    candidate = _step_index(deploy, lambda s: "candidate---" in s.get("run", ""))
+    switch = _step_index(deploy, lambda s: "--to-latest" in s.get("run", ""))
+    live = _step_index(deploy, lambda s: s.get("name") == "Check the live service")
+    assert build < serving < render < dry < replace < candidate < switch < live
 
 
 def test_deploy_authenticates_keyless_and_pushes_with_the_access_token() -> None:
