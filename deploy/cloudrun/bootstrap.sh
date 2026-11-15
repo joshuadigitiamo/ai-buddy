@@ -10,7 +10,8 @@
 #   PROJECT_ID        id of the existing project
 #   PROJECT_NUMBER    its numeric project number (checked against the project)
 #   GITHUB_REPO_ID    numeric id of the GitHub repository allowed to deploy (not its name)
-#   OWNER_EMAIL       the owner's Google account, who publishes the index and the videos
+#   OWNER_EMAIL       the owner's Google account, who publishes the index and the videos through
+#                     sa-publisher tokens
 # Optional:
 #   REGION                  defaults to europe-west8 (D-03); any other value is refused unless
 #                           ALLOW_REGION_FALLBACK names that same region, set only after asking Joshua
@@ -53,9 +54,11 @@ CLAUDE_BUCKET="${PROJECT_ID}-ai-buddy-claude"
 SA_MCP="sa-mcp-server"
 SA_BOT="sa-chat-bot"
 SA_CI="ci-deployer"
+SA_PUB="sa-publisher"
 SA_MCP_EMAIL="${SA_MCP}@${PROJECT_ID}.iam.gserviceaccount.com"
 SA_BOT_EMAIL="${SA_BOT}@${PROJECT_ID}.iam.gserviceaccount.com"
 SA_CI_EMAIL="${SA_CI}@${PROJECT_ID}.iam.gserviceaccount.com"
+SA_PUB_EMAIL="${SA_PUB}@${PROJECT_ID}.iam.gserviceaccount.com"
 MCP_SECRETS=(google-client-secret oauth-jwt-signing-key oauth-storage-encryption-key)
 BOT_SECRETS=(allowed-users thread-key-secret meridian-api-key)
 
@@ -137,7 +140,7 @@ done
 
 # 6. Service accounts.
 log "service accounts"
-for account in "${SA_MCP}" "${SA_BOT}" "${SA_CI}"; do
+for account in "${SA_MCP}" "${SA_BOT}" "${SA_CI}" "${SA_PUB}"; do
   if ! gc iam service-accounts describe "${account}@${PROJECT_ID}.iam.gserviceaccount.com" >/dev/null 2>&1; then
     gc iam service-accounts create "${account}" --display-name="${account}"
   fi
@@ -177,10 +180,16 @@ bind_bucket "${CLAUDE_BUCKET}" "serviceAccount:${SA_BOT_EMAIL}" roles/storage.ob
 for secret in "${BOT_SECRETS[@]}"; do
   bind_secret "${secret}" "serviceAccount:${SA_BOT_EMAIL}" roles/secretmanager.secretAccessor
 done
-# The owner: reads videos, publishes the index and videos, forces a new revision after a publish.
+# sa-publisher: the account the laptop publish writes with (WR-03). It writes the index and videos
+# buckets and nothing else: no project role, no secret. The sync image only ever receives a one-hour
+# token of this account, minted by the owner, so the owner's refresh token never enters that image.
+bind_bucket "${INDEX_BUCKET}" "serviceAccount:${SA_PUB_EMAIL}" roles/storage.objectAdmin
+bind_bucket "${VIDEOS_BUCKET}" "serviceAccount:${SA_PUB_EMAIL}" roles/storage.objectAdmin
+# The owner: mints sa-publisher tokens (the only way to publish), reads videos for playback, forces a
+# new revision after a publish. Bucket admin rights on the live project from before this change are
+# removed once, with the owner's go-ahead (README), not by this script.
+bind_sa "${SA_PUB_EMAIL}" "user:${OWNER_EMAIL}" roles/iam.serviceAccountTokenCreator
 bind_bucket "${VIDEOS_BUCKET}" "user:${OWNER_EMAIL}" roles/storage.objectViewer
-bind_bucket "${VIDEOS_BUCKET}" "user:${OWNER_EMAIL}" roles/storage.objectAdmin
-bind_bucket "${INDEX_BUCKET}" "user:${OWNER_EMAIL}" roles/storage.objectAdmin
 bind_project "user:${OWNER_EMAIL}" roles/run.developer
 
 # 9. Workload Identity Federation for GitHub Actions: keyless, limited to one repository id and main.

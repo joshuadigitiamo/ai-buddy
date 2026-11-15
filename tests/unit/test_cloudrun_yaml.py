@@ -469,6 +469,7 @@ _BIND_CALL = re.compile(r"^bind_(?:project|bucket|secret|sa) ")
 _CI = '"serviceAccount:${SA_CI_EMAIL}"'
 _MCP = '"serviceAccount:${SA_MCP_EMAIL}"'
 _BOT = '"serviceAccount:${SA_BOT_EMAIL}"'
+_PUB = '"serviceAccount:${SA_PUB_EMAIL}"'
 _OWNER = '"user:${OWNER_EMAIL}"'
 _WIF_MEMBER = (
     '"principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global'
@@ -489,8 +490,9 @@ _EXPECTED_BIND_CALLS = sorted(
         f'bind_bucket "${{CLAUDE_BUCKET}}" {_BOT} roles/storage.objectUser',
         f'bind_secret "${{secret}}" {_BOT} roles/secretmanager.secretAccessor',
         f'bind_bucket "${{VIDEOS_BUCKET}}" {_OWNER} roles/storage.objectViewer',
-        f'bind_bucket "${{VIDEOS_BUCKET}}" {_OWNER} roles/storage.objectAdmin',
-        f'bind_bucket "${{INDEX_BUCKET}}" {_OWNER} roles/storage.objectAdmin',
+        f'bind_bucket "${{INDEX_BUCKET}}" {_PUB} roles/storage.objectAdmin',
+        f'bind_bucket "${{VIDEOS_BUCKET}}" {_PUB} roles/storage.objectAdmin',
+        f'bind_sa "${{SA_PUB_EMAIL}}" {_OWNER} roles/iam.serviceAccountTokenCreator',
         f"bind_project {_OWNER} roles/run.developer",
         f'bind_sa "${{SA_CI_EMAIL}}" {_WIF_MEMBER} roles/iam.workloadIdentityUser',
     ]
@@ -517,6 +519,26 @@ def test_bootstrap_binds_exactly_these_roles() -> None:
     assert _CI_PROJECT_BINDING in calls, (
         "ci-deployer needs run.services.setIamPolicy (invoker-iam-disabled)"
     )
+
+
+def test_bootstrap_creates_sa_publisher_and_keeps_the_owner_off_bucket_admin() -> None:
+    """WR-03: the owner publishes through sa-publisher tokens, not through bucket admin rights."""
+    script = BOOTSTRAP.read_text(encoding="utf-8")
+    assert 'SA_PUB="sa-publisher"' in script
+    assert 'SA_PUB_EMAIL="${SA_PUB}@${PROJECT_ID}.iam.gserviceaccount.com"' in script
+    assert 'for account in "${SA_MCP}" "${SA_BOT}" "${SA_CI}" "${SA_PUB}"; do' in script
+    calls = _bind_calls(script)
+    assert not [c for c in calls if _OWNER in c and "objectAdmin" in c]
+    assert not [c for c in calls if _PUB in c and not c.startswith("bind_bucket")], (
+        "sa-publisher has no project role and no secret"
+    )
+
+
+def test_runbook_explains_the_publisher_token_and_the_one_time_bootstrap_rerun() -> None:
+    text = RUNBOOK.read_text(encoding="utf-8")
+    assert "`sa-publisher`" in text and "roles/iam.serviceAccountTokenCreator" in text
+    assert "one-hour" in text and "GCS_ACCESS_TOKEN_FILE" in text
+    assert "run `bootstrap.sh` once more" in text
 
 
 def test_bind_call_parser_ignores_a_commented_binding() -> None:

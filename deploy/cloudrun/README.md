@@ -58,7 +58,7 @@ Re-running it is safe: each step describes the resource first.
 |----------|------|
 | Artifact Registry repository | `ai-buddy` |
 | Buckets | `<PROJECT_ID>-ai-buddy-index`, `<PROJECT_ID>-ai-buddy-videos`, `<PROJECT_ID>-ai-buddy-claude` |
-| Service accounts | `sa-mcp-server`, `sa-chat-bot`, `ci-deployer` |
+| Service accounts | `sa-mcp-server`, `sa-chat-bot`, `ci-deployer`, `sa-publisher` |
 | WIF | pool `github`, provider `monorepo`, limited to the repository id and `refs/heads/main` |
 
 Roles, least privilege: `ci-deployer` pushes images, deploys, and acts as the two runtime accounts. It
@@ -68,7 +68,23 @@ lacks that permission, and this is the role the live project has used since 04-1
 (repository id and `refs/heads/main`) can reach the account, and a narrower custom role is a one-line change
 in `bootstrap.sh` plus one live binding. `sa-mcp-server` uses Firestore, reads the index bucket and reads its three secrets; `sa-chat-bot` uses
 Firestore, reads and writes the credentials bucket (and only that one) and reads its three secrets. The
-owner reads the videos bucket, publishes to the index and videos buckets and can deploy.
+owner reads the videos bucket (playback), can deploy a new revision (`roles/run.developer`) and holds
+`roles/iam.serviceAccountTokenCreator` on `sa-publisher`. `sa-publisher` writes the index and videos
+buckets (`roles/storage.objectAdmin` on those two buckets) and holds no project role. The owner no longer
+holds bucket admin rights: publishing goes through `sa-publisher`.
+
+**Credentials of the laptop publish.** `scripts/sync-and-publish.sh` never mounts the owner's
+Application Default Credentials or `~/.config/gcloud` into the sync image, whose Python packages are
+third-party code. Right before the video upload and again right before the index publish, it mints a
+one-hour access token of `sa-publisher` (`gcloud auth print-access-token --impersonate-service-account`),
+which needs `serviceAccountTokenCreator`, and mounts it read-only into that container as
+`GCS_ACCESS_TOKEN_FILE`. The Cloud Run steps (describe, traffic check, forced revision) run on a one-hour
+owner token (`--access-token-file`) with a throwaway gcloud configuration. The `~/.config/gcloud`
+directory is mounted only into the two token-minting containers of the digest-pinned `google/cloud-sdk`
+image. Token files sit in a `mktemp -d` directory with mode 700 and are removed on exit; no service
+account key is created. **On an existing project run `bootstrap.sh` once more** to create `sa-publisher`
+and its bindings. Dropping the owner's old bucket admin bindings on the live project is a separate step
+that needs the owner's go-ahead (04-26).
 
 The region is fixed to `europe-west8` (D-03). Any other `REGION` is refused unless
 `ALLOW_REGION_FALLBACK` names the same region, which is set only after asking Joshua.
