@@ -143,7 +143,7 @@ Plans:
   3. Cloud Run YAMLs for `mcp_server` and `chat_bot` target europe-west8 with scale-to-zero and request-based billing, the SYNC-07 handoff (bucket read through `GcsArtifactStore`) is wired in, and the sync job runs on demand from the laptop and forces a new `mcp_server` revision after each publish (no nightly Scheduler, no sync job on Cloud Run; D-07, D-09). (reworded 2026-11 per 04-CONTEXT D-07/D-09)
   4. A change under `services/mcp_server` triggers only that service's workflow, which runs `run-unit-tests.sh --all` (ruff, mypy, pytest with coverage) and blocks the image push on failure; on success it pushes to Artifact Registry and deploys, authenticating through Workload Identity Federation with no key file in the repo or secrets.
   5. Guide videos play inline in the browser from access-controlled hosting (not GitHub release downloads) and the Guarda button opens at the section's timestamp; timestamp coverage in the guides index improved beyond the 238/2524 scene-mapped rows. (Carried over from the Phase 3 live check, deferred by Joshua; recommended path: Cloud Storage with video/mp4 served inline, access-controlled because the Guides are private.)
-**Plans**: 21/26 plans executed (04-15 to 04-26 are gap-closure plans)
+**Plans**: 22/26 plans executed (04-15 to 04-26 are gap-closure plans)
 **Note**: Live deploy runs in the existing GCP project `ai-buddy-dev` (digitiamo.com organization, billing linked; org policies may apply) and still needs Workload Identity Federation (Admin Google); region europe-west8 is still to be confirmed (D7). Until the live deploy runs, criteria 3 and 4 are verified statically (YAML schema validation, workflow lint, dry runs) and the live deploy check is recorded as pending.
 
 Plans:
@@ -190,7 +190,7 @@ Plans:
 
 **Gap wave 4** *(blocked on gap wave 3)*
 - [ ] 04-23-PLAN.md — gha build cache, SBOM and provenance, Trivy scan of the pushed digest (policy decision)
-- [ ] 04-24-PLAN.md — Short-lived sa-publisher token for publish and upload; config-free revision step (WR-03)
+- [x] 04-24-PLAN.md — Short-lived sa-publisher token for publish and upload; config-free revision step (WR-03)
 
 **Gap wave 5** *(blocked on gap wave 4)*
 - [ ] 04-25-PLAN.md — Project identifiers as GitHub secrets, fail-fast config check, bounded Meridian wait (WR-01, WR-09, WR-02)
@@ -224,5 +224,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Content Sync | 11/11 | Complete    | 2026-11-03 |
 | 2. MCP Server and Skill | 7/7 | Complete    | 2026-11-06 |
 | 3. Google Chat Bot | 12/12 | Complete    | 2026-11-07 |
-| 4. Infrastructure and CI/CD | 21/26 | In Progress | - |
+| 4. Infrastructure and CI/CD | 22/26 | In Progress | - |
 | 5. Evaluation and Milestone Gate | 0/0 | Not started | - |
