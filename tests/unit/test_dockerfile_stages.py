@@ -85,6 +85,21 @@ def test_every_stage_uses_the_same_digest_pinned_base() -> None:
     assert len({m["digest"] for m in matches if m}) == 1, "stages use different base digests"
 
 
+# The pinned base digest is the newest python:3.12-slim, but it ships zlib1g 1:1.3.dfsg+really1.3.1-1+b1
+# (CVE-2026-76844, CVE-2026-85091, HIGH, fixed). Until upstream rebuilds, every stage installs
+# the exact fixed version from trixie-security so the deploy scan gate (04-23, fixable) passes.
+# Drop this pin, and this test, once a new base digest carries the fixed zlib1g.
+ZLIB1G_FIXED = "zlib1g=1:1.3.dfsg+really1.3.1-1+deb13u1"
+
+
+@pytest.mark.parametrize("stage", ("base", *RUNTIME_STAGES))
+def test_every_stage_installs_the_fixed_zlib1g(stage: str) -> None:
+    runs = " ".join(_instructions(stage, "RUN"))
+    assert ZLIB1G_FIXED in runs, f"{stage}: does not install {ZLIB1G_FIXED}"
+    assert "rm -rf /var/lib/apt/lists/*" in runs, f"{stage}: apt lists left in the layer"
+    assert "apt-get upgrade" not in runs, f"{stage}: unpinned apt-get upgrade"
+
+
 @pytest.mark.parametrize("stage", RUNTIME_STAGES)
 def test_runtime_stage_is_slim_and_ends_non_root(stage: str) -> None:
     text = _dockerfile_stage(stage)
