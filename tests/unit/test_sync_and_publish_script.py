@@ -10,6 +10,7 @@ image that mints tokens; every other container gets a short-lived token file.
 """
 
 import re
+import subprocess
 
 from tests.unit.test_repo_layout import ROOT
 
@@ -40,24 +41,46 @@ def test_forced_revision_suffix_is_unique_per_run() -> None:
     assert code.index("REVISION_SUFFIX=") < code.index("run services update")
 
 
+def _traffic_mode(lines: str) -> subprocess.CompletedProcess[str]:
+    """Run the script's traffic_mode function on gcloud's flattened `percent,latestRevision` CSV."""
+    match = re.search(r"^traffic_mode\(\) \{\n.*?^\}$", _code(), re.M | re.S)
+    assert match, "traffic_mode() is defined at the top level of the script"
+    return subprocess.run(
+        ["bash", "-c", f"{match.group(0)}\ntraffic_mode"],
+        input=lines,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_traffic_mode_accepts_only_one_latest_target_at_100() -> None:
+    """Live 04-26: the cloud-sdk image has no python3, so the guard parses gcloud's CSV in bash."""
+    assert _traffic_mode("100,True\n").stdout.strip() == "latest"
+    assert _traffic_mode("100,True\n,False\n").stdout.strip() == "latest", "0% candidate tag"
+    assert _traffic_mode("100,False\n0,True\n").stdout.strip() == "pinned"
+    assert _traffic_mode("50,True\n50,False\n").stdout.strip() == "pinned"
+    assert _traffic_mode("").returncode != 0, "no traffic read is unreadable, not latest"
+    assert _traffic_mode("abc,True\n").returncode != 0
+
+
 def test_forced_revision_waits_for_latest_revision_traffic() -> None:
     """Traffic pinned by an unfinished staged deploy must stop the forced revision."""
     code = _code()
     update = code.index("run services update")
     before = code[:update]
-    assert re.search(r"run services describe .*--format\s+'?json'?", before), (
-        "the guard reads the service as JSON before it forces a revision"
+    assert re.search(r"run services describe .*--flatten spec\.traffic", before), (
+        "the guard reads spec.traffic before it forces a revision"
     )
-    assert "spec" in before and "traffic" in before, "it reads spec.traffic, the requested list"
-    assert "latestRevision" in before, "it accepts only latest-revision mode"
-    assert "python3 -c" in before, "the JSON is parsed in the gcloud image, not on the host"
+    assert "csv[no-heading](spec.traffic.percent,spec.traffic.latestRevision)" in before
+    assert "python3" not in code, "the pinned cloud-sdk image ships no python3"
     assert re.search(r'TRAFFIC_MODE.*!=\s*"latest"', before), "anything but latest stops the script"
     refusal = [line for line in before.splitlines() if "pinned to a named revision" in line]
     assert len(refusal) == 1
     assert "${SERVICE}" in refusal[0], "the message names the service"
     assert "index is already published" in refusal[0]
     assert "next successful ${SERVICE} deploy will load it" in refusal[0]
-    assert 'echo "${TRAFFIC_JSON}"' not in code, "the describe output is never printed"
+    assert 'echo "${TRAFFIC_LINES}"' not in code, "the describe output is never printed"
 
 
 # --- credentials (04-24, WR-03) ---------------------------------------------------------------
