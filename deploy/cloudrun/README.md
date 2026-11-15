@@ -167,8 +167,9 @@ gcloud run services replace .cache/rendered/mcp-server.yaml --region europe-west
 gcloud run services replace .cache/rendered/chat-bot.yaml   --region europe-west8 --project "$PROJECT_ID"
 ```
 
-A manual `replace` without a traffic block sends all traffic to the new revision at once. Staging for
-the CI deploy comes with 04-22.
+A manual `replace` without `SERVING_REVISION` sends all traffic to the new revision at once and leaves
+traffic pinned to it; "Staged deploys" below has the two commands that put the service back in
+latest-revision mode.
 
 The render script needs every variable of the service to be set and non-empty (it names the missing
 ones, never the values), substitutes only that service's variable list, requires `IMAGE_DIGEST` to be
@@ -181,6 +182,49 @@ files can name each other before the first deploy: the bot's `MCP_AUDIENCE` equa
 `MCP_PUBLIC_BASE_URL`, `MCP_URL` is that URL plus `/mcp`, and the server's `BOT_SA_EMAILS` names the bot's
 runtime account. `tests/unit/test_cloudrun_yaml.py` keeps the two files in step; the live authenticated
 call is checked in 04-13.
+
+## Staged deploys
+
+Every CI deploy checks its revision before the revision serves anyone (CICD_GUIDE section 20). The
+steps of `_deploy.yml`, in order:
+
+1. **Find the serving revision.** `scripts/serving_revision.py` reads `status.traffic` of the described
+   service and returns the revision that holds 100%. On the first deploy the service does not exist and
+   the answer is empty. Split or unresolved traffic stops the run with a names-only error.
+2. **Render and replace.** Both templates carry a traffic block: `SERVING_REVISION` keeps 100%, the new
+   revision `<service>-r<run id>-<attempt>` gets 0% and the tag `candidate`.
+3. **Check the candidate.** The step first proves that the new revision holds no traffic, then sends the
+   same requests as the live check to `https://candidate---<service>-<PROJECT_NUMBER>.europe-west8.run.app`:
+   `mcp-server` `GET /health` 200 and `POST /mcp` 401, `chat-bot` one `POST /` 401 without a token (no model
+   call, no second Meridian turn). `MCP_ALLOWED_HOSTS` in `mcp-server.yaml` lets the Host guard accept that
+   name.
+4. **Switch.** `gcloud run services update-traffic <service> --to-latest` moves all traffic, then
+   `--remove-tags candidate` drops the tag. The service is back in latest-revision mode.
+5. **Check the live service.** The existing check on the main URL.
+
+**A red candidate.** The job fails before any traffic command runs. The previous revision keeps 100%.
+The new revision and the tag `candidate` stay in place; the tag URL has the same authentication as the
+main URL. The next run stages its own revision against the revision that still serves. To drop the tag by
+hand:
+
+```bash
+gcloud run services update-traffic mcp-server --remove-tags candidate \
+  --region europe-west8 --project "$PROJECT_ID"
+```
+
+**Traffic that is split or unresolved.** If someone split traffic by hand, step 1 stops the run. Decide
+which revision should serve, set it with `gcloud run services update-traffic <service>
+--to-revisions=<revision>=100` (or `--to-latest`), and run the deploy again.
+
+**The laptop publish.** `scripts/sync-and-publish.sh` forces a new `mcp-server` revision after a publish.
+That revision takes traffic only in latest-revision mode. While traffic is pinned to a named revision (a
+staged deploy that did not finish) the script refuses, says that the index is already published, and
+leaves it to the next successful `mcp-server` deploy, whose new revision loads the index at cold start.
+
+**A manual replace.** Without `SERVING_REVISION` the serving target and the tagged target are the same new
+revision, so it takes all traffic at once and traffic stays pinned to it. Afterwards run
+`gcloud run services update-traffic <service> --to-latest` and then the same command with
+`--remove-tags candidate`.
 
 ## Connecting Chat and claude.ai
 

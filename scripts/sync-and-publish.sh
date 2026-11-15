@@ -198,6 +198,17 @@ if ! DESCRIBE_ERR="$("${GCLOUD[@]}" run services describe "${SERVICE}" --region 
   fail "could not look up ${SERVICE}; the index is published but no new revision was created"
 fi
 
+# Traffic mode guard (04-22): a staged CI deploy pins traffic to a named revision until its checks pass. A
+# forced revision created then would take no traffic, so the new index would never load. Only
+# latest-revision mode (one target at 100% with latestRevision: true) lets the forced revision serve. The
+# JSON is parsed in the gcloud image (python3 ships there), never on the host, and never printed.
+TRAFFIC_UNREADABLE="could not read the traffic of ${SERVICE}; the index is published but no new revision was created"
+TRAFFIC_JSON="$("${GCLOUD[@]}" run services describe "${SERVICE}" --region "${REGION}" --project "${PROJECT_ID}" --format json 2>/dev/null)" || fail "${TRAFFIC_UNREADABLE}"
+TRAFFIC_MODE="$(docker run --rm -i "${HOST_USER[@]}" "${GCLOUD_IMAGE}" python3 -c 'import json, sys; t = [x for x in json.load(sys.stdin)["spec"]["traffic"] if x.get("percent", 0) > 0]; print("latest" if len(t) == 1 and t[0].get("latestRevision") is True and t[0].get("percent") == 100 else "pinned")' <<<"${TRAFFIC_JSON}" 2>/dev/null)" || fail "${TRAFFIC_UNREADABLE}"
+if [[ "${TRAFFIC_MODE}" != "latest" ]]; then
+  fail "${SERVICE} traffic is pinned to a named revision (a staged deploy that did not finish); the index is already published and the next successful ${SERVICE} deploy will load it"
+fi
+
 # The revision name: CI names its revisions <service>-r<run id>-<attempt>, so a publish uses its own
 # prefix p, the build part and the epoch seconds of this run. A second publish of the same build id
 # (the re-publish after an index-object repair) therefore gets a new name instead of an existing one.
