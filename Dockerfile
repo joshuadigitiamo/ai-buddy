@@ -7,10 +7,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY requirements.txt requirements-dev.txt requirements-dev.lock ./
-COPY services/mcp_server/requirements.txt services/mcp_server/requirements.txt
-COPY services/chat_bot/requirements.txt services/chat_bot/requirements.txt
-COPY jobs/sync/requirements.txt jobs/sync/requirements.txt
+COPY requirements-dev.lock ./
 
 # The tested dependency set: every distribution pinned and hash-checked (WR-04). Regenerate the
 # locks with scripts/lock-requirements.sh.
@@ -25,9 +22,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONPATH=/app/packages/buddy_core:/app/services/mcp_server
 WORKDIR /app
-COPY requirements.txt ./
-COPY services/mcp_server/requirements.txt services/mcp_server/requirements.txt
-RUN pip install -r requirements.txt -r services/mcp_server/requirements.txt
+COPY services/mcp_server/requirements.lock services/mcp_server/requirements.lock
+RUN pip install --require-hashes -r services/mcp_server/requirements.lock
 COPY packages/buddy_core packages/buddy_core
 COPY services/mcp_server services/mcp_server
 USER 10001
@@ -44,9 +40,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app/packages/buddy_core:/app/services/mcp_server:/app/services/chat_bot \
     LANGSMITH_TRACING=false
 WORKDIR /app
-COPY requirements.txt ./
-COPY services/chat_bot/requirements.txt services/chat_bot/requirements.txt
-RUN pip install -r requirements.txt -r services/chat_bot/requirements.txt
+COPY services/chat_bot/requirements.lock services/chat_bot/requirements.lock
+RUN pip install --require-hashes -r services/chat_bot/requirements.lock
 COPY packages/buddy_core packages/buddy_core
 COPY services/mcp_server/buddy_mcp/__init__.py services/mcp_server/buddy_mcp/__init__.py
 COPY services/mcp_server/buddy_mcp/models.py services/mcp_server/buddy_mcp/models.py
@@ -70,9 +65,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && git config --system --add safe.directory /guides-src && git config --system --add safe.directory /guides-src/.git
 WORKDIR /app
-COPY requirements.txt ./
-COPY jobs/sync/requirements.txt jobs/sync/requirements.txt
-RUN pip install -r requirements.txt -r jobs/sync/requirements.txt
+COPY jobs/sync/requirements.lock jobs/sync/requirements.lock
+RUN pip install --require-hashes -r jobs/sync/requirements.lock
 COPY packages/buddy_core packages/buddy_core
 COPY jobs/sync jobs/sync
 RUN mkdir -p /artifacts /app/.cache && chown 10001:10001 /artifacts /app/.cache

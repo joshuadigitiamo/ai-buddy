@@ -12,6 +12,7 @@ on:
       - "tests/**"
       - "pyproject.toml"
       - "requirements-dev.txt"
+      - "requirements-dev.lock"
       - "run-unit-tests.sh"
       - "docker-compose*.yml"
       - "deploy/k8s/**"

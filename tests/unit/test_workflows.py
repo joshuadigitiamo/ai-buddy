@@ -337,6 +337,7 @@ def test_test_only_workflow_covers_the_files_no_service_image_copies() -> None:
         "tests/unit/test_workflows.py",
         "pyproject.toml",
         "requirements-dev.txt",
+        "requirements-dev.lock",
         "run-unit-tests.sh",
         "docker-compose.yml",
         "docker-compose.test.yml",
