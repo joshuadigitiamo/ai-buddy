@@ -344,6 +344,11 @@ def test_test_only_workflow_covers_the_files_no_service_image_copies() -> None:
         "deploy/k8s/base/kustomization.yaml",
         "deploy/compose/__init__.py",
         "scripts/validate-infra.sh",
+        "deploy/cloudrun/bootstrap.sh",
+        "deploy/cloudrun/README.md",
+        ".env.example",
+        ".dockerignore",
+        ".github/dependabot.yml",
     ):
         assert _matches(path, patterns), f"tests.yml would miss a change to {path}"
 
@@ -355,6 +360,10 @@ def test_dependabot_watches_actions_docker_and_pip() -> None:
     assert {(u["package-ecosystem"], u["directory"]) for u in updates} == {
         ("github-actions", "/"),
         ("docker", "/"),
+        ("pip", "/"),
+        ("pip", "/services/mcp_server"),
+        ("pip", "/services/chat_bot"),
+        ("pip", "/jobs/sync"),
     }
     assert [u["schedule"]["interval"] for u in updates] == ["weekly"] * len(updates)
 
