@@ -111,11 +111,14 @@ def run_sync(
             drift = len(
                 check_guides_index(checkout.path, synced.outline, strict=strict, logger=logger)
             )
+        elif url_for is not None:
+            # The Guides did not change but VIDEO_BUCKET may have: re-point the kept links.
+            videos = rewrite_links(previous.video_links() if previous is not None else {}, url_for)
         else:
-            videos = previous.video_links() if previous is not None else {}
-            if url_for is not None:
-                # The Guides did not change but VIDEO_BUCKET may have: re-point the kept links.
-                videos = rewrite_links(videos, url_for)
+            # No VIDEO_BUCKET in this run: kept links may point at the private bucket from an
+            # earlier run, and this run uploaded nothing. Re-resolve from the Guides README, the
+            # source of the part list, so a local-only index carries README links only (T-04-44).
+            videos = resolve_video_links(checkout.path, synced.chunks, logger=logger, url_for=None)
 
         content = IndexContent(
             handbook=handbook.pages,
