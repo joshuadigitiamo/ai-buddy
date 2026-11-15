@@ -9,6 +9,7 @@ with both keys.
 import re
 import subprocess
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -226,7 +227,7 @@ def test_secrets_context_holds_only_the_five_gcp_identifiers() -> None:
     assert names, "the workflows read no identifier at all"
 
 
-@pytest.mark.parametrize("name", ["_deploy.yml", *DEPLOYING])
+@pytest.mark.parametrize("name", ["_deploy.yml", *DEPLOYING, "meridian.yml"])
 def test_no_workflow_reads_a_gcp_identifier_from_vars(name: str) -> None:
     text = (WORKFLOW_DIR / name).read_text()
     found = re.findall(r"\bvars\.(GCP_\w+)", text)
@@ -340,15 +341,74 @@ def test_a_changed_file_triggers_only_the_workflows_that_copy_it(
     assert triggered == expected
 
 
-def test_chat_bot_deploy_fails_early_when_the_meridian_image_is_missing() -> None:
+def _meridian_check_step() -> dict[str, Any]:
+    steps = [step for _, step in _steps(_load("_deploy.yml"))]
+    return next(s for s in steps if "meridian.version" in s.get("run", ""))
+
+
+def test_chat_bot_deploy_waits_a_bounded_time_for_the_meridian_image() -> None:
     deploy = _load("_deploy.yml")
     steps = [step for _, step in _steps(deploy)]
-    check = next(s for s in steps if "meridian.version" in s.get("run", ""))
+    check = _meridian_check_step()
     assert check["if"] == "inputs.service == 'chat-bot'"
+    assert check["env"]["MERIDIAN_WAIT_SECONDS"] == "1800"
+    assert check["env"]["MERIDIAN_POLL_SECONDS"] == "30"
+    assert re.search(r"\b(until|while)\b", check["run"]), "the check must loop"
     assert "gcloud artifacts docker images describe" in check["run"]
     assert "Meridian image ${MERIDIAN_TAG} missing: run the meridian workflow" in check["run"]
     build = _step_index(deploy, lambda s: s.get("uses", "").startswith("docker/build-push-action@"))
     assert steps.index(check) < build, "the Meridian check must run before the build and push"
+    assert deploy["jobs"]["deploy"]["timeout-minutes"] == 75
+
+
+def _run_meridian_check(
+    tmp_path: Path, *, wait: str, poll: str, failures: int | None
+) -> tuple[subprocess.CompletedProcess[str], int]:
+    """Run the check step with a fake gcloud that fails `failures` times (None: always) first."""
+    (tmp_path / "deploy").mkdir()
+    (tmp_path / "deploy" / "meridian.version").write_text("a" * 40 + "\n")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    counter = tmp_path / "calls"
+    gcloud = bin_dir / "gcloud"
+    limit = "999999" if failures is None else str(failures)
+    gcloud.write_text(
+        "#!/bin/bash\n"
+        f'n=$(cat "{counter}" 2>/dev/null || echo 0); n=$((n + 1)); echo "$n" > "{counter}"\n'
+        f'[ "$n" -gt {limit} ]\n'
+    )
+    gcloud.chmod(0o755)
+    result = subprocess.run(
+        ["bash", "-c", _meridian_check_step()["run"]],
+        cwd=tmp_path,
+        env={
+            "PATH": f"{bin_dir}:/usr/bin:/bin",
+            "RUNNER_TEMP": str(tmp_path),
+            "PROJECT_ID": "proj-secret-value",
+            "REGION": "europe-west8",
+            "MERIDIAN_WAIT_SECONDS": wait,
+            "MERIDIAN_POLL_SECONDS": poll,
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result, int(counter.read_text())
+
+
+def test_meridian_check_retries_until_the_image_appears(tmp_path: Path) -> None:
+    result, calls = _run_meridian_check(tmp_path, wait="60", poll="0", failures=2)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert calls == 3
+
+
+def test_meridian_check_fails_with_the_existing_error_after_the_wait(tmp_path: Path) -> None:
+    result, calls = _run_meridian_check(tmp_path, wait="1", poll="0", failures=None)
+    assert result.returncode == 1
+    assert calls > 1, "the check must retry before it gives up"
+    assert f"::error::Meridian image {'a' * 40} missing: run the meridian workflow" in result.stdout
+    assert result.stdout.count("waiting for Meridian image") == 1, "one progress line per 5 min"
+    assert "proj-secret-value" not in result.stdout
 
 
 def test_sync_workflow_tests_and_builds_the_image_without_push_or_deploy() -> None:
@@ -381,7 +441,6 @@ def test_meridian_workflow_builds_only_the_reviewed_commit_after_the_test_gate()
     jobs = workflow["jobs"]
     assert jobs["test"]["uses"] == "./.github/workflows/_test.yml"
     assert jobs["push"]["needs"] == "test"
-    assert jobs["push"]["if"] == "vars.GCP_PROJECT_ID != ''"
     read = next(s for _, s in _steps(workflow) if "meridian.version" in s.get("run", ""))
     assert read["id"] == "version"
     assert "[0-9a-f]{40}" in read["run"], "the version file must be validated as a full commit"
@@ -392,6 +451,18 @@ def test_meridian_workflow_builds_only_the_reviewed_commit_after_the_test_gate()
     assert build["with"]["push"] is True
     assert build["with"]["tags"].endswith("/ai-buddy/meridian:${{ steps.version.outputs.sha }}")
     assert "target" not in build["with"]
+
+
+MERIDIAN_IDENTIFIERS = ("GCP_PROJECT_ID", "GCP_PROJECT_NUMBER", "GCP_DEPLOYER_SA", "GCP_WIF_PROVIDER")
+
+
+def test_meridian_push_job_fails_fast_when_the_project_is_not_configured() -> None:
+    job = _load("meridian.yml")["jobs"]["push"]
+    assert "if" not in job, "a missing configuration must turn the run red, not skip the build"
+    assert job["steps"][0]["uses"].startswith("actions/checkout@")
+    check = job["steps"][1]
+    assert check["name"] == "Check the deploy configuration"
+    _assert_fails_fast_on_a_missing_identifier(check, MERIDIAN_IDENTIFIERS)
 
 
 def test_test_only_workflow_covers_the_files_no_service_image_copies() -> None:
