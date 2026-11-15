@@ -157,11 +157,11 @@ def test_meridian_credentials_arrive_only_through_secret_references() -> None:
     assert key_reference["secretKeyRef"] == {"name": "bot-secrets", "key": "MERIDIAN_API_KEY"}
 
 
-def test_mcp_server_probes_call_healthz_with_the_service_host_header() -> None:
+def test_mcp_server_probes_call_health_with_the_service_host_header() -> None:
     container = _container("mcp-server", "mcp-server")
     for probe in ("readinessProbe", "livenessProbe"):
         http_get = container[probe]["httpGet"]
-        assert http_get["path"] == "/healthz"
+        assert http_get["path"] == "/health"
         assert {"name": "Host", "value": "mcp-server"} in http_get["httpHeaders"], (
             "the Host guard rejects the pod IP kubelet would send (04-02)"
         )
@@ -320,7 +320,7 @@ def test_kind_up_verifies_the_download_and_creates_secrets_without_printing_them
     assert "meridian.version" in script and "kind-config.yaml" in script
     assert "kind-config.yaml" in script and "__ARTIFACTS_DIR__" in script
     smoke = KIND_SMOKE.read_text(encoding="utf-8")
-    assert smoke.count("kind smoke ok") == 1 and "/healthz" in smoke and "guides_search" in smoke
+    assert smoke.count("kind smoke ok") == 1 and "/health" in smoke and "guides_search" in smoke
 
 
 def test_validate_infra_runs_kubeconform_strict_over_base_and_every_overlay() -> None:

@@ -3,7 +3,7 @@
 #
 # It requires the pubsub-init Job complete and the chat-bot pod Ready (Meridian sidecar started),
 # then, from a one-off pod (the already loaded mcp-server image, no new image), it GETs
-# http://mcp-server:8000/healthz and POSTs one tools/call guides_search to the MCP server by its
+# http://mcp-server:8000/health and POSTs one tools/call guides_search to the MCP server by its
 # Service name. The last line printed is the success marker; any failure exits non-zero.
 #
 # Usage:
@@ -42,10 +42,10 @@ PROBE='
 import json, os, sys, urllib.request
 
 base = "http://mcp-server:8000"
-with urllib.request.urlopen(base + "/healthz", timeout=10) as health:
+with urllib.request.urlopen(base + "/health", timeout=10) as health:
     body = json.loads(health.read())
     assert health.status == 200 and body == {"status": "ok"}, (health.status, body)
-print("healthz 200")
+print("health 200")
 
 call = {
     "jsonrpc": "2.0",

@@ -38,7 +38,7 @@ spec:
           image: "europe-west8-docker.pkg.dev/${PROJECT_ID}/ai-buddy/mcp-server:${IMAGE_TAG}"
           ports:
             - containerPort: 8000
-          # TCP only: /healthz sits behind the server's Host guard, and a startup probe must not
+          # TCP only: /health sits behind the server's Host guard, and a startup probe must not
           # depend on a Host header. Nothing here touches Firestore or the bucket.
           startupProbe:
             tcpSocket:

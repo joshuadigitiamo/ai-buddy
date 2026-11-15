@@ -17,7 +17,7 @@ deploy/k8s/
 
 ```bash
 scripts/kind-up.sh      # kind v0.33.0 into .cache/bin (sha256 checked), cluster, images, Secrets, overlay
-scripts/kind-smoke.sh   # in-cluster /healthz plus one cited guides_search call; last line: kind smoke ok
+scripts/kind-smoke.sh   # in-cluster /health plus one cited guides_search call; last line: kind smoke ok
 scripts/validate-infra.sh   # kubectl kustomize + kubeconform -strict for base and every overlay
 ```
 
@@ -67,7 +67,7 @@ them in the ConfigMaps `mcp-server-local` and `chat-bot-local`.
 
 ## Probes and sidecar
 
-- `mcp-server` readiness and liveness call `/healthz` with `Host: mcp-server`. kubelet would send
+- `mcp-server` readiness and liveness call `/health` with `Host: mcp-server`. kubelet would send
   the pod IP, which the server's Host guard rejects; the dev overlay lists `mcp-server` in the
   server's allow-list.
 - The chat bot has no HTTP port in Pub/Sub intake mode, so it has no HTTP probe.

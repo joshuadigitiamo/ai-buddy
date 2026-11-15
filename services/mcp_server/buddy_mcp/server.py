@@ -61,8 +61,8 @@ def build_server(
         now=now,
     )
 
-    @mcp.custom_route("/healthz", methods=["GET"], include_in_schema=False)
-    async def healthz(request: Request) -> JSONResponse:
+    @mcp.custom_route("/health", methods=["GET"], include_in_schema=False)
+    async def health(request: Request) -> JSONResponse:
         # Liveness only: constant body, no setting, snapshot, Firestore or bucket is read.
         return JSONResponse({"status": "ok"})
 

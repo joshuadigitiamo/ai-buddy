@@ -55,7 +55,7 @@ The index is read once, at cold start. After a new sync, restart the server.
 
 ### With compose
 
-`docker-compose.yml` at the repository root runs the server from this image next to the `sync` one-shot, both emulators, a stub LLM and the chat bot. The server uses `ARTIFACT_STORE=local` over the named volume `artifacts`, which `sync` writes and the server mounts read-only; compose starts the server only after `sync` exits successfully, so an empty handbook folder never gives an empty or stale index. The bot calls the server at `http://mcp-server:8000/mcp`, and the server lists `mcp-server` in `MCP_ALLOWED_HOSTS` so its Host guard admits that name on plain http (`DEPLOY_ENV=local`, `AUTH_MODE=off`). The compose healthcheck calls `/healthz`. The images run as uid 10001: a host directory used for the artifacts instead of the named volume must be writable by that uid, or the container must run with `--user`. `scripts/compose-smoke.sh` proves the whole path offline (see `services/chat_bot/README.md`, "Hermetic smoke").
+`docker-compose.yml` at the repository root runs the server from this image next to the `sync` one-shot, both emulators, a stub LLM and the chat bot. The server uses `ARTIFACT_STORE=local` over the named volume `artifacts`, which `sync` writes and the server mounts read-only; compose starts the server only after `sync` exits successfully, so an empty handbook folder never gives an empty or stale index. The bot calls the server at `http://mcp-server:8000/mcp`, and the server lists `mcp-server` in `MCP_ALLOWED_HOSTS` so its Host guard admits that name on plain http (`DEPLOY_ENV=local`, `AUTH_MODE=off`). The compose healthcheck calls `/health`. The images run as uid 10001: a host directory used for the artifacts instead of the named volume must be writable by that uid, or the container must run with `--user`. `scripts/compose-smoke.sh` proves the whole path offline (see `services/chat_bot/README.md`, "Hermetic smoke").
 
 ### Where the index comes from
 
@@ -120,7 +120,7 @@ If a variable is missing or invalid, the process exits with code 1 and one `ERRO
 
 ### Health route
 
-`GET /healthz` answers `200` with the constant body `{"status": "ok"}`. It needs no token, even with `AUTH_MODE=on`, and reads neither Firestore nor any bucket, so a slow dependency never fails liveness. The Host guard applies to it as to `/mcp`: a probe must send a `Host` header the server allows (for Kubernetes `httpGet` probes, set `Host: mcp-server` and list `mcp-server` in `MCP_ALLOWED_HOSTS`).
+`GET /health` answers `200` with the constant body `{"status": "ok"}`. It needs no token, even with `AUTH_MODE=on`, and reads neither Firestore nor any bucket, so a slow dependency never fails liveness. The Host guard applies to it as to `/mcp`: a probe must send a `Host` header the server allows (for Kubernetes `httpGet` probes, set `Host: mcp-server` and list `mcp-server` in `MCP_ALLOWED_HOSTS`).
 
 ### Google OAuth client
 

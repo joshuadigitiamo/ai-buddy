@@ -1,4 +1,4 @@
-# MCP server: one replica, restricted-style securityContext, probes on /healthz.
+# MCP server: one replica, restricted-style securityContext, probes on /health.
 # The probes carry a Host header because the server's Host guard rejects the pod IP that
 # Kubernetes would otherwise send (04-02); the overlay lists the same name in the server's
 # allow-list. This base sets no local-only knob: on its own the server refuses to start
@@ -38,7 +38,7 @@ spec:
               value: "8000"
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /health
               port: 8000
               httpHeaders:
                 - name: Host
@@ -48,7 +48,7 @@ spec:
             failureThreshold: 6
           livenessProbe:
             httpGet:
-              path: /healthz
+              path: /health
               port: 8000
               httpHeaders:
                 - name: Host

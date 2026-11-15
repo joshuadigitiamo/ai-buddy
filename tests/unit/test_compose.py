@@ -236,7 +236,7 @@ def test_mcp_server_serves_a_local_store_without_auth_or_bot_secrets() -> None:
     assert environment["AUTH_MODE"] == "off"
     assert environment["DEPLOY_ENV"] == "local"
     assert environment["GOOGLE_CLOUD_PROJECT"] == HERMETIC_PROJECT
-    assert "/healthz" in " ".join(str(part) for part in server["healthcheck"]["test"])
+    assert "/health" in " ".join(str(part) for part in server["healthcheck"]["test"])
 
 
 def test_emulator_wiring_is_consistent() -> None:

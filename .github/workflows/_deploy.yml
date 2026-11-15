@@ -171,7 +171,7 @@ jobs:
 
           case "${SERVICE}" in
             mcp-server)
-              expect GET /healthz 200
+              expect GET /health 200
               expect POST /mcp 401
               ;;
             chat-bot)

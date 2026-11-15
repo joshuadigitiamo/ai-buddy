@@ -130,7 +130,7 @@ def test_host_kwargs_cover_the_public_host_and_loopback(settings: McpSettings) -
     assert host_kwargs(None)["allowed_hosts"]
 
 
-# --- INFRA-03: pod-to-pod Host allow-list and /healthz -----------------------------------------
+# --- INFRA-03: pod-to-pod Host allow-list and /health -----------------------------------------
 
 _POD_HOST = {"Host": "mcp-server:8000"}
 
@@ -183,26 +183,26 @@ async def test_allowed_host_list_does_not_admit_other_hosts(pod_client: httpx2.A
     assert response.status_code == 421
 
 
-async def test_healthz_answers_a_constant_body(pod_client: httpx2.AsyncClient) -> None:
-    response = await pod_client.get("/healthz", headers=_POD_HOST)
+async def test_health_answers_a_constant_body(pod_client: httpx2.AsyncClient) -> None:
+    response = await pod_client.get("/health", headers=_POD_HOST)
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
 
-async def test_healthz_is_subject_to_the_host_guard(pod_client: httpx2.AsyncClient) -> None:
-    response = await pod_client.get("/healthz", headers={"Host": "evil.example"})
+async def test_health_is_subject_to_the_host_guard(pod_client: httpx2.AsyncClient) -> None:
+    response = await pod_client.get("/health", headers={"Host": "evil.example"})
     assert response.status_code == 421
     assert "ok" not in response.text
 
 
-async def test_healthz_needs_no_token_when_auth_is_on(
+async def test_health_needs_no_token_when_auth_is_on(
     make_auth_server: Callable[..., FastMCP], auth_settings: McpSettings
 ) -> None:
     async for http in _served_client(make_auth_server(), auth_settings):
         assert (
             await http.post("/mcp", json=_rpc("initialize", {}), headers=_HEADERS)
         ).status_code == 401
-        response = await http.get("/healthz")
+        response = await http.get("/health")
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
         assert "authorization" not in response.request.headers
