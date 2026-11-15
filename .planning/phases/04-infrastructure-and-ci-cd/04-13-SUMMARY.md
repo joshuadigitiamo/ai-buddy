@@ -99,7 +99,25 @@ State as found on the host, before Joshua starts Task 2.
 
 ## Live deploy
 
-Not started. Task 2 (checkpoint:human-action) waits for Joshua.
+Done 2026-11-15, Joshua authorized each step in chat; Claude ran them (Cloud Shell in Chrome, Docker gcloud on the host).
+
+- `bootstrap.sh` ran in Cloud Shell. Firestore `(default)` created in **europe-west8** (Joshua confirmed the region; one-way). TTL on `expire_at` for `gaps` and `thread_memory`. Artifact Registry `ai-buddy`, three buckets, three service accounts, WIF pool `github` / provider `monorepo`. No org-policy error.
+- Deviation: the script's `firestore databases describe` pre-check hung about 3 minutes; that one call was killed, the script fell through to its typed-region prompt.
+- Six secrets set: four generated in place (never shown), `allowed-users` from `.env` by script (holds an email, which the allow-list accepts), `google-client-secret` version 2 (new `GOCSPX-` secret; version 1 held a wrongly pasted value and is disabled). `oauth-storage-encryption-key` version 2 is a Fernet key; version 1 (plain random) is disabled.
+- Nine GitHub repository variables set; OAuth redirect URI `…run.app/auth/callback` added (the trycloudflare URI is kept).
+- Claude bucket seeded from a fresh, separate `claude auth login` (token_chain b); local copy deleted. Meridian reports the account as a Team subscription ("Max recommended").
+- `sync-and-publish.sh`: 20 videos uploaded, index build `20261115T102549Z-dec3522a035e` (22 handbook pages, 2795 Guides sections, `07-wi-fi.md` redacted) published.
+- CI: `meridian` green; `mcp-server` and `chat-bot` green end to end after the fixes below. `ci-deployer` role changed by hand from `run.developer` to `run.admin` (Joshua's choice).
+- Chat app switched from Cloud Pub/Sub to the HTTP endpoint URL (add-on format, one URL for all triggers). The local Pub/Sub bot no longer receives Chat events.
+
+Fixes committed during the live run (each with tests, full suite green):
+
+| Commit | Fix |
+|---|---|
+| `16db709` | Meridian binds `0.0.0.0`: a Cloud Run start-up probe cannot reach a 127.0.0.1-bound port (40 failed probes). The sidecar declares no port; `MERIDIAN_API_KEY` still applies |
+| `119950b` | MCP health route `/healthz` renamed to `/health`: Cloud Run's front end answers paths ending in `z` with Google's own 404 |
+| `b3f9237` | CI post-deploy check uses `https://<service>-<number>.<region>.run.app`: `status.url` returned the hashed host, which the MCP Host guard answers with 421 |
+| `4f28c2a` | Meridian session store in a subfolder of the memory volume: EPERM chmod on the root-owned mount point as uid 1000 |
 
 ## Live checks
 
@@ -107,7 +125,20 @@ Not started (Task 3).
 
 ## Gaps for --gaps
 
-None yet. One note for the next gate run, not a gap: the two git-index tests above cannot run inside a worktree container.
+Open items for `/gsd-plan-phase 04 --gaps`. Rows 1-5 compare the pipeline with Guides `DevOps-Engineering/CICD_GUIDE.md` §28 "Before the first deploy"; rows 6-8 come from the live run.
+
+| # | Gap | Evidence | Where |
+|---|---|---|---|
+| 1 | Deploy by digest, not by the `github.sha` tag (CICD_GUIDE §21) | `_deploy.yml` tags and deploys `…:${github.sha}` | `.github/workflows/_deploy.yml` |
+| 2 | Smoke test before traffic: deploy `--no-traffic`, check, then switch (§20, §28) | the live check runs after the new revision already has 100% of traffic | `_deploy.yml` |
+| 3 | Base image pinned by digest (§28) | `FROM python:3.12-slim` is a moving tag | `Dockerfile` |
+| 4 | Docker layer cache in CI (§8) | build-push has no `cache-from` / `cache-to`; every build is cold | `_deploy.yml`, `meridian.yml` |
+| 5 | Image scan / SBOM (§16) | none in any workflow | `_deploy.yml` |
+| 6 | A re-run on the same commit creates no new revision | the re-run kept failed revision `mcp-server-00001` with the old secret; recovered by hand with `--revision-suffix=key2` | `_deploy.yml` |
+| 7 | `bootstrap.sh` grants `ci-deployer` `roles/run.developer`, which cannot set `invoker-iam-disabled` | first deploy: "Changes to invoker_iam_disabled require run.services.setIamPolicy"; live role changed by hand to `run.admin` | `deploy/cloudrun/bootstrap.sh` line 162 |
+| 8 | README says `oauth-storage-encryption-key` is "random"; the server needs a Fernet key | mcp-server exit(1): "OAUTH_STORAGE_ENCRYPTION_KEY is not a valid Fernet key" | `deploy/cloudrun/README.md` secrets table |
+
+Out of this phase: the LLM eval gate (CICD_GUIDE §23) is Phase 5. Not a gap: the two git-index tests cannot run inside a worktree container.
 
 ## Deviations from Plan
 
