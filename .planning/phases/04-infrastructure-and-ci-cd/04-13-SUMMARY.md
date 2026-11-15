@@ -121,7 +121,20 @@ Fixes committed during the live run (each with tests, full suite green):
 
 ## Live checks
 
-Not started (Task 3).
+Run 2026-11-15 by Claude through Chrome (Joshua's session) and Docker gcloud, at Joshua's request.
+
+1. WIF (INFRA-05): **passed.** Every deploy run authenticated through the WIF provider as `ci-deployer`; no key in the repo or GitHub secrets.
+2. Post-deploy step: **passed** after fixes `119950b` and `b3f9237`. mcp-server `GET /health` 200 and `POST /mcp` 401 without a token; chat-bot `POST /` 401.
+3. Chat HTTP JWT and answer with a source line: **passed.** "Come richiedo le ferie?" got a placeholder, then an answer ending "Fonte: Manuale – Ferie e Permessi (handbook://17-ferie-e-permessi)". The first attempt failed on Meridian (fixed in `4f28c2a`).
+4. Bot-to-MCP ID token: **passed.** `POST /mcp` 200 from the bot in the mcp-server log.
+5. Slow question (billing_mode a): **passed, no stall.** A three-part first-person question had its placeholder replaced within about a minute; the content was the designed personal-case route ("Per il tuo caso specifico chiedi a HR.").
+6. Cold start: **observed.** First message after deploy: about 17 s for the bot instance (Meridian probe passed after 2 attempts) plus about 8 s for mcp-server, which was also cold. Not yet re-measured after 20 minutes idle.
+7. claude.ai connector: **deferred.** Not run in this session.
+8. Non-digitiamo rejection: **deferred.** Needs Joshua to sign in with a non-digitiamo account.
+9. Firestore TTL (D-05): **passed.** `expire_at` ACTIVE on `gaps` and `thread_memory`.
+10. Guarda playback (D-16, Pitfall 13): **partial.** The video opened in a new tab from the private bucket through Joshua's Google session and played inline (not a download), but from 0:00: the opened page had no `#t=` fragment, although `buddy_core/models.py` appends `#t=<seconds>`. The fragment is lost in the Chat button or the storage.cloud.google.com redirect.
+11. Forced revision after publish (D-08): **deferred.**
+12. Meridian token across a revision (D-12): **partly shown.** Answers worked on three consecutive chat-bot revisions seeded once from the bucket; not yet checked after a token refresh.
 
 ## Gaps for --gaps
 
@@ -137,6 +150,7 @@ Open items for `/gsd-plan-phase 04 --gaps`. Rows 1-5 compare the pipeline with G
 | 6 | A re-run on the same commit creates no new revision | the re-run kept failed revision `mcp-server-00001` with the old secret; recovered by hand with `--revision-suffix=key2` | `_deploy.yml` |
 | 7 | `bootstrap.sh` grants `ci-deployer` `roles/run.developer`, which cannot set `invoker-iam-disabled` | first deploy: "Changes to invoker_iam_disabled require run.services.setIamPolicy"; live role changed by hand to `run.admin` | `deploy/cloudrun/bootstrap.sh` line 162 |
 | 8 | README says `oauth-storage-encryption-key` is "random"; the server needs a Fernet key | mcp-server exit(1): "OAUTH_STORAGE_ENCRYPTION_KEY is not a valid Fernet key" | `deploy/cloudrun/README.md` secrets table |
+| 9 | Guarda loses the `#t=` offset (live check 10, Pitfall 13) | the video plays inline from 0:00 and the opened URL has no fragment | `buddy_core/models.py` link, chat card, RESEARCH Pitfall 13 fallback |
 
 Out of this phase: the LLM eval gate (CICD_GUIDE §23) is Phase 5. Not a gap: the two git-index tests cannot run inside a worktree container.
 
