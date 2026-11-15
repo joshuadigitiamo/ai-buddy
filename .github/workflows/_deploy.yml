@@ -57,7 +57,7 @@ defaults:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
     permissions:
       contents: read
       id-token: write
@@ -96,19 +96,33 @@ jobs:
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
 
+      # A bump of deploy/meridian.version starts the meridian workflow and this one at the same time, so
+      # the image can be minutes away. The check polls for it, then gives up with the usual error. The
+      # progress line carries the tag only.
       - name: Check that the Meridian image exists (chat-bot only)
         if: inputs.service == 'chat-bot'
         env:
           PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           REGION: europe-west8
+          MERIDIAN_WAIT_SECONDS: "1800"
+          MERIDIAN_POLL_SECONDS: "30"
         run: |
           MERIDIAN_TAG="$(tr -d '[:space:]' < deploy/meridian.version)"
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/ai-buddy/meridian:${MERIDIAN_TAG}"
-          if ! gcloud artifacts docker images describe "${IMAGE}" --project "${PROJECT_ID}" >/dev/null 2>"${RUNNER_TEMP}/meridian-check.err"; then
-            echo "::error::Meridian image ${MERIDIAN_TAG} missing: run the meridian workflow"
-            cat "${RUNNER_TEMP}/meridian-check.err" >&2
-            exit 1
-          fi
+          deadline=$((SECONDS + MERIDIAN_WAIT_SECONDS))
+          next_progress="${SECONDS}"
+          until gcloud artifacts docker images describe "${IMAGE}" --project "${PROJECT_ID}" >/dev/null 2>"${RUNNER_TEMP}/meridian-check.err"; do
+            if [ "${SECONDS}" -ge "${deadline}" ]; then
+              echo "::error::Meridian image ${MERIDIAN_TAG} missing: run the meridian workflow"
+              cat "${RUNNER_TEMP}/meridian-check.err" >&2
+              exit 1
+            fi
+            if [ "${SECONDS}" -ge "${next_progress}" ]; then
+              echo "waiting for Meridian image ${MERIDIAN_TAG}"
+              next_progress=$((SECONDS + 300))
+            fi
+            sleep "${MERIDIAN_POLL_SECONDS}"
+          done
 
       - name: Log in to Artifact Registry
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
