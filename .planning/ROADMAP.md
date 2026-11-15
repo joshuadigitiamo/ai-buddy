@@ -168,7 +168,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [x] 04-12-PLAN.md — video-coverage report (actual and projected) and the D-18 fallback rule
-- [ ] 04-13-PLAN.md — Live deploy checkpoint (bootstrap, first CI deploy, twelve live checks)
+- [x] 04-13-PLAN.md — Live deploy checkpoint (bootstrap, first CI deploy, twelve live checks)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 04-14-PLAN.md — Five Guides sections.yaml drafts, Joshua's Guides commit, coverage above 238/2524
