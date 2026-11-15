@@ -6,9 +6,12 @@
 # from environment variables, for CI (GitHub repository variables) and for a laptop alike.
 #
 # Usage:
-#   PROJECT_ID=... PROJECT_NUMBER=... IMAGE_TAG=... GOOGLE_CLIENT_ID=... GUIDES_WEB_BASE=... \
-#   CHAT_JWT_ISSUER_EMAIL=... VIDEO_THUMBNAIL_URL=... HELP_COMMAND_ID=... \
+#   PROJECT_ID=... PROJECT_NUMBER=... IMAGE_DIGEST=sha256:... DEPLOY_ID=... GOOGLE_CLIENT_ID=... \
+#   GUIDES_WEB_BASE=... CHAT_JWT_ISSUER_EMAIL=... VIDEO_THUMBNAIL_URL=... HELP_COMMAND_ID=... \
 #     scripts/render-cloudrun.sh <mcp-server|chat-bot> <output-file>
+#
+# IMAGE_DIGEST is the digest of the image to deploy (sha256: and 64 hex characters); DEPLOY_ID names the
+# revision (lowercase letters, digits and hyphens).
 #
 # MERIDIAN_TAG defaults to the commit in deploy/meridian.version (D-14). Only variable names are
 # printed, never values, and the rendered file is never printed.
@@ -51,7 +54,8 @@ export MERIDIAN_TAG
 VARIABLES=(
   PROJECT_ID
   PROJECT_NUMBER
-  IMAGE_TAG
+  IMAGE_DIGEST
+  DEPLOY_ID
   MERIDIAN_TAG
   GOOGLE_CLIENT_ID
   GUIDES_WEB_BASE
@@ -69,6 +73,11 @@ done
 if ((${#missing[@]} > 0)); then
   die "missing environment variables: ${missing[*]}"
 fi
+
+# The digest and the revision id end up in an image reference and a revision name: hold them to their
+# exact formats. Only the variable name is printed, never the value.
+[[ "${IMAGE_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]] || die "IMAGE_DIGEST must be sha256: followed by 64 hex characters"
+[[ "${DEPLOY_ID}" =~ ^[a-z0-9]([a-z0-9-]{0,40}[a-z0-9])?$ ]] || die "DEPLOY_ID must be a lowercase DNS label fragment of at most 42 characters"
 
 # The values land inside double-quoted YAML scalars: refuse anything that could end the scalar or
 # start another substitution. The value is never printed; only the variable name is.

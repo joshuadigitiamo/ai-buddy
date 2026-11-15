@@ -192,7 +192,8 @@ def test_render_script_substitutes_an_explicit_variable_list_and_refuses_leftove
     for name in (
         "PROJECT_ID",
         "PROJECT_NUMBER",
-        "IMAGE_TAG",
+        "IMAGE_DIGEST",
+        "DEPLOY_ID",
         "MERIDIAN_TAG",
         "GOOGLE_CLIENT_ID",
         "GUIDES_WEB_BASE",
@@ -359,7 +360,7 @@ def test_meridian_image_tag_placeholder_is_rendered_from_the_approved_commit() -
     image = str(_bot_container("meridian")["image"])
     assert image == "europe-west8-docker.pkg.dev/${PROJECT_ID}/ai-buddy/meridian:${MERIDIAN_TAG}"
     chat_image = str(_bot_container("chat-bot")["image"])
-    assert chat_image.endswith("/ai-buddy/chat-bot:${IMAGE_TAG}")
+    assert chat_image.endswith("/ai-buddy/chat-bot@${IMAGE_DIGEST}")
     script = RENDER_SCRIPT.read_text(encoding="utf-8")
     assert "deploy/meridian.version" in script
     assert re.fullmatch(r"[0-9a-f]{40}\n?", MERIDIAN_VERSION_FILE.read_text(encoding="utf-8"))

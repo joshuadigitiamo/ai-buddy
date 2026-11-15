@@ -2,14 +2,15 @@
 # D-12, D-13).
 #
 # This is a template: scripts/render-cloudrun.sh replaces the dollar-brace placeholders from
-# environment variables (PROJECT_ID, PROJECT_NUMBER, IMAGE_TAG, MERIDIAN_TAG, CHAT_JWT_ISSUER_EMAIL,
-# VIDEO_THUMBNAIL_URL, HELP_COMMAND_ID) and refuses to leave one behind. The comments hold no
+# environment variables (PROJECT_ID, PROJECT_NUMBER, IMAGE_DIGEST, DEPLOY_ID, MERIDIAN_TAG,
+# CHAT_JWT_ISSUER_EMAIL, VIDEO_THUMBNAIL_URL, HELP_COMMAND_ID) and refuses to leave one behind. The comments hold no
 # placeholder marker, so a leftover is a bug. No project id, project number, personal id or secret
 # value is committed. Deploy the rendered file with `gcloud run services replace`.
 #
 # Shape (RESEARCH Pattern 2): the bot is the ingress container (the only one with a port); Meridian,
 # the Claude Max proxy, is a sidecar on 127.0.0.1:3456 that starts first. The Max login lives in a
-# private bucket mounted through GCS FUSE into the Meridian container only (D-12).
+# private bucket mounted through GCS FUSE, mounted only into the Meridian container (a separate mount,
+# not separate access: the service account belongs to the whole instance) (D-12).
 #
 # One user, one instance: Meridian runs on one person's Claude Max login, so maxScale stays '1'
 # (D1a) and ALLOWED_USERS, read from a secret, carries one entry (the bot refuses more at start).
@@ -35,6 +36,8 @@ metadata:
 spec:
   template:
     metadata:
+      # One revision per deploy: the pipeline names it, so a re-run of the same commit still creates one.
+      name: "chat-bot-${DEPLOY_ID}"
       annotations:
         # GCS volume mounts need the second-generation execution environment.
         run.googleapis.com/execution-environment: gen2
@@ -47,7 +50,7 @@ spec:
       serviceAccountName: "sa-chat-bot@${PROJECT_ID}.iam.gserviceaccount.com"
       containers:
         - name: chat-bot
-          image: "europe-west8-docker.pkg.dev/${PROJECT_ID}/ai-buddy/chat-bot:${IMAGE_TAG}"
+          image: "europe-west8-docker.pkg.dev/${PROJECT_ID}/ai-buddy/chat-bot@${IMAGE_DIGEST}"
           ports:
             - containerPort: 8080
           startupProbe:
