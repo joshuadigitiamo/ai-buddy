@@ -6,3 +6,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+  # Moves the python:3.12-slim digest in every FROM line of the Dockerfile.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly

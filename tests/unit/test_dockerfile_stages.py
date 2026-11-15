@@ -69,7 +69,8 @@ def test_every_stage_exists() -> None:
 
 
 PINNED_FROM = re.compile(
-    r"^FROM python:3\.12-slim@sha256:(?P<digest>[0-9a-f]{64}) AS (?P<stage>base|mcp_server|chat_bot|sync)$"
+    r"^FROM python:3\.12-slim@sha256:(?P<digest>[0-9a-f]{64})"
+    r" AS (?P<stage>base|mcp_server|chat_bot|sync)$"
 )
 
 

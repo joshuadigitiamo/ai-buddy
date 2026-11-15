@@ -1,6 +1,7 @@
 """Repository layout, dependency pinning and public-repo hygiene assertions."""
 
 import importlib.metadata
+import re
 import tomllib
 from pathlib import Path
 
@@ -186,8 +187,9 @@ def test_env_example_never_targets_the_emulator() -> None:
 def _dockerfile_stage(name: str) -> str:
     """The text of one Dockerfile stage, from its FROM line to the next FROM (or the end)."""
     text = (ROOT / "Dockerfile").read_text()
-    start = text.find(f"FROM python:3.12-slim AS {name}")
-    assert start != -1, f"Dockerfile has no {name} stage"
+    found = re.search(rf"^FROM python:3\.12-slim(@sha256:[0-9a-f]{{64}})? AS {name}$", text, re.M)
+    assert found, f"Dockerfile has no {name} stage"
+    start = found.start()
     following = text.find("\nFROM ", start + 1)
     return text[start : following if following != -1 else len(text)]
 
