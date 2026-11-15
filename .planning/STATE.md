@@ -199,6 +199,7 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-11: sync-and-publish.sh passes VIDEO_BUCKET to run only after upload-videos ran (T-04-44); project id and ADC are validated before the first bucket step
 - [Phase 04]: 04-11: upload-videos skips by md5 only (BucketPort has no header metadata); live header and playback check is 04-13
 - [Phase 04]: 04-12: D-18 fallback kept (04-01 coverage_inheritance (a)); video-coverage reports scene/fallback only, no inherited source, no schema change
+- [Phase 04]: D-18 coverage 708/2524 scene-mapped rows after the Guides maps (baseline 238/2524); 8 guides with video still at fallback (8 without durations)
 
 ### Pending Todos
 

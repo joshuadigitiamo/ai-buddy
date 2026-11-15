@@ -171,7 +171,7 @@ Plans:
 - [x] 04-13-PLAN.md — Live deploy checkpoint (bootstrap, first CI deploy, twelve live checks)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 04-14-PLAN.md — Five Guides sections.yaml drafts, Joshua's Guides commit, coverage above 238/2524
+- [x] 04-14-PLAN.md — Five Guides sections.yaml drafts, Joshua's Guides commit, coverage above 238/2524
 
 ### Phase 5: Evaluation and Milestone Gate
 **Goal**: The developer can run one command and know whether Milestone 1 passes its gate, with every judged answer inspectable.

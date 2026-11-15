@@ -54,7 +54,7 @@ coverage:
 
 duration: ~35min
 completed: 2026-11-15
-status: partial
+status: complete
 ---
 
 # Phase 4 Plan 14: D-18 scene maps (partial, stopped at Task 3) Summary
@@ -138,6 +138,12 @@ Offsets are seconds from the start of the part, from `scene_offsets` over each `
 - Scenes left out because they cover no single guide section: title, chapter-bridge ("Part N:") and recap scenes. Rows before the first mapped scene and sections no scene narrates keep the D-18 fallback.
 - A `##` with no `###` entry for that scene is mapped at `##` level when the scene summarises the whole section (for example airflow S14XCom, langsmith S11Feedback); `###` level is used where the narration targets a subsection (for example a2a S16StreamPatterns, deep-agents S10BackendTraps).
 - Judgement calls Joshua may want to change: deep-agents S10BackendTraps owns the FilesystemBackend and StoreBackend subsections while S08Backends owns StateBackend and the comparison; airflow S13Sensors also claims the Deferrable Operators section; a2a S27Choosing owns the "When A2A is the wrong answer" subsection and S28WrongAnswer the section-26 trio.
+
+## Committed coverage
+
+Joshua asked Claude to commit the drafts as drafted (spot checks not run). Guides commit `f487737` "Add section maps for five videos" (10 files, local, not pushed). `scripts/sync-and-publish.sh` published build `20261115T115407Z-95a48e5ae357` and forced a new mcp-server revision. `video-coverage` on the published index: `scene=708 fallback=1816 rows=2524 (baseline 238/2524)`, equal to the projection.
+
+Residual fallback: 8 guides with video, 8 of them without out/durations.json (LangChain, LangGraph, MLflow GenAI, RAG Chatbot, BigQuery, ETL vs ELT, Kubernetes, Design Patterns)
 
 ## STATE.md decision line (for the orchestrator, after Task 3)
 
