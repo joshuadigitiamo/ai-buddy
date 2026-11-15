@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from cryptography.fernet import Fernet
 from pydantic import ValidationError
 from tests.unit.mcp_server.conftest import (
     FAKE_CLIENT_ID,
@@ -98,20 +99,23 @@ def test_auth_off_needs_none_of_the_auth_variables(index_dir: Path) -> None:
 
 def test_secret_values_never_reach_errors_or_repr(index_dir: Path) -> None:
     sentinel = "sentinel-secret-9f3a1c"
+    fernet_key = Fernet.generate_key().decode()
     values = _values(
         index_dir,
         google_client_secret=sentinel,
         oauth_jwt_signing_key=sentinel + "-key-" + "x" * 16,
-        oauth_storage_encryption_key=sentinel + "-fernet",
+        oauth_storage_encryption_key=fernet_key,
     )
     config = McpSettings(**values)
-    assert sentinel not in repr(config)
-    assert sentinel not in str(config)
+    for secret in (sentinel, fernet_key):
+        assert secret not in repr(config)
+        assert secret not in str(config)
     for broken in ({"oauth_storage": "file"}, {"mcp_public_base_url": "http://example.com"}):
         with pytest.raises(ValidationError) as raised:
             McpSettings(**{**values, **broken})
-        assert sentinel not in str(raised.value)
-        assert sentinel not in repr(raised.value)
+        for secret in (sentinel, fernet_key):
+            assert secret not in str(raised.value)
+            assert secret not in repr(raised.value)
 
 
 @pytest.mark.parametrize("secret_name", sorted(_SECRET_FIELDS))
@@ -133,10 +137,49 @@ def test_firestore_storage_requires_the_encryption_key(index_dir: Path) -> None:
 
 
 def test_firestore_storage_with_the_key_builds(index_dir: Path) -> None:
+    key = Fernet.generate_key().decode()
     config = McpSettings(
-        **_values(index_dir, oauth_storage="firestore", oauth_storage_encryption_key="k" * 44)
+        **_values(index_dir, oauth_storage="firestore", oauth_storage_encryption_key=key)
     )
     assert config.oauth_storage == "firestore"
+
+
+def test_a_generated_fernet_key_validates(index_dir: Path) -> None:
+    key = Fernet.generate_key().decode()
+    config = McpSettings(**_values(index_dir, oauth_storage_encryption_key=key))
+    assert config.oauth_storage_encryption_key is not None
+    assert config.oauth_storage_encryption_key.get_secret_value() == key
+
+
+@pytest.mark.parametrize("suffix", ["\n", "  ", "\r\n"])
+def test_a_fernet_key_with_surrounding_whitespace_is_accepted(index_dir: Path, suffix: str) -> None:
+    # gcloud secrets versions add --data-file=- may store a trailing newline; oauth_storage strips it.
+    key = Fernet.generate_key().decode()
+    config = McpSettings(**_values(index_dir, oauth_storage_encryption_key=f" {key}{suffix}"))
+    assert config.oauth_storage_encryption_key is not None
+
+
+@pytest.mark.parametrize("bad", ["k" * 44, "short", "!" * 44, "a" * 43, "a" * 64])
+def test_a_value_that_is_not_a_fernet_key_names_the_variable_only(
+    index_dir: Path, bad: str
+) -> None:
+    with pytest.raises(ValidationError) as raised:
+        McpSettings(**_values(index_dir, oauth_storage_encryption_key=bad))
+    text = f"{raised.value!s} {raised.value!r}"
+    assert "OAUTH_STORAGE_ENCRYPTION_KEY must be a Fernet key" in text
+    assert bad not in text
+
+
+def test_a_bad_fernet_key_is_refused_for_the_firestore_store_too(index_dir: Path) -> None:
+    with pytest.raises(ValidationError, match="must be a Fernet key"):
+        McpSettings(
+            **_values(index_dir, oauth_storage="firestore", oauth_storage_encryption_key="k" * 44)
+        )
+
+
+def test_an_unset_encryption_key_still_builds_with_memory_storage(index_dir: Path) -> None:
+    config = McpSettings(**_values(index_dir))
+    assert config.oauth_storage_encryption_key is None
 
 
 @pytest.mark.parametrize("kind", ["file", "disk", "FILE"])

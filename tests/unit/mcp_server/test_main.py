@@ -269,6 +269,24 @@ def test_firestore_oauth_store_without_key_exits_one(
     assert "OAUTH_STORAGE_ENCRYPTION_KEY" in errors[0]
 
 
+def test_a_non_fernet_encryption_key_exits_one_without_echoing_it(
+    valid_env: Callable[..., None],
+    serve_stub: ServeStub,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    bad_key = "k" * 44
+    valid_env(OAUTH_STORAGE="firestore", OAUTH_STORAGE_ENCRYPTION_KEY=bad_key)
+
+    assert main([], serve=serve_stub) == 1
+
+    captured = capsys.readouterr()
+    errors = _error_lines(captured.err)
+    assert len(errors) == 1
+    assert "OAUTH_STORAGE_ENCRYPTION_KEY must be a Fernet key" in errors[0]
+    assert bad_key not in captured.err
+    assert serve_stub.calls == 0
+
+
 def test_default_serve_runs_stateless_json_http(
     valid_env: Callable[..., None], monkeypatch: pytest.MonkeyPatch
 ) -> None:

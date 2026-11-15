@@ -516,3 +516,18 @@ def test_runbook_names_the_deployer_role_and_the_meridian_bucket_scope() -> None
     assert "roles/run.admin" in roles and "run.services.setIamPolicy" in roles
     assert "not separate access" in text
     assert "cannot set `invoker-iam-disabled`" not in text, "the deployer role is applied, not pending"
+
+
+def test_runbook_documents_the_fernet_key_format() -> None:
+    """Gap 4: the storage key is a Fernet key, and the runbook generates it without showing it."""
+    text = RUNBOOK.read_text(encoding="utf-8")
+    rows = [line for line in text.splitlines() if line.startswith("| `oauth-storage-encryption-key`")]
+    assert len(rows) == 1
+    assert "Fernet" in rows[0]
+    assert "random, never reused" not in text
+    assert "secrets versions add oauth-storage-encryption-key" in text
+    assert "urlsafe_b64encode(os.urandom(32))" in text
+    command = next(line for line in text.splitlines() if "urlsafe_b64encode(os.urandom(32))" in line)
+    assert "docker run --rm python:3.12-slim python -c" in command
+    assert "print(" not in command or "end=''" in command, "no trailing newline"
+    assert "--data-file=-" in text.split("secrets versions add oauth-storage-encryption-key", 1)[1].splitlines()[0]
