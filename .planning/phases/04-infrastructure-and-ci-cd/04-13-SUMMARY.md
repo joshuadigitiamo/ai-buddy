@@ -18,7 +18,7 @@ status: in-progress
 
 # Phase 4 Plan 13: Live deploy checkpoint (partial: Task 1 done, stopped at Task 2) Summary
 
-**Offline gate run in a worktree: 4 of 5 steps green; `./run-unit-tests.sh --all` passes 1426 tests and fails 2 git-index tests that cannot run inside a container from a worktree (environment artifact, not a code defect). Both Cloud Run YAMLs render with no placeholder left. Live steps (Tasks 2 and 3) are not started: they wait for Joshua.**
+**Offline gate green: all five steps exit 0. In the worktree, `./run-unit-tests.sh --all` failed 2 git-index tests that cannot run from a worktree (environment artifact); the re-run from the primary checkout passed 1475 tests, 26 skipped, coverage 97.60%. Both Cloud Run YAMLs render with no placeholder left. Live steps (Tasks 2 and 3) are not started: they wait for Joshua.**
 
 ## Offline gate
 
@@ -26,7 +26,7 @@ Run on 2026-11-15 from the plan worktree. Order as the plan lists it.
 
 | # | Command | Exit | Result |
 |---|---------|------|--------|
-| 1 | `./run-unit-tests.sh --all` | 1 | 1426 passed, 31 skipped, 2 failed (see note). ruff, ruff format and mypy steps passed; coverage gate not the failure |
+| 1 | `./run-unit-tests.sh --all` | 0 | primary-checkout re-run: 1475 passed, 26 skipped, coverage 97.60%. Worktree run: 1426 passed, 31 skipped, 2 failed (see note). ruff, ruff format and mypy steps passed; coverage gate not the failure |
 | 2 | `./run-unit-tests.sh --emulator` | 0 | 12 passed (Firestore and Pub/Sub emulators) |
 | 3 | `scripts/validate-infra.sh` | 0 | "infra validation ok" |
 | 4 | `scripts/compose-smoke.sh` | 0 | "round trip ok" |
