@@ -82,7 +82,7 @@ history or the terminal:
 |--------|---------|--------------------------|
 | `google-client-secret` | mcp-server | the OAuth client secret from the Google Auth platform |
 | `oauth-jwt-signing-key` | mcp-server | random, at least 32 characters |
-| `oauth-storage-encryption-key` | mcp-server | random, never reused |
+| `oauth-storage-encryption-key` | mcp-server | a Fernet key: 32 random bytes, URL-safe base64 (44 characters); never reused |
 | `thread-key-secret` | chat-bot | random, at least 32 characters |
 | `meridian-api-key` | chat-bot and Meridian | random; the bot and the sidecar must hold the same value |
 | `allowed-users` | chat-bot | one Chat user id (the bot refuses more than one with Meridian) |
@@ -90,6 +90,9 @@ history or the terminal:
 ```bash
 # A generated value: nothing is shown.
 openssl rand -base64 48 | gcloud secrets versions add thread-key-secret --project="$PROJECT_ID" --data-file=-
+
+# A Fernet key (oauth-storage-encryption-key): generated in a container, piped to gcloud, never shown.
+docker run --rm python:3.12-slim python -c "import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode(), end='')" | gcloud secrets versions add oauth-storage-encryption-key --project="$PROJECT_ID" --data-file=-
 
 # A value you hold: read it silently.
 read -rs VALUE && printf '%s' "$VALUE" | gcloud secrets versions add google-client-secret \

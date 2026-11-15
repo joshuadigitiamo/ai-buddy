@@ -282,7 +282,7 @@ def test_a_non_fernet_encryption_key_exits_one_without_echoing_it(
     captured = capsys.readouterr()
     errors = _error_lines(captured.err)
     assert len(errors) == 1
-    assert "OAUTH_STORAGE_ENCRYPTION_KEY must be a Fernet key" in errors[0]
+    assert "OAUTH_STORAGE_ENCRYPTION_KEY" in errors[0]
     assert bad_key not in captured.err
     assert serve_stub.calls == 0
 

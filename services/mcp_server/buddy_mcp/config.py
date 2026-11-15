@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit
 
+from cryptography.fernet import Fernet
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
@@ -82,6 +83,19 @@ class McpSettings(BaseSettings):
     @classmethod
     def _parse_bot_sa_emails(cls, value: Any) -> Any:
         return _split_csv(value)
+
+    @field_validator("oauth_storage_encryption_key")
+    @classmethod
+    def _check_oauth_storage_encryption_key(cls, value: SecretStr | None) -> SecretStr | None:
+        # IN-07: the same check oauth_storage.py applies, at config time, so a wrong key fails the
+        # start instead of the first Firestore write. The value never reaches the message.
+        if value is None:
+            return None
+        try:
+            Fernet(value.get_secret_value().strip().encode())
+        except (ValueError, TypeError):
+            raise ValueError("OAUTH_STORAGE_ENCRYPTION_KEY must be a Fernet key") from None
+        return value
 
     @field_validator("artifact_bucket")
     @classmethod

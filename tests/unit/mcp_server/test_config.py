@@ -153,7 +153,7 @@ def test_a_generated_fernet_key_validates(index_dir: Path) -> None:
 
 @pytest.mark.parametrize("suffix", ["\n", "  ", "\r\n"])
 def test_a_fernet_key_with_surrounding_whitespace_is_accepted(index_dir: Path, suffix: str) -> None:
-    # gcloud secrets versions add --data-file=- may store a trailing newline; oauth_storage strips it.
+    # gcloud --data-file=- may store a trailing newline; oauth_storage.py strips it too.
     key = Fernet.generate_key().decode()
     config = McpSettings(**_values(index_dir, oauth_storage_encryption_key=f" {key}{suffix}"))
     assert config.oauth_storage_encryption_key is not None

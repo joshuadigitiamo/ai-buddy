@@ -456,33 +456,39 @@ def test_runbook_covers_the_bootstrap_seeding_fallbacks_and_org_policy_notes() -
 
 
 _BIND_CALL = re.compile(r"^bind_(?:project|bucket|secret|sa) ")
-_CI_PROJECT_BINDING = 'bind_project "serviceAccount:${SA_CI_EMAIL}" roles/run.admin'
+_CI = '"serviceAccount:${SA_CI_EMAIL}"'
+_MCP = '"serviceAccount:${SA_MCP_EMAIL}"'
+_BOT = '"serviceAccount:${SA_BOT_EMAIL}"'
+_OWNER = '"user:${OWNER_EMAIL}"'
+_WIF_MEMBER = (
+    '"principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global'
+    '/workloadIdentityPools/${WIF_POOL}/attribute.repository_id/${GITHUB_REPO_ID}"'
+)
+_CI_PROJECT_BINDING = f"bind_project {_CI} roles/run.admin"
 _EXPECTED_BIND_CALLS = sorted(
     [
-        "gc artifacts repositories add-iam-policy-binding \"${REPOSITORY}\" --location=\"${REGION}\" "
-        '--member="serviceAccount:${SA_CI_EMAIL}" --role=roles/artifactregistry.writer --quiet >/dev/null',
+        'gc artifacts repositories add-iam-policy-binding "${REPOSITORY}" --location="${REGION}" '
+        f"--member={_CI} --role=roles/artifactregistry.writer --quiet >/dev/null",
         _CI_PROJECT_BINDING,
-        'bind_sa "${SA_MCP_EMAIL}" "serviceAccount:${SA_CI_EMAIL}" roles/iam.serviceAccountUser',
-        'bind_sa "${SA_BOT_EMAIL}" "serviceAccount:${SA_CI_EMAIL}" roles/iam.serviceAccountUser',
-        'bind_project "serviceAccount:${SA_MCP_EMAIL}" roles/datastore.user',
-        'bind_bucket "${INDEX_BUCKET}" "serviceAccount:${SA_MCP_EMAIL}" roles/storage.objectViewer',
-        'bind_secret "${secret}" "serviceAccount:${SA_MCP_EMAIL}" roles/secretmanager.secretAccessor',
-        'bind_project "serviceAccount:${SA_BOT_EMAIL}" roles/datastore.user',
-        'bind_bucket "${CLAUDE_BUCKET}" "serviceAccount:${SA_BOT_EMAIL}" roles/storage.objectUser',
-        'bind_secret "${secret}" "serviceAccount:${SA_BOT_EMAIL}" roles/secretmanager.secretAccessor',
-        'bind_bucket "${VIDEOS_BUCKET}" "user:${OWNER_EMAIL}" roles/storage.objectViewer',
-        'bind_bucket "${VIDEOS_BUCKET}" "user:${OWNER_EMAIL}" roles/storage.objectAdmin',
-        'bind_bucket "${INDEX_BUCKET}" "user:${OWNER_EMAIL}" roles/storage.objectAdmin',
-        'bind_project "user:${OWNER_EMAIL}" roles/run.developer',
-        'bind_sa "${SA_CI_EMAIL}" "principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}'
-        "/locations/global/workloadIdentityPools/${WIF_POOL}/attribute.repository_id/${GITHUB_REPO_ID}"
-        '" roles/iam.workloadIdentityUser',
+        f'bind_sa "${{SA_MCP_EMAIL}}" {_CI} roles/iam.serviceAccountUser',
+        f'bind_sa "${{SA_BOT_EMAIL}}" {_CI} roles/iam.serviceAccountUser',
+        f"bind_project {_MCP} roles/datastore.user",
+        f'bind_bucket "${{INDEX_BUCKET}}" {_MCP} roles/storage.objectViewer',
+        f'bind_secret "${{secret}}" {_MCP} roles/secretmanager.secretAccessor',
+        f"bind_project {_BOT} roles/datastore.user",
+        f'bind_bucket "${{CLAUDE_BUCKET}}" {_BOT} roles/storage.objectUser',
+        f'bind_secret "${{secret}}" {_BOT} roles/secretmanager.secretAccessor',
+        f'bind_bucket "${{VIDEOS_BUCKET}}" {_OWNER} roles/storage.objectViewer',
+        f'bind_bucket "${{VIDEOS_BUCKET}}" {_OWNER} roles/storage.objectAdmin',
+        f'bind_bucket "${{INDEX_BUCKET}}" {_OWNER} roles/storage.objectAdmin',
+        f"bind_project {_OWNER} roles/run.developer",
+        f'bind_sa "${{SA_CI_EMAIL}}" {_WIF_MEMBER} roles/iam.workloadIdentityUser',
     ]
 )
 
 
 def _bind_calls(script: str) -> list[str]:
-    """Every uncommented IAM binding call of the script, continuation lines joined, whitespace normalised."""
+    """Every uncommented IAM binding call, continuation lines joined, whitespace normalised."""
     joined = re.sub(r"\\\n\s*", " ", script)
     calls = []
     for raw in joined.splitlines():
@@ -498,7 +504,9 @@ def test_bootstrap_binds_exactly_these_roles() -> None:
     """IN-03: a commented-out, moved or widened binding changes this set and fails here."""
     calls = _bind_calls(BOOTSTRAP.read_text(encoding="utf-8"))
     assert calls == _EXPECTED_BIND_CALLS
-    assert _CI_PROJECT_BINDING in calls, "ci-deployer needs run.services.setIamPolicy (invoker-iam-disabled)"
+    assert _CI_PROJECT_BINDING in calls, (
+        "ci-deployer needs run.services.setIamPolicy (invoker-iam-disabled)"
+    )
 
 
 def test_bind_call_parser_ignores_a_commented_binding() -> None:
@@ -515,19 +523,25 @@ def test_runbook_names_the_deployer_role_and_the_meridian_bucket_scope() -> None
     roles = text.split("Roles, least privilege:", 1)[1].split("\n\n", 1)[0]
     assert "roles/run.admin" in roles and "run.services.setIamPolicy" in roles
     assert "not separate access" in text
-    assert "cannot set `invoker-iam-disabled`" not in text, "the deployer role is applied, not pending"
+    assert "cannot set `invoker-iam-disabled`" not in text, (
+        "the deployer role is applied, not pending"
+    )
 
 
 def test_runbook_documents_the_fernet_key_format() -> None:
     """Gap 4: the storage key is a Fernet key, and the runbook generates it without showing it."""
     text = RUNBOOK.read_text(encoding="utf-8")
-    rows = [line for line in text.splitlines() if line.startswith("| `oauth-storage-encryption-key`")]
+    lines = text.splitlines()
+    rows = [line for line in lines if line.startswith("| `oauth-storage-encryption-key`")]
     assert len(rows) == 1
     assert "Fernet" in rows[0]
     assert "random, never reused" not in text
     assert "secrets versions add oauth-storage-encryption-key" in text
     assert "urlsafe_b64encode(os.urandom(32))" in text
-    command = next(line for line in text.splitlines() if "urlsafe_b64encode(os.urandom(32))" in line)
+    command = next(line for line in lines if "urlsafe_b64encode(os.urandom(32))" in line)
     assert "docker run --rm python:3.12-slim python -c" in command
-    assert "print(" not in command or "end=''" in command, "no trailing newline"
-    assert "--data-file=-" in text.split("secrets versions add oauth-storage-encryption-key", 1)[1].splitlines()[0]
+    assert "end=''" in command, "no trailing newline"
+    sink = next(
+        line for line in lines if "secrets versions add oauth-storage-encryption-key" in line
+    )
+    assert "--data-file=-" in sink and "|" in command + sink, "the key goes to gcloud on stdin"
