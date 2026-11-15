@@ -4,6 +4,9 @@ The script cannot run in the test image (it needs docker and gcloud), so these t
 text. CI names its revisions `<service>-r<run id>-<attempt>`; a publish names its own
 `p<build>-<epoch>`, so the two never collide, and a second publish of the same build id (after an
 index-object repair) still gets a new name.
+
+04-24 (WR-03) adds the credential pins: the owner's gcloud login reaches only the pinned gcloud
+image that mints tokens; every other container gets a short-lived token file.
 """
 
 import re
@@ -55,3 +58,69 @@ def test_forced_revision_waits_for_latest_revision_traffic() -> None:
     assert "index is already published" in refusal[0]
     assert "next successful ${SERVICE} deploy will load it" in refusal[0]
     assert 'echo "${TRAFFIC_JSON}"' not in code, "the describe output is never printed"
+
+
+# --- credentials (04-24, WR-03) ---------------------------------------------------------------
+
+
+def _docker_runs() -> list[str]:
+    """Every `docker run` command with its continuation lines joined into one line."""
+    joined = re.sub(r"\\\n\s*", " ", _code())
+    return [" ".join(line.split()) for line in joined.splitlines() if "docker run" in line]
+
+
+def test_sync_image_never_receives_the_gcloud_config() -> None:
+    code = _code()
+    runs = _docker_runs()
+    assert runs, "the script runs containers"
+    mounting = [run for run in runs if ".config/gcloud" in run]
+    assert len(mounting) == 2, "only the two token-minting containers mount the gcloud login"
+    for run in mounting:
+        assert "print-access-token" in run, "the login is mounted only to mint a token"
+        assert '"${GCLOUD_IMAGE}"' in run, "and only into the pinned gcloud image"
+        assert "IMAGE_NAME" not in run
+    for run in runs:
+        if "IMAGE_NAME" in run:
+            assert "gcloud" not in run, "the sync image never sees the gcloud directory"
+            assert "adc" not in run.lower()
+    assert "GOOGLE_APPLICATION_CREDENTIALS" not in code
+    assert "application_default_credentials" not in code
+    assert "ADC_FILE" not in code
+
+
+def test_sync_image_gets_the_publisher_token_as_a_read_only_file() -> None:
+    runs = _docker_runs()
+    for step in ("upload-videos", "publish"):
+        (run,) = [r for r in runs if f'"${{IMAGE_NAME}}" {step}' in r]
+        assert '-v "${TOKEN_DIR}/publisher:/run/gcs-token:ro"' in run
+        assert "-e GCS_ACCESS_TOKEN_FILE=/run/gcs-token" in run
+    code = _code()
+    assert code.count("mint_publisher_token\n") == 2, "one fresh token before each bucket step"
+    assert code.index("mint_publisher_token\n") < code.index('"${IMAGE_NAME}" upload-videos')
+    assert "--impersonate-service-account=" in code
+    assert 'PUBLISHER_SA="sa-publisher@${PROJECT_ID}.iam.gserviceaccount.com"' in code
+
+
+def test_revision_step_runs_with_an_access_token_file() -> None:
+    code = _code()
+    (gcloud,) = [line for line in code.splitlines() if line.startswith("GCLOUD=(")]
+    assert "--access-token-file=/run/owner-token" in gcloud
+    assert '-v "${TOKEN_DIR}/owner:/run/owner-token:ro"' in gcloud
+    assert "-e CLOUDSDK_CONFIG=/tmp/gcloud" in gcloud
+    assert ".config/gcloud" not in gcloud, "the revision step never mounts the gcloud login"
+    assert re.search(r'^GCLOUD_IMAGE="google/cloud-sdk:592\.0\.0-emulators@sha256:[0-9a-f]{64}"$', code, re.M)
+    assert code.index("mint_owner_token\n") < code.index("GCLOUD=(")
+    assert code.index("GCLOUD=(") < code.index("run services describe")
+
+
+def test_token_files_live_in_a_private_directory_removed_on_exit_and_are_never_printed() -> None:
+    code = _code()
+    assert 'TOKEN_DIR="$(mktemp -d)"' in code
+    assert 'chmod 700 "${TOKEN_DIR}"' in code
+    assert 'chmod 600 "${token_file}"' in code
+    assert "trap cleanup EXIT" in code
+    assert 'rm -rf "${TOKEN_DIR}"' in code
+    for line in code.splitlines():
+        if "TOKEN_DIR" in line or "token_file" in line:
+            assert not re.search(r"\b(echo|cat|printf|log)\b", line.replace("log()", "")), line
+    assert "service-accounts keys" not in code, "no service account key is ever created"
