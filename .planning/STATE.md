@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Infrastructure and CI/CD
 status: executing
-stopped_at: Completed 04-12-PLAN.md
-last_updated: "2026-11-15T13:05:20.423Z"
+stopped_at: Completed 04-17-PLAN.md
+last_updated: "2026-11-15T14:18:48.187Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 04 execution started
-state_head: db9d80687388bf78becd8d5c528653fe26c074b1
+state_head: 2c4a4ff19eef98da2f22d202addfdc97a75e9551
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 56
-  completed_plans: 44
+  completed_plans: 45
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 04 (Infrastructure and CI/CD) — READY TO EXECUTE
-Plan: 13 of 14
+Plan: 14 of 14
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 04 execution started
 
@@ -98,6 +98,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P09 | 6 min | 3 tasks | 12 files |
 | Phase 04 P11 | 7 min | 3 tasks | 13 files |
 | Phase 04 P12 | 13 min | 2 tasks | 5 files |
+| Phase 04 P17 | 4 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -200,6 +201,8 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-11: upload-videos skips by md5 only (BucketPort has no header metadata); live header and playback check is 04-13
 - [Phase 04]: 04-12: D-18 fallback kept (04-01 coverage_inheritance (a)); video-coverage reports scene/fallback only, no inherited source, no schema change
 - [Phase 04]: D-18 coverage 708/2524 scene-mapped rows after the Guides maps (baseline 238/2524); 8 guides with video still at fallback (8 without durations)
+- [Phase 04]: 04-17: ci-deployer keeps roles/run.admin in bootstrap.sh (run.services.setIamPolicy for invoker-iam-disabled); every IAM bind call pinned by an exact test
+- [Phase 04]: 04-17: OAUTH_STORAGE_ENCRYPTION_KEY validated as a Fernet key at McpSettings config time, error names the variable only
 
 ### Pending Todos
 
@@ -228,6 +231,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T13:43:49.082Z
-Stopped at: Completed 04-12-PLAN.md
+Last session: 2026-11-15T14:18:47.991Z
+Stopped at: Completed 04-17-PLAN.md
 Resume file: None
