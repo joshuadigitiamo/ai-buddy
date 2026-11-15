@@ -255,7 +255,7 @@ def test_the_pushed_digest_is_scanned_before_render() -> None:
     assert scan["uses"] == f"{TRIVY_ACTION}@{TRIVY_COMMIT}"
     options = scan["with"]
     assert options["image-ref"] == (
-        "europe-west8-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/ai-buddy/${{ inputs.service }}"
+        "europe-west8-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/ai-buddy/${{ inputs.service }}"
         "@${{ steps.build.outputs.digest }}"
     ), "the scanned digest is the digest the render step deploys"
     assert options["severity"] == "CRITICAL,HIGH"
