@@ -11,3 +11,22 @@ updates:
     directory: /
     schedule:
       interval: weekly
+  # A pip PR changes a plain requirements file only: before merging, run
+  # scripts/lock-requirements.sh on the PR branch and commit the regenerated locks, or the lock
+  # test fails on main. Nothing is merged automatically.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /services/mcp_server
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /services/chat_bot
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /jobs/sync
+    schedule:
+      interval: weekly

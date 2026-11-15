@@ -196,6 +196,6 @@ def test_test_image_installs_the_sync_requirements() -> None:
 def test_dockerignore_keeps_private_paths_out_of_the_build_context() -> None:
     entries = set(_lines(".dockerignore"))
     assert {"artifacts/", "docs/", ".env", ".cache/"} - entries == set()
-    # Nested secrets and databases, planning notes, tests and CI files never reach the daemon (IN-01).
+    # Nested secrets and databases, planning notes, tests and CI files stay out (IN-01).
     private = {"**/.env", "**/*.db", "**/.cache", ".planning/", "tests/", ".github/"}
     assert private - entries == set()

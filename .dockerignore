@@ -6,3 +6,9 @@ docs/
 artifacts/
 .cache/
 **/__pycache__
+**/.env
+**/*.db
+**/.cache
+.planning/
+tests/
+.github/
