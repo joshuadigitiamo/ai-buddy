@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Infrastructure and CI/CD
 status: executing
-stopped_at: Completed 04-20-PLAN.md
-last_updated: "2026-11-15T14:57:20.083Z"
+stopped_at: Completed 04-21-PLAN.md
+last_updated: "2026-11-15T15:05:25.357Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 04 execution started
-state_head: 4c6d5b6def56ee34877d8dd43837210717e29cc7
+state_head: ae4b7401801830b1212d3f76b3b502c2dc20c953
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 56
-  completed_plans: 49
+  completed_plans: 50
   percent: 60
 ---
 
@@ -103,6 +103,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P18 | 18 min | 3 tasks | 10 files |
 | Phase 04 P15 | 60min | 3 tasks | 1 files |
 | Phase 04 P20 | 12 min | 2 tasks | 9 files |
+| Phase 04 P21 | 20 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -211,6 +212,7 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-18: stage locks compiled with requirements-dev.lock pins as constraint; every image installs hashed locks with --require-hashes (pip-tools 7.6.2 approved, throwaway container only)
 - [Phase 04]: 04-15: Guarda offset diagnosis decision no-fix; every live hop keeps #t=, the 04-13 click was a fallback row
 - [Phase 04]: 04-20: image digest is the deploy identity; IMAGE_TAG leaves the render contract, revision names are chosen by the pipeline (r<run>-<attempt>, p<build>-<epoch>, manual-<epoch>)
+- [Phase 04]: 04-21: python:3.12-slim pinned by digest sha256:5e2bdb1b...fa5b (2026-11-15) in all four FROM lines; Dependabot (docker + 4 pip dirs) opens PRs only, pip PRs need scripts/lock-requirements.sh before merge
 
 ### Pending Todos
 
@@ -239,6 +241,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-15T14:57:19.794Z
-Stopped at: Completed 04-20-PLAN.md
+Last session: 2026-11-15T15:05:25.149Z
+Stopped at: Completed 04-21-PLAN.md
 Resume file: None
