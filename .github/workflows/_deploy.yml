@@ -107,6 +107,30 @@ jobs:
           target: ${{ inputs.target }}
           push: true
           tags: europe-west8-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/ai-buddy/${{ inputs.service }}:${{ github.sha }}
+          # One BuildKit layer cache per image in the Actions cache. Only pushes to main run this
+          # workflow, so only main writes it.
+          cache-from: type=gha,scope=${{ inputs.service }}
+          cache-to: type=gha,scope=${{ inputs.service }},mode=max
+          sbom: true
+          provenance: mode=max
+
+      # The digest scanned is the digest rendered below. A HIGH or CRITICAL finding fails the job here,
+      # so no revision of a failing image is created. The scanner reads the registry with the short-lived
+      # access token of the deployer account. The action is pinned by the commit of v0.36.0 (the tags of
+      # older releases were force-pushed in March 2026, GHSA-69fq-xp46-6x23) and the Trivy binary is set
+      # to a release outside that advisory.
+      - name: Scan the pushed image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_USERNAME: oauth2accesstoken
+          TRIVY_PASSWORD: ${{ steps.auth.outputs.access_token }}
+        with:
+          image-ref: europe-west8-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/ai-buddy/${{ inputs.service }}@${{ steps.build.outputs.digest }}
+          version: v0.76.2
+          severity: CRITICAL,HIGH
+          ignore-unfixed: false
+          exit-code: "1"
+          format: table
 
       - name: Find the serving revision
         id: serving

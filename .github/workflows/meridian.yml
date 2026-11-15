@@ -91,3 +91,5 @@ jobs:
           context: https://github.com/rynfar/meridian.git#${{ steps.version.outputs.sha }}
           push: true
           tags: europe-west8-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/ai-buddy/meridian:${{ steps.version.outputs.sha }}
+          cache-from: type=gha,scope=meridian
+          cache-to: type=gha,scope=meridian,mode=max
