@@ -142,22 +142,37 @@ first four.
 
 ## Render and deploy
 
+CI pushes each image under the full 40-character commit tag and deploys it by digest. The manual path
+does the same: it looks up the digest of the image CI pushed for this commit (the commit must have run
+the deploy workflow, so the image exists) and gives the revision its own name.
+
 ```bash
-export IMAGE_TAG="$(git rev-parse --short HEAD)"   # the tag CI pushed
+SHA="$(git rev-parse HEAD)"   # the full commit: the tag CI pushed
+REPO="europe-west8-docker.pkg.dev/${PROJECT_ID}/ai-buddy"
+export DEPLOY_ID="manual-$(date +%s)"   # names the revision: mcp-server-manual-<epoch>
 export GOOGLE_CLIENT_ID=... GUIDES_WEB_BASE=... CHAT_JWT_ISSUER_EMAIL=... \
        VIDEO_THUMBNAIL_URL=... HELP_COMMAND_ID=...
 # PROJECT_ID and PROJECT_NUMBER as above; MERIDIAN_TAG defaults to deploy/meridian.version.
 
-scripts/render-cloudrun.sh mcp-server .cache/rendered/mcp-server.yaml
-scripts/render-cloudrun.sh chat-bot   .cache/rendered/chat-bot.yaml
+# The digest of the image, one lookup per service; it prints the digest and nothing else.
+IMAGE_DIGEST="$(gcloud artifacts docker images describe "${REPO}/mcp-server:${SHA}" \
+  --project "$PROJECT_ID" --format='value(image_summary.digest)')" \
+  scripts/render-cloudrun.sh mcp-server .cache/rendered/mcp-server.yaml
+IMAGE_DIGEST="$(gcloud artifacts docker images describe "${REPO}/chat-bot:${SHA}" \
+  --project "$PROJECT_ID" --format='value(image_summary.digest)')" \
+  scripts/render-cloudrun.sh chat-bot   .cache/rendered/chat-bot.yaml
 
 gcloud run services replace .cache/rendered/mcp-server.yaml --region europe-west8 --project "$PROJECT_ID" --dry-run
 gcloud run services replace .cache/rendered/mcp-server.yaml --region europe-west8 --project "$PROJECT_ID"
 gcloud run services replace .cache/rendered/chat-bot.yaml   --region europe-west8 --project "$PROJECT_ID"
 ```
 
-The render script needs every variable to be set and non-empty (it names the missing ones, never the
-values), substitutes only its fixed variable list, refuses a value that holds a quote, backslash, `$` or
+A manual `replace` without a traffic block sends all traffic to the new revision at once. Staging for
+the CI deploy comes with 04-22.
+
+The render script needs every variable of the service to be set and non-empty (it names the missing
+ones, never the values), substitutes only that service's variable list, requires `IMAGE_DIGEST` to be
+`sha256:` plus 64 hex characters and `DEPLOY_ID` to be a lowercase label fragment, refuses a value that holds a quote, backslash, `$` or
 newline, and fails if any `${` is left in the output. It never prints the rendered file. `.cache/` is
 gitignored.
 

@@ -1,9 +1,9 @@
 """Structural pins of scripts/sync-and-publish.sh: the forced Cloud Run revision (INFRA-05, 04-20).
 
-The script cannot run in the test image (it needs docker and gcloud), so these tests read its text.
-CI names its revisions `<service>-r<run id>-<attempt>`; a publish names its own `p<build>-<epoch>`, so
-the two never collide, and a second publish of the same build id (after an index-object repair) still
-gets a new name.
+The script cannot run in the test image (it needs docker and gcloud), so these tests read its
+text. CI names its revisions `<service>-r<run id>-<attempt>`; a publish names its own
+`p<build>-<epoch>`, so the two never collide, and a second publish of the same build id (after an
+index-object repair) still gets a new name.
 """
 
 import re

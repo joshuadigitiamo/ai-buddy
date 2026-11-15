@@ -198,8 +198,18 @@ if ! DESCRIBE_ERR="$("${GCLOUD[@]}" run services describe "${SERVICE}" --region 
   fail "could not look up ${SERVICE}; the index is published but no new revision was created"
 fi
 
+# The revision name: CI names its revisions <service>-r<run id>-<attempt>, so a publish uses its own
+# prefix p, the build part and the epoch seconds of this run. A second publish of the same build id
+# (the re-publish after an index-object repair) therefore gets a new name instead of an existing one.
+BUILD_PART="$(tr 'A-Z_' 'a-z-' <<<"${BUILD_ID}")"
+BUILD_PART="${BUILD_PART:0:32}"
+while [[ "${BUILD_PART}" == *- ]]; do BUILD_PART="${BUILD_PART%-}"; done
+REVISION_SUFFIX="p${BUILD_PART}-$(date -u +%s)"
+[[ "${REVISION_SUFFIX}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] || fail "the revision suffix is not a valid name part"
+if ((${#REVISION_SUFFIX} > 44)); then fail "the revision suffix is longer than 44 characters"; fi
+
 log "Forcing a new ${SERVICE} revision so the next request loads build ${BUILD_ID} ..."
-if ! "${GCLOUD[@]}" run services update "${SERVICE}" --region "${REGION}" --project "${PROJECT_ID}" --update-env-vars INDEX_BUILD_ID="${BUILD_ID}" --quiet >/dev/null; then
+if ! "${GCLOUD[@]}" run services update "${SERVICE}" --region "${REGION}" --project "${PROJECT_ID}" --revision-suffix "${REVISION_SUFFIX}" --update-env-vars INDEX_BUILD_ID="${BUILD_ID}" --quiet >/dev/null; then
   fail "the revision update failed; the index is published, rerun after fixing the error above"
 fi
 log "${SERVICE} now serves build_id=${BUILD_ID} from its next cold start"

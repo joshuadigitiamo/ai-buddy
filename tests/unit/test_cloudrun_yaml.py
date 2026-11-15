@@ -189,7 +189,8 @@ def _render_list(script: str, name: str) -> set[str]:
 
 
 def _placeholders(path: Path) -> set[str]:
-    code = [line for line in path.read_text("utf-8").splitlines() if not line.lstrip().startswith("#")]
+    lines = path.read_text("utf-8").splitlines()
+    code = [line for line in lines if not line.lstrip().startswith("#")]
     return set(re.findall(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", "\n".join(code)))
 
 
@@ -209,7 +210,7 @@ def test_render_lists_exactly_the_placeholders_of_each_template() -> None:
     assert common == {"PROJECT_ID", "PROJECT_NUMBER", "IMAGE_DIGEST", "DEPLOY_ID"}
     assert common | _render_list(script, "MCP_SERVER_VARIABLES") == _placeholders(MCP_FILE)
     assert common | _render_list(script, "CHAT_BOT_VARIABLES") == _placeholders(BOT_FILE)
-    assert "IMAGE_TAG" not in script.replace("IMAGE_TAG leaves", "")
+    assert "IMAGE_TAG" not in script
 
 
 def test_chat_bot_is_a_knative_service_with_exactly_one_port_on_the_ingress_container() -> None:

@@ -6,14 +6,16 @@
 # from environment variables, for CI (GitHub repository variables) and for a laptop alike.
 #
 # Usage:
-#   PROJECT_ID=... PROJECT_NUMBER=... IMAGE_DIGEST=sha256:... DEPLOY_ID=... GOOGLE_CLIENT_ID=... \
-#   GUIDES_WEB_BASE=... CHAT_JWT_ISSUER_EMAIL=... VIDEO_THUMBNAIL_URL=... HELP_COMMAND_ID=... \
+#   PROJECT_ID=... PROJECT_NUMBER=... IMAGE_DIGEST=sha256:... DEPLOY_ID=... \
 #     scripts/render-cloudrun.sh <mcp-server|chat-bot> <output-file>
+#
+# Each service adds its own variables: mcp-server needs GOOGLE_CLIENT_ID and GUIDES_WEB_BASE; chat-bot
+# needs CHAT_JWT_ISSUER_EMAIL, VIDEO_THUMBNAIL_URL and HELP_COMMAND_ID (and MERIDIAN_TAG, optional).
 #
 # IMAGE_DIGEST is the digest of the image to deploy (sha256: and 64 hex characters); DEPLOY_ID names the
 # revision (lowercase letters, digits and hyphens).
 #
-# MERIDIAN_TAG defaults to the commit in deploy/meridian.version (D-14). Only variable names are
+# chat-bot only: MERIDIAN_TAG defaults to the commit in deploy/meridian.version (D-14). Only variable names are
 # printed, never values, and the rendered file is never printed.
 
 set -euo pipefail
@@ -43,26 +45,38 @@ TEMPLATE="${ROOT_DIR}/deploy/cloudrun/${SERVICE}.yaml"
 
 command -v envsubst >/dev/null 2>&1 || die "envsubst is required (package gettext-base)"
 
-if [[ -z "${MERIDIAN_TAG:-}" ]]; then
-  [[ -f "${ROOT_DIR}/deploy/meridian.version" ]] || die "deploy/meridian.version is missing"
-  MERIDIAN_TAG="$(tr -d '[:space:]' < "${ROOT_DIR}/deploy/meridian.version")"
-fi
-export MERIDIAN_TAG
-
-# The fixed list: every variable must be set and non-empty for every service, and only these are
-# substituted, so a stray ${...} in a template is never silently replaced by an empty string.
-VARIABLES=(
+# The lists: every variable of the common list and of the selected service must be set and non-empty,
+# and only those are substituted, so a stray ${...} in a template is never silently replaced by an
+# empty string. A test keeps each list equal to the placeholders its template uses.
+COMMON_VARIABLES=(
   PROJECT_ID
   PROJECT_NUMBER
   IMAGE_DIGEST
   DEPLOY_ID
-  MERIDIAN_TAG
+)
+MCP_SERVER_VARIABLES=(
   GOOGLE_CLIENT_ID
   GUIDES_WEB_BASE
+)
+CHAT_BOT_VARIABLES=(
+  MERIDIAN_TAG
   CHAT_JWT_ISSUER_EMAIL
   VIDEO_THUMBNAIL_URL
   HELP_COMMAND_ID
 )
+
+case "${SERVICE}" in
+  mcp-server) VARIABLES=("${COMMON_VARIABLES[@]}" "${MCP_SERVER_VARIABLES[@]}") ;;
+  chat-bot)
+    # MERIDIAN_TAG defaults to the approved commit (D-14).
+    if [[ -z "${MERIDIAN_TAG:-}" ]]; then
+      [[ -f "${ROOT_DIR}/deploy/meridian.version" ]] || die "deploy/meridian.version is missing"
+      MERIDIAN_TAG="$(tr -d '[:space:]' < "${ROOT_DIR}/deploy/meridian.version")"
+    fi
+    export MERIDIAN_TAG
+    VARIABLES=("${COMMON_VARIABLES[@]}" "${CHAT_BOT_VARIABLES[@]}")
+    ;;
+esac
 
 missing=()
 for name in "${VARIABLES[@]}"; do
