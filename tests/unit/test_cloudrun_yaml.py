@@ -519,14 +519,23 @@ GCP_IDENTIFIERS = (
     "GCP_WIF_PROVIDER",
     "GCP_OAUTH_CLIENT_ID",
 )
-GITHUB_VARIABLES = ("GUIDES_WEB_BASE", "CHAT_JWT_ISSUER_EMAIL", "VIDEO_THUMBNAIL_URL", "HELP_COMMAND_ID")
+GITHUB_VARIABLES = (
+    "GUIDES_WEB_BASE",
+    "CHAT_JWT_ISSUER_EMAIL",
+    "VIDEO_THUMBNAIL_URL",
+    "HELP_COMMAND_ID",
+)
 
 
 def _between(text: str, start: str, end: str | None) -> str:
     """The text from the first `start` to the next `end` (or the end of the text)."""
     assert start in text, f"missing {start!r}"
     tail = text[text.index(start) :]
-    return tail if end is None or end not in tail[len(start) :] else tail[: tail.index(end, len(start))]
+    return (
+        tail
+        if end is None or end not in tail[len(start) :]
+        else tail[: tail.index(end, len(start))]
+    )
 
 
 def test_runbook_stores_the_gcp_identifiers_as_secrets() -> None:

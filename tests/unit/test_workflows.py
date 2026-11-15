@@ -165,7 +165,9 @@ def test_deploy_authenticates_keyless_and_pushes_with_the_access_token() -> None
     assert push["with"]["tags"].endswith("/ai-buddy/${{ inputs.service }}:${{ github.sha }}")
 
 
-def _run_configuration_check(run_text: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+def _run_configuration_check(
+    run_text: str, env: dict[str, str]
+) -> subprocess.CompletedProcess[str]:
     """Execute a configuration check step the way the runner does: bash, with only its env."""
     return subprocess.run(
         ["bash", "-c", run_text],
@@ -176,7 +178,9 @@ def _run_configuration_check(run_text: str, env: dict[str, str]) -> subprocess.C
     )
 
 
-def _assert_fails_fast_on_a_missing_identifier(check: dict[str, Any], names: tuple[str, ...]) -> None:
+def _assert_fails_fast_on_a_missing_identifier(
+    check: dict[str, Any], names: tuple[str, ...]
+) -> None:
     assert set(check["env"]) == set(names)
     for name in names:
         assert check["env"][name] == "${{ secrets." + name + " }}"
@@ -223,7 +227,9 @@ def test_secrets_context_holds_only_the_five_gcp_identifiers() -> None:
         names.update(re.findall(r"\bsecrets\.([A-Za-z_]\w*)", text))
         assert "credentials_json" not in text, f"{path.name}: uses a JSON key"
         assert "GOOGLE_APPLICATION_CREDENTIALS" not in text, f"{path.name}: sets a key file path"
-    assert names <= set(GCP_IDENTIFIERS), f"unexpected secrets: {sorted(names - set(GCP_IDENTIFIERS))}"
+    assert names <= set(GCP_IDENTIFIERS), (
+        f"unexpected secrets: {sorted(names - set(GCP_IDENTIFIERS))}"
+    )
     assert names, "the workflows read no identifier at all"
 
 
@@ -453,7 +459,12 @@ def test_meridian_workflow_builds_only_the_reviewed_commit_after_the_test_gate()
     assert "target" not in build["with"]
 
 
-MERIDIAN_IDENTIFIERS = ("GCP_PROJECT_ID", "GCP_PROJECT_NUMBER", "GCP_DEPLOYER_SA", "GCP_WIF_PROVIDER")
+MERIDIAN_IDENTIFIERS = (
+    "GCP_PROJECT_ID",
+    "GCP_PROJECT_NUMBER",
+    "GCP_DEPLOYER_SA",
+    "GCP_WIF_PROVIDER",
+)
 
 
 def test_meridian_push_job_fails_fast_when_the_project_is_not_configured() -> None:

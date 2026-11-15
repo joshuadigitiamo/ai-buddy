@@ -140,17 +140,49 @@ copy, only the Cloud Run instance refreshes this chain. The bucket is mounted re
 container only, owned by uid 1000 (the Meridian image user) through the mount option `uid=1000,gid=1000`.
 The service account belongs to the whole instance, so this is a separate mount, not separate access.
 
-## GitHub repository variables
+## GitHub repository secrets and variables
 
-Set these as repository **variables** (not secrets); none of them is a secret. `bootstrap.sh` prints the
-first four.
+The deploy workflows read the five project identifiers as repository **secrets** and four more values
+as repository **variables**. The repository is public, so its Actions logs are public: a secret is
+masked in every log line, also inside a longer string and in the header a step prints for its env, and
+a variable is never masked. The identifiers are not credentials (authentication stays keyless through
+Workload Identity Federation, and no key is stored), so a secret is here only for the masking. The names
+equal the `secrets:` that `_deploy.yml` declares for `workflow_call`; the two service workflows pass
+them by name. A deploy run fails, naming the empty one, when any of the five is not set; it never skips.
+`bootstrap.sh` prints the five values and the four names at its end, on your own terminal only.
 
-| Variable | Value |
-|----------|-------|
+### Repository secrets
+
+| Secret | Value |
+|--------|-------|
 | `GCP_PROJECT_ID`, `GCP_PROJECT_NUMBER` | the project id and number |
 | `GCP_WIF_PROVIDER` | `projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/github/providers/monorepo` |
 | `GCP_DEPLOYER_SA` | `ci-deployer@<PROJECT_ID>.iam.gserviceaccount.com` |
 | `GCP_OAUTH_CLIENT_ID` | the OAuth client id of the MCP server |
+
+`gh secret set <NAME>` reads the value from stdin, so it never lands on a command line:
+
+```bash
+read -rs VALUE && printf '%s' "$VALUE" | gh secret set GCP_PROJECT_ID && unset VALUE
+```
+
+An existing setup holds the five as variables. Move each without printing it, then delete the variable
+only after a deploy run is green with the secrets:
+
+```bash
+for NAME in GCP_PROJECT_ID GCP_PROJECT_NUMBER GCP_DEPLOYER_SA GCP_WIF_PROVIDER GCP_OAUTH_CLIENT_ID; do
+  gh variable get "$NAME" | gh secret set "$NAME"
+done
+# after a green deploy:
+for NAME in GCP_PROJECT_ID GCP_PROJECT_NUMBER GCP_DEPLOYER_SA GCP_WIF_PROVIDER GCP_OAUTH_CLIENT_ID; do
+  gh variable delete "$NAME"
+done
+```
+
+### Repository variables
+
+| Variable | Value |
+|----------|-------|
 | `GUIDES_WEB_BASE` | the `https://` base URL of the Guides repository |
 | `CHAT_JWT_ISSUER_EMAIL` | the account that signs Chat requests (see the Chat app section) |
 | `VIDEO_THUMBNAIL_URL` | the `https://` URL of the card thumbnail |

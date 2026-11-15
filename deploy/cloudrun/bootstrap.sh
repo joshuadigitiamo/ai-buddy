@@ -216,18 +216,22 @@ bind_sa "${SA_CI_EMAIL}" \
   "principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${WIF_POOL}/attribute.repository_id/${GITHUB_REPO_ID}" \
   roles/iam.workloadIdentityUser
 
-# 10. What to do next. Names and non-secret values only.
-log "done. Add these GitHub repository variables (Settings, Secrets and variables, Actions, Variables):"
+# 10. What to do next. Names and non-secret values only; this goes to the operator's own terminal.
+log "done. Add these GitHub repository secrets (Settings, Secrets and variables, Actions, Secrets):"
 echo "  GCP_PROJECT_ID          = ${PROJECT_ID}"
 echo "  GCP_PROJECT_NUMBER      = ${PROJECT_NUMBER}"
 echo "  GCP_WIF_PROVIDER        = projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${WIF_POOL}/providers/${WIF_PROVIDER}"
 echo "  GCP_DEPLOYER_SA         = ${SA_CI_EMAIL}"
 echo "  GCP_OAUTH_CLIENT_ID     = (the OAuth client id of the MCP server, from the Google Auth platform)"
+log "They are identifiers, not credentials, but the repository is public: a secret is masked in the Actions logs and a variable is not."
+log "gh secret set <NAME> reads the value from stdin, so it never lands on a command line, for example:"
+echo "  read -rs VALUE && printf '%s' \"\$VALUE\" | gh secret set GCP_PROJECT_ID && unset VALUE"
+log "Add these GitHub repository variables (Settings, Secrets and variables, Actions, Variables):"
 echo "  GUIDES_WEB_BASE         = (https base URL of the Guides repository)"
 echo "  CHAT_JWT_ISSUER_EMAIL   = (the account that signs Chat requests, see the Chat app format)"
 echo "  VIDEO_THUMBNAIL_URL     = (https URL of the card thumbnail)"
 echo "  HELP_COMMAND_ID         = (the Chat app help command id)"
-log "Add secret values from stdin, never on a command line, for example:"
+log "Add Secret Manager values from stdin, never on a command line, for example:"
 echo "  gcloud secrets versions add <name> --project=\"\$PROJECT_ID\" --data-file=-"
-echo "  secrets: ${MCP_SECRETS[*]} ${BOT_SECRETS[*]}"
+echo "  Secret Manager secrets: ${MCP_SECRETS[*]} ${BOT_SECRETS[*]}"
 log "Seed the credentials bucket ${CLAUDE_BUCKET} as the README describes (04-01 token_chain (b))."
