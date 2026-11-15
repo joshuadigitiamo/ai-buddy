@@ -55,6 +55,23 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 log() { echo "[sync-and-publish] $*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
 
+# Reads "<percent>,<latestRevision>" lines (gcloud's flattened spec.traffic) on stdin and prints
+# "latest" when exactly one target serves and it is latestRevision at 100, else "pinned". Fails when
+# nothing serves or a percent is not a number, so an unreadable describe never passes as latest.
+traffic_mode() {
+  local percent latest serving=0 latest_full=0
+  while IFS=, read -r percent latest; do
+    [[ -n "${percent}${latest}" ]] || continue
+    percent="${percent:-0}"
+    [[ "${percent}" =~ ^[0-9]+$ ]] || return 1
+    ((percent > 0)) || continue
+    serving=$((serving + 1))
+    if [[ "${percent}" == 100 && "${latest}" == True ]]; then latest_full=1; fi
+  done
+  ((serving > 0)) || return 1
+  if ((serving == 1 && latest_full == 1)); then echo latest; else echo pinned; fi
+}
+
 usage() {
   echo "Usage: $0 [--local-only]" >&2
   exit 2
@@ -249,11 +266,13 @@ fi
 
 # Traffic mode guard (04-22): a staged CI deploy pins traffic to a named revision until its checks pass. A
 # forced revision created then would take no traffic, so the new index would never load. Only
-# latest-revision mode (one target at 100% with latestRevision: true) lets the forced revision serve. The
-# JSON is parsed in the gcloud image (python3 ships there), never on the host, and never printed.
+# latest-revision mode (one target at 100% with latestRevision: true) lets the forced revision serve.
+# gcloud flattens spec.traffic into one "<percent>,<latestRevision>" line per target (a 0% tagged
+# target has an empty percent); bash reads them, since the cloud-sdk image ships no python3. The
+# lines are never printed.
 TRAFFIC_UNREADABLE="could not read the traffic of ${SERVICE}; the index is published but no new revision was created"
-TRAFFIC_JSON="$("${GCLOUD[@]}" run services describe "${SERVICE}" --region "${REGION}" --project "${PROJECT_ID}" --format json 2>/dev/null)" || fail "${TRAFFIC_UNREADABLE}"
-TRAFFIC_MODE="$(docker run --rm -i "${HOST_USER[@]}" "${GCLOUD_IMAGE}" python3 -c 'import json, sys; t = [x for x in json.load(sys.stdin)["spec"]["traffic"] if x.get("percent", 0) > 0]; print("latest" if len(t) == 1 and t[0].get("latestRevision") is True and t[0].get("percent") == 100 else "pinned")' <<<"${TRAFFIC_JSON}" 2>/dev/null)" || fail "${TRAFFIC_UNREADABLE}"
+TRAFFIC_LINES="$("${GCLOUD[@]}" run services describe "${SERVICE}" --region "${REGION}" --project "${PROJECT_ID}" --flatten spec.traffic --format 'csv[no-heading](spec.traffic.percent,spec.traffic.latestRevision)' 2>/dev/null)" || fail "${TRAFFIC_UNREADABLE}"
+TRAFFIC_MODE="$(traffic_mode <<<"${TRAFFIC_LINES}")" || fail "${TRAFFIC_UNREADABLE}"
 if [[ "${TRAFFIC_MODE}" != "latest" ]]; then
   fail "${SERVICE} traffic is pinned to a named revision (a staged deploy that did not finish); the index is already published and the next successful ${SERVICE} deploy will load it"
 fi
