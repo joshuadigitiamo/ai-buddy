@@ -111,10 +111,10 @@ spec:
           # No port: nothing outside the instance can reach Meridian. Cloud Run offers no exec
           # probe, so the start-up probe is httpGet. Path /health, not /readyz: /readyz answers 503
           # "no profiles configured" for the single credentials file this deployment seeds, and
-          # /health answers 200 once the login is read (04-07 measured both on kind). Whether a
-          # Cloud Run probe reaches a loopback-bound port is not stated in the docs; 04-13 checks
-          # it, and the README names the fallbacks (tcpSocket probe, or MERIDIAN_HOST 0.0.0.0, which
-          # is still unreachable from outside because only the ingress container takes traffic).
+          # /health answers 200 once the login is read (04-07 measured both on kind). 04-13 live: a
+          # Cloud Run probe does not reach a loopback-bound port (40 failed probes on 127.0.0.1), so
+          # MERIDIAN_HOST is 0.0.0.0. Meridian stays unreachable from outside: it declares no port
+          # and only the ingress container takes traffic; MERIDIAN_API_KEY still guards every call.
           startupProbe:
             httpGet:
               path: /health
@@ -128,7 +128,7 @@ spec:
               memory: 1Gi
           env:
             - name: MERIDIAN_HOST
-              value: 127.0.0.1
+              value: 0.0.0.0
             - name: MERIDIAN_PORT
               value: '3456'
             - name: MERIDIAN_HOST_ID

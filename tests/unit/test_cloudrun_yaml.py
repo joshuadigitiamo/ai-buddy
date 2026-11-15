@@ -298,11 +298,13 @@ def test_chat_bot_logs_no_question_text_with_a_user_identity() -> None:
             assert not name.startswith("LANGCHAIN_"), f"{name} could re-enable tracing"
 
 
-def test_meridian_sidecar_is_loopback_only_and_has_no_exposed_port() -> None:
+def test_meridian_sidecar_has_no_exposed_port_and_binds_for_the_probe() -> None:
     meridian = _bot_container("meridian")
     environment = _env(meridian)
-    assert "ports" not in meridian, "T-04-28: no port on the sidecar"
-    assert environment["MERIDIAN_HOST"]["value"] == "127.0.0.1", "T-04-28"
+    assert "ports" not in meridian, "T-04-28: no port, no route to the sidecar"
+    # 04-13 live: a Cloud Run start-up probe cannot reach a 127.0.0.1-bound port, so Meridian binds
+    # 0.0.0.0. Only the ingress container takes outside traffic, and MERIDIAN_API_KEY still applies.
+    assert environment["MERIDIAN_HOST"]["value"] == "0.0.0.0", "T-04-28"
     assert environment["MERIDIAN_PORT"]["value"] == "3456"
     assert environment["MERIDIAN_HOST_ID"]["value"] == "meridian-cloudrun"
     assert "MERIDIAN_CREDENTIALS_READONLY" not in environment, "only this instance refreshes"
