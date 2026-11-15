@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Infrastructure and CI/CD
 status: executing
-stopped_at: Completed 04-15-PLAN.md
-last_updated: "2026-11-15T14:49:25.894Z"
+stopped_at: Completed 04-20-PLAN.md
+last_updated: "2026-11-15T14:57:20.083Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 04 execution started
-state_head: 6dba3860bf8bf271c451042042bc229cab504551
+state_head: 4c6d5b6def56ee34877d8dd43837210717e29cc7
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 56
-  completed_plans: 48
+  completed_plans: 49
   percent: 60
 ---
 
@@ -102,6 +102,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P19 | 14 min | 2 tasks | 4 files |
 | Phase 04 P18 | 18 min | 3 tasks | 10 files |
 | Phase 04 P15 | 60min | 3 tasks | 1 files |
+| Phase 04 P20 | 12 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -209,6 +210,7 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-19: publish trusts a pointer only after its db object is confirmed via BucketPort.md5_base64; local-only runs re-resolve video links from the README
 - [Phase 04]: 04-18: stage locks compiled with requirements-dev.lock pins as constraint; every image installs hashed locks with --require-hashes (pip-tools 7.6.2 approved, throwaway container only)
 - [Phase 04]: 04-15: Guarda offset diagnosis decision no-fix; every live hop keeps #t=, the 04-13 click was a fallback row
+- [Phase 04]: 04-20: image digest is the deploy identity; IMAGE_TAG leaves the render contract, revision names are chosen by the pipeline (r<run>-<attempt>, p<build>-<epoch>, manual-<epoch>)
 
 ### Pending Todos
 
@@ -237,6 +239,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-15T14:49:25.679Z
-Stopped at: Completed 04-15-PLAN.md
+Last session: 2026-11-15T14:57:19.794Z
+Stopped at: Completed 04-20-PLAN.md
 Resume file: None
