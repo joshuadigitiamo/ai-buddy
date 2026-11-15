@@ -275,3 +275,32 @@ def test_the_pushed_digest_is_scanned_before_render() -> None:
     assert steps.index(scan) < steps.index(_step_named("Find the serving revision"))
     assert steps.index(scan) < steps.index(_render_step())
     assert _render_step()["env"]["IMAGE_DIGEST"] == "${{ steps.build.outputs.digest }}"
+
+
+SCAN_SUMMARY = ROOT / ".planning" / "phases" / "04-infrastructure-and-ci-cd" / "04-23-SUMMARY.md"
+TRIVY_IGNORE_FILE = ROOT / ".trivyignore.yaml"
+
+
+def test_scan_policy_matches_the_recorded_decision() -> None:
+    # Joshua's choice is recorded once in the plan summary; the gate has to enforce exactly that option.
+    recorded = re.findall(
+        r"^scan-policy: (strict|fixable|strict-with-ignores)$",
+        SCAN_SUMMARY.read_text(encoding="utf-8"),
+        flags=re.MULTILINE,
+    )
+    assert len(recorded) == 1, "the summary records exactly one scan-policy line"
+    options = _scan_step()["with"]
+    assert options["severity"] == "CRITICAL,HIGH"
+    assert options["exit-code"] == "1"
+    if recorded[0] == "fixable":
+        assert options["ignore-unfixed"] is True
+        assert "trivyignores" not in options
+        assert not TRIVY_IGNORE_FILE.exists()
+    elif recorded[0] == "strict":
+        assert options["ignore-unfixed"] is False
+        assert "trivyignores" not in options
+        assert not TRIVY_IGNORE_FILE.exists()
+    else:
+        assert options["ignore-unfixed"] is False
+        assert options["trivyignores"] == ".trivyignore.yaml"
+        assert TRIVY_IGNORE_FILE.exists()
