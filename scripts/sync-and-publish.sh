@@ -13,6 +13,13 @@
 # Nothing here prints file contents, credentials or the credentials path: only step names, build
 # ids and the sync report (counts and ids).
 #
+# Credentials (WR-03): the owner's gcloud login (long-lived refresh token) is mounted only into
+# the digest-pinned google/cloud-sdk image that mints tokens. The sync image, which runs third-party
+# Python packages, only ever sees a one-hour access token of the sa-publisher service account
+# (write access to the index and videos buckets and nothing else), minted right before the step
+# that needs it and mounted read-only as GCS_ACCESS_TOKEN_FILE. The owner needs
+# roles/iam.serviceAccountTokenCreator on sa-publisher (deploy/cloudrun/bootstrap.sh grants it).
+#
 # Usage:
 #   HANDBOOK_SRC_DIR=... GUIDES_SRC_DIR=... REDACT_PAGE_FILES=... PROJECT_ID=... \
 #     scripts/sync-and-publish.sh [--local-only]
@@ -29,7 +36,6 @@
 #   EXTRA_VIDEOS_DIR   second directory searched for the README mp4 files (default ./.cache/videos,
 #                      filled with `gh release download videos --repo <owner>/Guides --dir .cache/videos`;
 #                      skipped when it does not exist). The Guides tree's own videos/ is always searched.
-#   ADC_FILE           user credentials file (default ~/.config/gcloud/application_default_credentials.json)
 #
 # --local-only stops after the local sync: no bucket call, no gcloud call, no video upload (the
 # local index keeps the README video URLs).
@@ -68,7 +74,6 @@ done
 ARTIFACTS_DIR="${ARTIFACTS_DIR:-${ROOT_DIR}/artifacts}"
 PROJECT_ID="${PROJECT_ID:-}"
 ARTIFACT_PREFIX="${ARTIFACT_PREFIX-index/}"
-ADC_FILE="${ADC_FILE:-${HOME}/.config/gcloud/application_default_credentials.json}"
 EXTRA_VIDEOS_DIR="${EXTRA_VIDEOS_DIR:-${ROOT_DIR}/.cache/videos}"
 
 # Docker bind mounts need absolute paths.
@@ -81,6 +86,26 @@ ARTIFACTS_DIR="$(cd "${ARTIFACTS_DIR}" && pwd)"
 # owned by the host user and writable.
 HOST_USER=(--user "$(id -u):$(id -g)" -e HOME=/tmp)
 
+# Short-lived access tokens live in a private temp directory (mode 700, files mode 600) that is
+# removed on every exit path. A token is never printed.
+TOKEN_DIR=""
+cleanup() { [[ -z "${TOKEN_DIR}" ]] || rm -rf "${TOKEN_DIR}"; }
+trap cleanup EXIT
+
+# Mint a one-hour access token of sa-publisher into ${TOKEN_DIR}/publisher. The only container that
+# sees the gcloud login is this one, run from the pinned gcloud image; its stdout goes to the file.
+mint_publisher_token() {
+  local token_file="${TOKEN_DIR}/publisher"
+  if ! (umask 077 && docker run --rm "${HOST_USER[@]}" \
+    -e CLOUDSDK_CONFIG=/gcloud -v "${HOME}/.config/gcloud:/gcloud" "${GCLOUD_IMAGE}" \
+    gcloud auth print-access-token --impersonate-service-account="${PUBLISHER_SA}" \
+    >"${token_file}" 2>/dev/null); then
+    fail "could not mint a token for the publisher service account; the owner needs roles/iam.serviceAccountTokenCreator on it (rerun deploy/cloudrun/bootstrap.sh once) and a gcloud login"
+  fi
+  chmod 600 "${token_file}"
+  [[ -s "${token_file}" ]] || fail "the minted publisher token is empty"
+}
+
 # Bucket steps (video upload now, publish later) need a project and credentials: check both before
 # the first one, so a typo fails before any bucket call.
 BUCKET_STEPS=false
@@ -88,7 +113,10 @@ VIDEO_BUCKET="${VIDEO_BUCKET:-}"
 if [[ "${LOCAL_ONLY}" != "true" && -n "${PROJECT_ID}" ]]; then
   BUCKET_STEPS=true
   [[ "${PROJECT_ID}" =~ ^[a-z][a-z0-9-]{4,28}[a-z0-9]$ ]] || fail "PROJECT_ID is not a GCP project id"
-  [[ -r "${ADC_FILE}" ]] || fail "ADC_FILE is not a readable file; run gcloud auth application-default login"
+  [[ -d "${HOME}/.config/gcloud" ]] || fail "no gcloud configuration for this user; run gcloud auth login"
+  PUBLISHER_SA="sa-publisher@${PROJECT_ID}.iam.gserviceaccount.com"
+  TOKEN_DIR="$(mktemp -d)"
+  chmod 700 "${TOKEN_DIR}"
   VIDEO_BUCKET="${VIDEO_BUCKET:-${PROJECT_ID}-ai-buddy-videos}"
   [[ "${VIDEO_BUCKET}" =~ ^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$ ]] || fail "VIDEO_BUCKET is not a bucket name"
 else
@@ -101,7 +129,7 @@ docker build --target sync -t "${IMAGE_NAME}" "${ROOT_DIR}"
 
 if [[ -n "${VIDEO_BUCKET}" ]]; then
   # Every mp4 named in the Guides README must exist locally, or this step (and the whole command)
-  # fails before the index is built. The credentials file is mounted into this container only.
+  # fails before the index is built. The token file is mounted into this container only.
   log "Uploading the Guides videos to the video bucket ..."
   VIDEO_MOUNTS=(-v "${GUIDES_SRC_DIR}:/guides-src:ro")
   VIDEO_ARGS=(--guides-dir /guides-src --videos-dir /guides-src/videos)
@@ -112,11 +140,12 @@ if [[ -n "${VIDEO_BUCKET}" ]]; then
   else
     log "no extra videos directory; searching the Guides tree only"
   fi
+  mint_publisher_token
   if ! UPLOAD_OUT="$(docker run --rm \
     "${HOST_USER[@]}" \
     "${VIDEO_MOUNTS[@]}" \
-    -v "${ADC_FILE}:/adc.json:ro" \
-    -e GOOGLE_APPLICATION_CREDENTIALS=/adc.json \
+    -v "${TOKEN_DIR}/publisher:/run/gcs-token:ro" \
+    -e GCS_ACCESS_TOKEN_FILE=/run/gcs-token \
     -e GOOGLE_CLOUD_PROJECT="${PROJECT_ID}" \
     -e VIDEO_BUCKET="${VIDEO_BUCKET}" \
     "${IMAGE_NAME}" upload-videos "${VIDEO_ARGS[@]}")"; then
@@ -157,12 +186,14 @@ fi
 ARTIFACT_BUCKET="${ARTIFACT_BUCKET:-${PROJECT_ID}-ai-buddy-index}"
 
 log "Publishing the index to the private bucket ..."
-# The credentials file is mounted read-only into this container only, never into the sync run.
+# A fresh token (the upload step may have been long), mounted read-only into this container only,
+# never into the sync run.
+mint_publisher_token
 if ! PUBLISH_OUT="$(docker run --rm \
   "${HOST_USER[@]}" \
   -v "${ARTIFACTS_DIR}:/artifacts:ro" \
-  -v "${ADC_FILE}:/adc.json:ro" \
-  -e GOOGLE_APPLICATION_CREDENTIALS=/adc.json \
+  -v "${TOKEN_DIR}/publisher:/run/gcs-token:ro" \
+  -e GCS_ACCESS_TOKEN_FILE=/run/gcs-token \
   -e GOOGLE_CLOUD_PROJECT="${PROJECT_ID}" \
   -e ARTIFACT_DIR=/artifacts \
   -e ARTIFACT_BUCKET="${ARTIFACT_BUCKET}" \
@@ -185,7 +216,6 @@ case "${PUBLISH_STATUS}" in
   *) fail "publish returned an unknown status" ;;
 esac
 
-[[ -d "${HOME}/.config/gcloud" ]] || fail "no gcloud configuration for this user; run gcloud auth login"
 GCLOUD=(docker run --rm "${HOST_USER[@]}" -e CLOUDSDK_CONFIG=/gcloud -v "${HOME}/.config/gcloud:/gcloud" "${GCLOUD_IMAGE}" gcloud)
 
 # The first publish happens before the first deploy: with no service there is nothing to refresh.
