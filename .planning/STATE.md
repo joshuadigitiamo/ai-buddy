@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Infrastructure and CI/CD
 status: executing
-stopped_at: Completed 04-23-PLAN.md
-last_updated: "2026-11-15T15:37:56.211Z"
+stopped_at: Completed 04-25-PLAN.md
+last_updated: "2026-11-15T15:46:29.346Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 04 execution started
-state_head: c28d47afbb71f15451dcd623f8ce62f14265d9b2
+state_head: ef67a865d07872a60a708a5a081eb1ae24506bf7
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 56
-  completed_plans: 53
+  completed_plans: 54
   percent: 60
 ---
 
@@ -107,6 +107,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P22 | 35 min | 2 tasks | 10 files |
 | Phase 04 P24 | 35 min | 2 tasks | 9 files |
 | Phase 04 P23 | 40min | 3 tasks | 4 files |
+| Phase 04 P25 | 40 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -220,6 +221,8 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-22: manual replace without SERVING_REVISION pins traffic to the new revision; runbook gives --to-latest and --remove-tags candidate to restore latest-revision mode
 - [Phase 04]: 04-24: sync image gets only a one-hour sa-publisher token (GCS_ACCESS_TOKEN_FILE); owner gcloud login mounted only into digest-pinned gcloud minting containers; owner loses bucket objectAdmin in bootstrap (live removal deferred to 04-26)
 - [Phase 04]: 04-23: scan-policy fixable (ignore-unfixed true), Trivy v0.76.2, trivy-action pinned to v0.36.0 commit; first deploy needs the zlib1g base-digest bump
+- [Phase 04]: 04-25: the five GCP identifiers are repository secrets only (no vars expression); a missing one fails the deploy and Meridian runs by name instead of skipping
+- [Phase 04]: 04-25: chat-bot deploy polls up to 30 min (30 s interval) for the Meridian image before the existing error; deploy job timeout 75 min
 
 ### Pending Todos
 
@@ -248,6 +251,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-15T15:37:55.996Z
-Stopped at: Completed 04-23-PLAN.md
+Last session: 2026-11-15T15:46:29.129Z
+Stopped at: Completed 04-25-PLAN.md
 Resume file: None
