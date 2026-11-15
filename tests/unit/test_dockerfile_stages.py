@@ -68,10 +68,26 @@ def test_every_stage_exists() -> None:
     assert _stage_names() == ["base", "test", "mcp_server", "chat_bot", "sync"]
 
 
+PINNED_FROM = re.compile(
+    r"^FROM python:3\.12-slim@sha256:(?P<digest>[0-9a-f]{64}) AS (?P<stage>base|mcp_server|chat_bot|sync)$"
+)
+
+
+def test_every_stage_uses_the_same_digest_pinned_base() -> None:
+    """A rebuild of a commit gets the same base image: tag@digest, written literally in each
+    FROM line so Dependabot can move every line, one digest for all of them."""
+    froms = re.findall(r"^FROM .*$", (ROOT / "Dockerfile").read_text(), flags=re.MULTILINE)
+    external = [line for line in froms if not line.startswith("FROM base ")]
+    matches = [PINNED_FROM.match(line) for line in external]
+    assert all(matches), f"FROM lines not pinned as python:3.12-slim@sha256:<64 hex>: {external}"
+    assert [m["stage"] for m in matches if m] == ["base", "mcp_server", "chat_bot", "sync"]
+    assert len({m["digest"] for m in matches if m}) == 1, "stages use different base digests"
+
+
 @pytest.mark.parametrize("stage", RUNTIME_STAGES)
 def test_runtime_stage_is_slim_and_ends_non_root(stage: str) -> None:
     text = _dockerfile_stage(stage)
-    assert text.startswith(f"FROM python:3.12-slim AS {stage}"), f"{stage}: not python:3.12-slim"
+    assert PINNED_FROM.match(text.splitlines()[0]), f"{stage}: not python:3.12-slim@sha256"
     users = _instructions(stage, "USER")
     assert users and users[-1] == "10001", f"{stage}: last USER is {users[-1:] or 'missing'}"
     assert text.rfind("USER 10001") > text.rfind("\nCOPY "), f"{stage}: USER 10001 before last COPY"

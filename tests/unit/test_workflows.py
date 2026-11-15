@@ -348,13 +348,15 @@ def test_test_only_workflow_covers_the_files_no_service_image_copies() -> None:
         assert _matches(path, patterns), f"tests.yml would miss a change to {path}"
 
 
-def test_dependabot_bumps_the_pinned_actions_weekly() -> None:
+def test_dependabot_watches_actions_docker_and_pip() -> None:
     data = yaml.safe_load((ROOT / ".github" / "dependabot.yml").read_text())
     assert data["version"] == 2
-    [update] = data["updates"]
-    assert update["package-ecosystem"] == "github-actions"
-    assert update["directory"] == "/"
-    assert update["schedule"]["interval"] == "weekly"
+    updates = data["updates"]
+    assert {(u["package-ecosystem"], u["directory"]) for u in updates} == {
+        ("github-actions", "/"),
+        ("docker", "/"),
+    }
+    assert [u["schedule"]["interval"] for u in updates] == ["weekly"] * len(updates)
 
 
 def _index_modes(*pathspecs: str) -> dict[str, str]:
