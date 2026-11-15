@@ -13,7 +13,9 @@
 # needs CHAT_JWT_ISSUER_EMAIL, VIDEO_THUMBNAIL_URL and HELP_COMMAND_ID (and MERIDIAN_TAG, optional).
 #
 # IMAGE_DIGEST is the digest of the image to deploy (sha256: and 64 hex characters); DEPLOY_ID names the
-# revision (lowercase letters, digits and hyphens).
+# revision (lowercase letters, digits and hyphens). SERVING_REVISION (optional) is the revision that holds
+# 100% of the traffic now; the new revision starts at 0% behind the tag candidate. It defaults to the new
+# revision itself, the form for a first deploy and for a manual deploy that moves all traffic at once.
 #
 # chat-bot only: MERIDIAN_TAG defaults to the commit in deploy/meridian.version (D-14). Only variable names are
 # printed, never values, and the rendered file is never printed.
@@ -55,15 +57,22 @@ COMMON_VARIABLES=(
   DEPLOY_ID
 )
 MCP_SERVER_VARIABLES=(
+  SERVING_REVISION
   GOOGLE_CLIENT_ID
   GUIDES_WEB_BASE
 )
 CHAT_BOT_VARIABLES=(
+  SERVING_REVISION
   MERIDIAN_TAG
   CHAT_JWT_ISSUER_EMAIL
   VIDEO_THUMBNAIL_URL
   HELP_COMMAND_ID
 )
+
+# SERVING_REVISION defaults to the new revision: the first deploy has nothing else to keep serving.
+if [[ -z "${SERVING_REVISION:-}" && -n "${DEPLOY_ID:-}" ]]; then
+  SERVING_REVISION="${SERVICE}-${DEPLOY_ID}"
+fi
 
 case "${SERVICE}" in
   mcp-server) VARIABLES=("${COMMON_VARIABLES[@]}" "${MCP_SERVER_VARIABLES[@]}") ;;
@@ -92,6 +101,7 @@ fi
 # exact formats. Only the variable name is printed, never the value.
 [[ "${IMAGE_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]] || die "IMAGE_DIGEST must be sha256: followed by 64 hex characters"
 [[ "${DEPLOY_ID}" =~ ^[a-z0-9]([a-z0-9-]{0,40}[a-z0-9])?$ ]] || die "DEPLOY_ID must be a lowercase DNS label fragment of at most 42 characters"
+[[ "${SERVING_REVISION}" =~ ^${SERVICE}-[a-z0-9]([a-z0-9-]{0,50}[a-z0-9])?$ ]] || die "SERVING_REVISION must be a revision name of ${SERVICE}"
 
 # The values land inside double-quoted YAML scalars: refuse anything that could end the scalar or
 # start another substitution. The value is never printed; only the variable name is.

@@ -12,11 +12,12 @@ import sys
 from typing import Any
 
 import pytest
-from buddy_mcp.config import _HOSTNAME
 from tests.unit.test_cloudrun_yaml import BOT_FILE, MCP_FILE, _containers, _env, _load
 from tests.unit.test_repo_layout import ROOT
 from tests.unit.test_workflows import _load as _load_workflow
 from tests.unit.test_workflows import _steps, _uses_step
+
+from buddy_mcp.config import _HOSTNAME
 
 SERVICES = {"mcp-server": MCP_FILE, "chat-bot": BOT_FILE}
 SERVING_HELPER = ROOT / "scripts" / "serving_revision.py"
@@ -69,7 +70,8 @@ def test_templates_deploy_by_digest_and_name_their_revision(service: str) -> Non
 
 
 def _step_named(name: str) -> dict[str, Any]:
-    matches = [step for _, step in _steps(_load_workflow("_deploy.yml")) if step.get("name") == name]
+    steps = _steps(_load_workflow("_deploy.yml"))
+    matches = [step for _, step in steps if step.get("name") == name]
     assert len(matches) == 1, f"expected one step named {name!r}"
     return matches[0]
 
@@ -125,10 +127,9 @@ def test_serving_lookup_reads_the_resolved_status_traffic() -> None:
     result = _lookup(pinned)
     assert (result.returncode, result.stdout) == (0, "mcp-server-r1-1\n")
 
-    forced = _describe(
-        [{"latestRevision": True, "percent": 100, "revisionName": "mcp-server-p20261115-1763000000"}]
-    )
-    assert _lookup(forced).stdout == "mcp-server-p20261115-1763000000\n"
+    published = "mcp-server-p20261115-1763000000"
+    forced = _describe([{"latestRevision": True, "percent": 100, "revisionName": published}])
+    assert _lookup(forced).stdout == f"{published}\n"
 
 
 @pytest.mark.parametrize(

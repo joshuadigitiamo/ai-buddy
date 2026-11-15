@@ -173,3 +173,12 @@ spec:
           emptyDir:
             medium: Memory
             sizeLimit: 64Mi
+  # Staged deploy (CICD_GUIDE 20): the new revision starts at 0% under the tag "candidate", CI checks it
+  # on its tagged URL, then moves all traffic with --to-latest and drops the tag. SERVING_REVISION is the
+  # revision that serves now; on the first deploy it is the new revision itself.
+  traffic:
+    - revisionName: "${SERVING_REVISION}"
+      percent: 100
+    - revisionName: "chat-bot-${DEPLOY_ID}"
+      percent: 0
+      tag: candidate

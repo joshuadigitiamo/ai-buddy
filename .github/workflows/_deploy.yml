@@ -1,8 +1,11 @@
 # Reusable build, push and deploy of one Cloud Run service (INFRA-05, D-04).
 #
-# Order: image build and push, then a server-side dry run of the rendered service definition, then the
-# real replace, then a check of the live service. The caller declares the test gate in front of this
-# workflow, so nothing here runs on a red test job.
+# Order: image build and push, then a lookup of the revision that serves now, a server-side dry run of
+# the rendered service definition, and the real replace. The new revision comes up at 0% traffic under
+# the tag candidate; the checks run on the tagged URL, and only after they pass does one command move
+# all traffic to it and a second drop the tag. A red candidate leaves the old revision serving. The last
+# step checks the live service. The caller declares the test gate in front of this workflow, so
+# nothing here runs on a red test job.
 #
 # Keyless: the runner trades its GitHub OIDC token for a short-lived Google token through Workload
 # Identity Federation and impersonates the ci-deployer account. No key file exists anywhere.
@@ -105,6 +108,31 @@ jobs:
           push: true
           tags: europe-west8-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/ai-buddy/${{ inputs.service }}:${{ github.sha }}
 
+      - name: Find the serving revision
+        id: serving
+        env:
+          SERVICE: ${{ inputs.service }}
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: europe-west8
+        run: |
+          # The revision that holds all traffic now stays at 100% while the new one is checked. An empty
+          # answer means the service does not exist yet (first deploy) and nothing else: the helper fails
+          # on split or unresolved traffic instead of returning an empty name. The describe output goes to
+          # a file and is never printed.
+          if ! gcloud run services describe "${SERVICE}" --project "${PROJECT_ID}" --region "${REGION}" --format=json >"${RUNNER_TEMP}/describe.json" 2>"${RUNNER_TEMP}/describe.err"; then
+            if grep -qiE 'not.?found|cannot find service' "${RUNNER_TEMP}/describe.err"; then
+              echo "first deploy: ${SERVICE} does not exist yet"
+              echo "revision=" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+            echo "::error::could not look up ${SERVICE}"
+            cat "${RUNNER_TEMP}/describe.err" >&2
+            exit 1
+          fi
+          REVISION="$(python3 scripts/serving_revision.py "${SERVICE}" < "${RUNNER_TEMP}/describe.json")"
+          echo "revision=${REVISION}" >> "${GITHUB_OUTPUT}"
+          echo "serving revision: ${REVISION}"
+
       - name: Render the Cloud Run service definition
         env:
           SERVICE: ${{ inputs.service }}
@@ -112,6 +140,7 @@ jobs:
           PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
           IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
           DEPLOY_ID: r${{ github.run_id }}-${{ github.run_attempt }}
+          SERVING_REVISION: ${{ steps.serving.outputs.revision }}
           GOOGLE_CLIENT_ID: ${{ vars.GCP_OAUTH_CLIENT_ID }}
           GUIDES_WEB_BASE: ${{ vars.GUIDES_WEB_BASE }}
           CHAT_JWT_ISSUER_EMAIL: ${{ vars.CHAT_JWT_ISSUER_EMAIL }}
@@ -138,6 +167,96 @@ jobs:
           if ! gcloud run services replace "${RUNNER_TEMP}/service.yaml" --project "${PROJECT_ID}" --region "${REGION}" --quiet >/dev/null 2>"${RUNNER_TEMP}/replace.err"; then
             echo "::error::the deploy failed"
             cat "${RUNNER_TEMP}/replace.err" >&2
+            exit 1
+          fi
+
+      - name: Check the candidate revision
+        env:
+          SERVICE: ${{ inputs.service }}
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+          REGION: europe-west8
+          SERVING_REVISION: ${{ steps.serving.outputs.revision }}
+          DEPLOY_ID: r${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          # First prove the new revision holds no traffic: the answer must be the revision rendered as
+          # the serving target. An empty SERVING_REVISION is the first deploy, where the new revision is
+          # that target and serves from the start.
+          NEW_REVISION="${SERVICE}-${DEPLOY_ID}"
+          if ! gcloud run services describe "${SERVICE}" --project "${PROJECT_ID}" --region "${REGION}" --format=json >"${RUNNER_TEMP}/describe.json" 2>"${RUNNER_TEMP}/describe.err"; then
+            echo "::error::could not look up ${SERVICE}"
+            cat "${RUNNER_TEMP}/describe.err" >&2
+            exit 1
+          fi
+          HOLDER="$(python3 scripts/serving_revision.py "${SERVICE}" < "${RUNNER_TEMP}/describe.json")"
+          if [ "${HOLDER}" != "${SERVING_REVISION:-${NEW_REVISION}}" ]; then
+            echo "::error::the new revision took traffic before its checks"
+            exit 1
+          fi
+          if [ -n "${SERVING_REVISION}" ]; then
+            echo "candidate ${NEW_REVISION} at 0%, traffic on ${HOLDER}"
+          else
+            echo "first deploy: candidate serves"
+          fi
+
+          # The tagged URL of the new revision. The same requests as the live check, one without a token
+          # each: the chat-bot candidate gets one POST that is refused with 401, so no model call and no
+          # second Meridian turn happens while staging.
+          URL="https://candidate---${SERVICE}-${PROJECT_NUMBER}.${REGION}.run.app"
+          if [ -z "${PROJECT_NUMBER}" ]; then
+            echo "::error::GCP_PROJECT_NUMBER is not set; cannot build the candidate URL of ${SERVICE}"
+            exit 1
+          fi
+          echo "::add-mask::${URL}"
+
+          # expect <method> <path> <status>: one request without a token, only the status code is kept.
+          expect() {
+            local method="$1" path="$2" want="$3" got
+            local -a body=()
+            if [ "${method}" = "POST" ]; then
+              body=(--header 'Content-Type: application/json' --data '{}')
+            fi
+            got="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 60 \
+              --retry 3 --retry-delay 5 --retry-connrefused --request "${method}" \
+              "${body[@]}" "${URL}${path}")" || got="no-response"
+            if [ "${got}" != "${want}" ]; then
+              echo "::error::${SERVICE} ${method} ${path}: expected ${want}, got ${got}"
+              exit 1
+            fi
+            echo "${SERVICE} ${method} ${path} -> ${got}"
+          }
+
+          case "${SERVICE}" in
+            mcp-server)
+              expect GET /health 200
+              expect POST /mcp 401
+              ;;
+            chat-bot)
+              expect POST / 401
+              ;;
+            *)
+              echo "::error::no post-deploy check is defined for ${SERVICE}"
+              exit 1
+              ;;
+          esac
+
+      - name: Move traffic to the candidate
+        env:
+          SERVICE: ${{ inputs.service }}
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          REGION: europe-west8
+        run: |
+          # The checks passed: all traffic goes to the latest revision, which also puts the service back in
+          # latest-revision mode (the forced revision of scripts/sync-and-publish.sh relies on it). Then the
+          # tag goes.
+          if ! gcloud run services update-traffic "${SERVICE}" --project "${PROJECT_ID}" --region "${REGION}" --to-latest --quiet >/dev/null 2>"${RUNNER_TEMP}/traffic.err"; then
+            echo "::error::moving traffic to the new revision failed"
+            cat "${RUNNER_TEMP}/traffic.err" >&2
+            exit 1
+          fi
+          if ! gcloud run services update-traffic "${SERVICE}" --project "${PROJECT_ID}" --region "${REGION}" --remove-tags candidate --quiet >/dev/null 2>"${RUNNER_TEMP}/untag.err"; then
+            echo "::error::traffic moved, but the candidate tag was not removed"
+            cat "${RUNNER_TEMP}/untag.err" >&2
             exit 1
           fi
 

@@ -67,6 +67,9 @@ spec:
               value: index/
             - name: MCP_PUBLIC_BASE_URL
               value: "https://mcp-server-${PROJECT_NUMBER}.europe-west8.run.app"
+            # The tagged URL of a staged deploy; the Host guard answers 421 to any host not listed here.
+            - name: MCP_ALLOWED_HOSTS
+              value: "candidate---mcp-server-${PROJECT_NUMBER}.europe-west8.run.app"
             - name: GUIDES_WEB_BASE
               value: "${GUIDES_WEB_BASE}"
             - name: GOOGLE_CLOUD_PROJECT
@@ -92,3 +95,12 @@ spec:
                 secretKeyRef:
                   name: oauth-storage-encryption-key
                   key: latest
+  # Staged deploy (CICD_GUIDE 20): the new revision starts at 0% under the tag "candidate", CI checks it
+  # on its tagged URL, then moves all traffic with --to-latest and drops the tag. SERVING_REVISION is the
+  # revision that serves now; on the first deploy it is the new revision itself.
+  traffic:
+    - revisionName: "${SERVING_REVISION}"
+      percent: 100
+    - revisionName: "mcp-server-${DEPLOY_ID}"
+      percent: 0
+      tag: candidate
