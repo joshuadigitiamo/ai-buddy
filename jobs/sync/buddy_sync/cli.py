@@ -24,7 +24,7 @@ from typing import Final
 from pydantic import ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from buddy_core.gcs_bucket import BucketError, GcsBucket, token_file_client_factory  # noqa: F401
+from buddy_core.gcs_bucket import BucketError, GcsBucket, token_file_client_factory
 from buddy_core.index_reader import IndexFormatError, open_index
 from buddy_core.models import video_link
 from buddy_core.store import (
@@ -79,8 +79,9 @@ BucketFactory = Callable[[str], BucketPort]
 class PublishSettings(BaseSettings):
     """Environment of ``publish``: where the local index is and which bucket receives it.
 
-    ADC for the bucket comes from GOOGLE_APPLICATION_CREDENTIALS and is read by the storage
-    client, never here. Errors name variables, never values.
+    Credentials for the bucket come from GCS_ACCESS_TOKEN_FILE (a short-lived token file, set by
+    scripts/sync-and-publish.sh) or, when it is unset, from ADC read by the storage client. Errors
+    name variables, never values.
     """
 
     model_config = SettingsConfigDict(
@@ -93,6 +94,8 @@ class PublishSettings(BaseSettings):
     artifact_dir: Path
     artifact_bucket: str
     artifact_prefix: str = ""
+    gcs_access_token_file: Path | None = None
+    google_cloud_project: str | None = None
 
     @field_validator("artifact_bucket")
     @classmethod
@@ -108,8 +111,8 @@ class PublishSettings(BaseSettings):
 class VideoUploadSettings(BaseSettings):
     """Environment of ``upload-videos``: the private bucket that holds the Guides videos (D-16).
 
-    ADC comes from GOOGLE_APPLICATION_CREDENTIALS, read by the storage client. Errors name
-    variables, never values.
+    Credentials come from GCS_ACCESS_TOKEN_FILE when set, else from ADC read by the storage
+    client. Errors name variables, never values.
     """
 
     model_config = SettingsConfigDict(
@@ -120,6 +123,8 @@ class VideoUploadSettings(BaseSettings):
     )
 
     video_bucket: str
+    gcs_access_token_file: Path | None = None
+    google_cloud_project: str | None = None
 
     @field_validator("video_bucket")
     @classmethod
@@ -204,8 +209,23 @@ def _run(args: argparse.Namespace, logger: logging.Logger, now: NowFn) -> int:
     return 0
 
 
-def _publish(bucket_factory: BucketFactory) -> int:
+def _select_bucket_factory(
+    injected: BucketFactory | None, token_file: Path | None, project: str | None
+) -> BucketFactory:
+    """An injected factory wins (tests); else the token file when set; else plain ADC."""
+    if injected is not None:
+        return injected
+    if token_file is None:
+        return GcsBucket
+    client_factory = token_file_client_factory(token_file, project)
+    return lambda name: GcsBucket(name, client_factory=client_factory)
+
+
+def _publish(injected: BucketFactory | None) -> int:
     settings = PublishSettings()
+    bucket_factory = _select_bucket_factory(
+        injected, settings.gcs_access_token_file, settings.google_cloud_project
+    )
     bucket = bucket_factory(settings.artifact_bucket)
     with tempfile.TemporaryDirectory(prefix="buddy-publish-") as cache:
         store = GcsArtifactStore(bucket, settings.artifact_prefix, Path(cache))
@@ -215,9 +235,12 @@ def _publish(bucket_factory: BucketFactory) -> int:
 
 
 def _upload_videos(
-    guides_dir: Path, video_dirs: Sequence[Path], bucket_factory: BucketFactory
+    guides_dir: Path, video_dirs: Sequence[Path], injected: BucketFactory | None
 ) -> int:
     settings = VideoUploadSettings()
+    bucket_factory = _select_bucket_factory(
+        injected, settings.gcs_access_token_file, settings.google_cloud_project
+    )
     readme = (guides_dir / README_NAME).read_text(encoding="utf-8")
     report = upload_videos(
         parse_readme_videos(readme), video_dirs, bucket_factory(settings.video_bucket)
@@ -291,9 +314,9 @@ def main(
             case "run":
                 return _run(args, logger, clock)
             case "publish":
-                return _publish(bucket_factory or GcsBucket)
+                return _publish(bucket_factory)
             case "upload-videos":
-                return _upload_videos(args.guides_dir, args.videos_dir, bucket_factory or GcsBucket)
+                return _upload_videos(args.guides_dir, args.videos_dir, bucket_factory)
             case "video-coverage":
                 return _video_coverage(args.artifact_dir, args.guides_dir)
             case "guides-index":

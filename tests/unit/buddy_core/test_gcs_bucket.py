@@ -254,7 +254,8 @@ def test_missing_or_empty_token_file_is_a_names_only_error(
 def test_a_bucket_over_the_token_file_factory_reports_a_bad_token_file_as_bucket_error(
     tmp_path: Path,
 ) -> None:
-    bucket = GcsBucket("bucket-x", client_factory=token_file_client_factory(tmp_path / "gone", None))
+    factory = token_file_client_factory(tmp_path / "gone", None)
+    bucket = GcsBucket("bucket-x", client_factory=factory)
 
     with pytest.raises(BucketError, match="GCS_ACCESS_TOKEN_FILE"):
         bucket.read_bytes("a")

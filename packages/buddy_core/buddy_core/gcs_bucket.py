@@ -1,4 +1,4 @@
-"""BucketPort over google-cloud-storage with Application Default Credentials (D-06).
+"""BucketPort over google-cloud-storage: Application Default Credentials (D-06) or a token file.
 
 The client is built on first use, so constructing a GcsBucket makes no network call. Every storage
 failure surfaces as ``BucketError`` carrying the exception type name only: no URL, token or
@@ -12,10 +12,14 @@ from typing import Final
 import google.cloud.storage as storage
 from google.api_core.exceptions import GoogleAPIError, NotFound
 from google.auth.exceptions import GoogleAuthError
+from google.oauth2.credentials import Credentials
 
 # Errors from the storage client that become BucketError. OSError covers connection failures and
 # local disk errors during a download; none of their messages are passed on.
 _STORAGE_ERRORS: Final = (GoogleAPIError, GoogleAuthError, OSError)
+
+_TOKEN_FILE_UNREADABLE: Final = "GCS_ACCESS_TOKEN_FILE is missing or unreadable"
+_TOKEN_FILE_EMPTY: Final = "GCS_ACCESS_TOKEN_FILE is empty"
 
 
 class BucketError(Exception):
@@ -94,10 +98,24 @@ class GcsBucket:
         return digest if isinstance(digest, str) else None
 
 
-def token_file_client_factory(token_file: Path, project: str | None) -> Callable[[], storage.Client]:
-    """RED stub: replaced by the implementation in the next commit."""
+def token_file_client_factory(
+    token_file: Path, project: str | None
+) -> Callable[[], storage.Client]:
+    """A client factory that authenticates with an access token read from a file (WR-03).
+
+    Nothing is read until the factory is called, so a token minted just before the step is the one
+    used. A missing, unreadable or empty file is a ``BucketError`` that names GCS_ACCESS_TOKEN_FILE
+    only: neither the path nor the content reaches the message.
+    """
 
     def build() -> storage.Client:
-        raise NotImplementedError
+        try:
+            token = token_file.read_text(encoding="utf-8").strip()
+        except (OSError, ValueError):
+            raise BucketError(_TOKEN_FILE_UNREADABLE) from None
+        if not token:
+            raise BucketError(_TOKEN_FILE_EMPTY)
+        credentials = Credentials(token=token)  # type: ignore[no-untyped-call]
+        return storage.Client(project=project, credentials=credentials)
 
     return build
