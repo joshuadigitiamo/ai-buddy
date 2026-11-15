@@ -143,11 +143,14 @@ jobs:
         env:
           SERVICE: ${{ inputs.service }}
           PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
           REGION: europe-west8
         run: |
-          URL="$(gcloud run services describe "${SERVICE}" --project "${PROJECT_ID}" --region "${REGION}" --format='value(status.url)')"
-          if [ -z "${URL}" ]; then
-            echo "::error::could not read the URL of ${SERVICE}"
+          # The deterministic URL: the one Chat, claude.ai and MCP_PUBLIC_BASE_URL use. status.url can
+          # return the hashed *.a.run.app form, which the MCP Host guard answers with 421 (04-13 live).
+          URL="https://${SERVICE}-${PROJECT_NUMBER}.${REGION}.run.app"
+          if [ -z "${PROJECT_NUMBER}" ]; then
+            echo "::error::GCP_PROJECT_NUMBER is not set; cannot build the URL of ${SERVICE}"
             exit 1
           fi
           echo "::add-mask::${URL}"
