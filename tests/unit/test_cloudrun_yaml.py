@@ -453,3 +453,66 @@ def test_runbook_covers_the_bootstrap_seeding_fallbacks_and_org_policy_notes() -
         assert needle in text, f"the runbook does not mention {needle!r}"
     assert PROJECT_ID_LITERAL not in text, "the real project id must stay out of the public repo"
     assert not (CLOUDRUN / ".gitkeep").exists(), "the directory holds real files now"
+
+
+_BIND_CALL = re.compile(r"^bind_(?:project|bucket|secret|sa) ")
+_CI_PROJECT_BINDING = 'bind_project "serviceAccount:${SA_CI_EMAIL}" roles/run.admin'
+_EXPECTED_BIND_CALLS = sorted(
+    [
+        "gc artifacts repositories add-iam-policy-binding \"${REPOSITORY}\" --location=\"${REGION}\" "
+        '--member="serviceAccount:${SA_CI_EMAIL}" --role=roles/artifactregistry.writer --quiet >/dev/null',
+        _CI_PROJECT_BINDING,
+        'bind_sa "${SA_MCP_EMAIL}" "serviceAccount:${SA_CI_EMAIL}" roles/iam.serviceAccountUser',
+        'bind_sa "${SA_BOT_EMAIL}" "serviceAccount:${SA_CI_EMAIL}" roles/iam.serviceAccountUser',
+        'bind_project "serviceAccount:${SA_MCP_EMAIL}" roles/datastore.user',
+        'bind_bucket "${INDEX_BUCKET}" "serviceAccount:${SA_MCP_EMAIL}" roles/storage.objectViewer',
+        'bind_secret "${secret}" "serviceAccount:${SA_MCP_EMAIL}" roles/secretmanager.secretAccessor',
+        'bind_project "serviceAccount:${SA_BOT_EMAIL}" roles/datastore.user',
+        'bind_bucket "${CLAUDE_BUCKET}" "serviceAccount:${SA_BOT_EMAIL}" roles/storage.objectUser',
+        'bind_secret "${secret}" "serviceAccount:${SA_BOT_EMAIL}" roles/secretmanager.secretAccessor',
+        'bind_bucket "${VIDEOS_BUCKET}" "user:${OWNER_EMAIL}" roles/storage.objectViewer',
+        'bind_bucket "${VIDEOS_BUCKET}" "user:${OWNER_EMAIL}" roles/storage.objectAdmin',
+        'bind_bucket "${INDEX_BUCKET}" "user:${OWNER_EMAIL}" roles/storage.objectAdmin',
+        'bind_project "user:${OWNER_EMAIL}" roles/run.developer',
+        'bind_sa "${SA_CI_EMAIL}" "principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}'
+        "/locations/global/workloadIdentityPools/${WIF_POOL}/attribute.repository_id/${GITHUB_REPO_ID}"
+        '" roles/iam.workloadIdentityUser',
+    ]
+)
+
+
+def _bind_calls(script: str) -> list[str]:
+    """Every uncommented IAM binding call of the script, continuation lines joined, whitespace normalised."""
+    joined = re.sub(r"\\\n\s*", " ", script)
+    calls = []
+    for raw in joined.splitlines():
+        line = " ".join(raw.split())
+        if line.startswith("#"):
+            continue
+        if _BIND_CALL.match(line) or (line.startswith("gc ") and "add-iam-policy-binding" in line):
+            calls.append(line)
+    return sorted(calls)
+
+
+def test_bootstrap_binds_exactly_these_roles() -> None:
+    """IN-03: a commented-out, moved or widened binding changes this set and fails here."""
+    calls = _bind_calls(BOOTSTRAP.read_text(encoding="utf-8"))
+    assert calls == _EXPECTED_BIND_CALLS
+    assert _CI_PROJECT_BINDING in calls, "ci-deployer needs run.services.setIamPolicy (invoker-iam-disabled)"
+
+
+def test_bind_call_parser_ignores_a_commented_binding() -> None:
+    script = BOOTSTRAP.read_text(encoding="utf-8")
+    assert _CI_PROJECT_BINDING in _bind_calls(script)
+    commented = script.replace(_CI_PROJECT_BINDING, f"# {_CI_PROJECT_BINDING}")
+    assert commented != script
+    assert _CI_PROJECT_BINDING not in _bind_calls(commented)
+    assert _bind_calls(commented) != _EXPECTED_BIND_CALLS
+
+
+def test_runbook_names_the_deployer_role_and_the_meridian_bucket_scope() -> None:
+    text = RUNBOOK.read_text(encoding="utf-8")
+    roles = text.split("Roles, least privilege:", 1)[1].split("\n\n", 1)[0]
+    assert "roles/run.admin" in roles and "run.services.setIamPolicy" in roles
+    assert "not separate access" in text
+    assert "cannot set `invoker-iam-disabled`" not in text, "the deployer role is applied, not pending"
