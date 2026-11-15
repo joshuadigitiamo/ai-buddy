@@ -8,6 +8,7 @@ port, so tests use a fake bucket and only the CLI builds the real adapters.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import shutil
@@ -40,6 +41,14 @@ def _sha256_of(path: Path) -> str:
         while chunk := handle.read(_HASH_CHUNK):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _md5_base64_of(path: Path) -> str:
+    digest = hashlib.md5(usedforsecurity=False)
+    with path.open("rb") as handle:
+        while chunk := handle.read(_HASH_CHUNK):
+            digest.update(chunk)
+    return base64.b64encode(digest.digest()).decode("ascii")
 
 
 def _load_local_manifest(path: Path) -> dict[str, Any]:
@@ -78,8 +87,37 @@ def _bucket_pointer(bucket: BucketPort, name: str) -> dict[str, Any] | None:
     return pointer
 
 
+def _pointer_object_is_current(
+    bucket: BucketPort,
+    store: GcsArtifactStore,
+    pointer: dict[str, Any],
+    manifest: dict[str, Any],
+    db_path: Path,
+) -> bool:
+    """True when the db object the pointer names exists in the bucket and can be trusted.
+
+    A pointer whose object was deleted or damaged would make the server fail at cold start, so
+    ``unchanged`` is only honest after this check. For the same build the object must also match
+    the local db byte for byte; for another build with the same content, presence is enough.
+    """
+    build_id = pointer.get("build_id")
+    if not isinstance(build_id, str) or not build_id:
+        return False
+    if pointer.get("object") != f"index-{build_id}.db":
+        return False
+    stored_md5 = bucket.md5_base64(store.prefix + f"index-{build_id}.db")
+    if stored_md5 is None:
+        return False
+    if build_id == manifest["build_id"]:
+        return stored_md5 == _md5_base64_of(db_path)
+    return True
+
+
 def publish_index(local_dir: Path, store: GcsArtifactStore, bucket: BucketPort) -> PublishResult:
-    """Publish ``local_dir/index.db`` unless the bucket pointer already names the same content."""
+    """Publish ``local_dir/index.db`` unless the bucket already serves the same content.
+
+    "Serves" means the pointer has the same content hash and the db object it names is present.
+    """
     if not local_dir.is_dir():
         raise PublishError("artifact directory does not exist")
     db_path = local_dir / INDEX_NAME
@@ -97,10 +135,12 @@ def publish_index(local_dir: Path, store: GcsArtifactStore, bucket: BucketPort) 
         raise PublishError("local index does not match its manifest")
 
     pointer = _bucket_pointer(bucket, store.prefix + MANIFEST_NAME)
-    if pointer is not None and pointer.get("content_hash") == manifest["content_hash"]:
-        served = pointer.get("build_id")
-        if isinstance(served, str) and served:
-            return PublishResult("unchanged", served)
+    if (
+        pointer is not None
+        and pointer.get("content_hash") == manifest["content_hash"]
+        and _pointer_object_is_current(bucket, store, pointer, manifest, db_path)
+    ):
+        return PublishResult("unchanged", str(pointer["build_id"]))
 
     with open_index(db_path) as reader:
         meta = reader.meta
