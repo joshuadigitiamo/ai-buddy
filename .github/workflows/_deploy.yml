@@ -11,11 +11,13 @@
 # Identity Federation and impersonates the ci-deployer account. No key file exists anywhere.
 #
 # The repository is public, so its Actions logs are public. This workflow never traces shell commands,
-# never prints a rendered file, passes every GitHub expression to a script through env, and masks the
-# project identifiers before the first step that could print them. Ids come from repository variables.
+# never prints a rendered file and passes every GitHub expression to a script through env. The five
+# project identifiers (project id, project number, deployer account, WIF provider, OAuth client id) are
+# repository secrets: GitHub masks a secret in every log line, also inside a longer string and in the
+# header a step prints for its env, which a variable never gets. The caller passes them by name.
 #
-# The job is skipped while the variable GCP_PROJECT_ID is unset (before the bootstrap in 04-13), so a
-# push made before the project is wired up still runs the tests and then stops without an auth error.
+# The job has no condition on them. The first step fails the run, naming the missing one, when any is
+# empty, so a repository that is not configured turns red instead of skipping the deploy.
 name: _deploy
 
 on:
@@ -29,6 +31,22 @@ on:
         description: Dockerfile stage that holds the runtime image (mcp_server or chat_bot)
         required: true
         type: string
+    secrets:
+      GCP_PROJECT_ID:
+        description: Google Cloud project id
+        required: true
+      GCP_PROJECT_NUMBER:
+        description: Google Cloud project number
+        required: true
+      GCP_DEPLOYER_SA:
+        description: Email of the ci-deployer service account
+        required: true
+      GCP_WIF_PROVIDER:
+        description: Resource name of the Workload Identity Federation provider
+        required: true
+      GCP_OAUTH_CLIENT_ID:
+        description: OAuth client id the chat-bot checks tokens against
+        required: true
 
 permissions: {}
 
@@ -38,7 +56,6 @@ defaults:
 
 jobs:
   deploy:
-    if: vars.GCP_PROJECT_ID != ''
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -50,26 +67,30 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Mask the project identifiers in the public log
+      - name: Check the deploy configuration
         env:
-          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-          PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
-          DEPLOYER_SA: ${{ vars.GCP_DEPLOYER_SA }}
-          WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
-          OAUTH_CLIENT_ID: ${{ vars.GCP_OAUTH_CLIENT_ID }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_PROJECT_NUMBER: ${{ secrets.GCP_PROJECT_NUMBER }}
+          GCP_DEPLOYER_SA: ${{ secrets.GCP_DEPLOYER_SA }}
+          GCP_WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+          GCP_OAUTH_CLIENT_ID: ${{ secrets.GCP_OAUTH_CLIENT_ID }}
         run: |
-          for value in "${PROJECT_ID}" "${PROJECT_NUMBER}" "${DEPLOYER_SA}" "${WIF_PROVIDER}" "${OAUTH_CLIENT_ID}"; do
-            if [ -n "${value}" ]; then
-              echo "::add-mask::${value}"
+          # Names only: a value is never printed, not even a masked one.
+          missing=0
+          for name in GCP_PROJECT_ID GCP_PROJECT_NUMBER GCP_DEPLOYER_SA GCP_WIF_PROVIDER GCP_OAUTH_CLIENT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::${name} is not set"
+              missing=1
             fi
           done
+          exit "${missing}"
 
       - name: Authenticate to Google Cloud with Workload Identity Federation
         id: auth
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
-          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
-          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOYER_SA }}
           token_format: access_token
 
       - name: Set up gcloud
@@ -78,7 +99,7 @@ jobs:
       - name: Check that the Meridian image exists (chat-bot only)
         if: inputs.service == 'chat-bot'
         env:
-          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           REGION: europe-west8
         run: |
           MERIDIAN_TAG="$(tr -d '[:space:]' < deploy/meridian.version)"
@@ -106,7 +127,7 @@ jobs:
           context: .
           target: ${{ inputs.target }}
           push: true
-          tags: europe-west8-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/ai-buddy/${{ inputs.service }}:${{ github.sha }}
+          tags: europe-west8-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/ai-buddy/${{ inputs.service }}:${{ github.sha }}
           # One BuildKit layer cache per image in the Actions cache. Only pushes to main run this
           # workflow, so only main writes it.
           cache-from: type=gha,scope=${{ inputs.service }}
@@ -126,7 +147,7 @@ jobs:
           TRIVY_USERNAME: oauth2accesstoken
           TRIVY_PASSWORD: ${{ steps.auth.outputs.access_token }}
         with:
-          image-ref: europe-west8-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/ai-buddy/${{ inputs.service }}@${{ steps.build.outputs.digest }}
+          image-ref: europe-west8-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/ai-buddy/${{ inputs.service }}@${{ steps.build.outputs.digest }}
           version: v0.76.2
           severity: CRITICAL,HIGH
           ignore-unfixed: true
@@ -137,7 +158,7 @@ jobs:
         id: serving
         env:
           SERVICE: ${{ inputs.service }}
-          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           REGION: europe-west8
         run: |
           # The revision that holds all traffic now stays at 100% while the new one is checked. An empty
@@ -161,12 +182,12 @@ jobs:
       - name: Render the Cloud Run service definition
         env:
           SERVICE: ${{ inputs.service }}
-          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-          PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          PROJECT_NUMBER: ${{ secrets.GCP_PROJECT_NUMBER }}
           IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
           DEPLOY_ID: r${{ github.run_id }}-${{ github.run_attempt }}
           SERVING_REVISION: ${{ steps.serving.outputs.revision }}
-          GOOGLE_CLIENT_ID: ${{ vars.GCP_OAUTH_CLIENT_ID }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GCP_OAUTH_CLIENT_ID }}
           GUIDES_WEB_BASE: ${{ vars.GUIDES_WEB_BASE }}
           CHAT_JWT_ISSUER_EMAIL: ${{ vars.CHAT_JWT_ISSUER_EMAIL }}
           VIDEO_THUMBNAIL_URL: ${{ vars.VIDEO_THUMBNAIL_URL }}
@@ -175,7 +196,7 @@ jobs:
 
       - name: Validate the service definition server-side (dry run)
         env:
-          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           REGION: europe-west8
         run: |
           if ! gcloud run services replace "${RUNNER_TEMP}/service.yaml" --project "${PROJECT_ID}" --region "${REGION}" --dry-run --quiet >/dev/null 2>"${RUNNER_TEMP}/dry-run.err"; then
@@ -186,7 +207,7 @@ jobs:
 
       - name: Deploy the service
         env:
-          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           REGION: europe-west8
         run: |
           if ! gcloud run services replace "${RUNNER_TEMP}/service.yaml" --project "${PROJECT_ID}" --region "${REGION}" --quiet >/dev/null 2>"${RUNNER_TEMP}/replace.err"; then
@@ -198,8 +219,8 @@ jobs:
       - name: Check the candidate revision
         env:
           SERVICE: ${{ inputs.service }}
-          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-          PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          PROJECT_NUMBER: ${{ secrets.GCP_PROJECT_NUMBER }}
           REGION: europe-west8
           SERVING_REVISION: ${{ steps.serving.outputs.revision }}
           DEPLOY_ID: r${{ github.run_id }}-${{ github.run_attempt }}
@@ -268,7 +289,7 @@ jobs:
       - name: Move traffic to the candidate
         env:
           SERVICE: ${{ inputs.service }}
-          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           REGION: europe-west8
         run: |
           # The checks passed: all traffic goes to the latest revision, which also puts the service back in
@@ -288,8 +309,8 @@ jobs:
       - name: Check the live service
         env:
           SERVICE: ${{ inputs.service }}
-          PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-          PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          PROJECT_NUMBER: ${{ secrets.GCP_PROJECT_NUMBER }}
           REGION: europe-west8
         run: |
           # The deterministic URL: the one Chat, claude.ai and MCP_PUBLIC_BASE_URL use. status.url can
