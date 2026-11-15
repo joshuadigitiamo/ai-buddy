@@ -181,6 +181,18 @@ def test_templates_hold_no_project_identifier() -> None:
         assert not twelve_digits.search(text), f"{path.name}: a project number leaked"
 
 
+def _render_list(script: str, name: str) -> set[str]:
+    """The variable names of one bash array in the render script (`NAME=(` ... `)`)."""
+    match = re.search(rf"^{name}=\(\n(.*?)^\)", script, re.MULTILINE | re.DOTALL)
+    assert match, f"{name} is not a multi-line array in the render script"
+    return {line.strip() for line in match.group(1).splitlines() if line.strip()}
+
+
+def _placeholders(path: Path) -> set[str]:
+    code = [line for line in path.read_text("utf-8").splitlines() if not line.lstrip().startswith("#")]
+    return set(re.findall(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", "\n".join(code)))
+
+
 def test_render_script_substitutes_an_explicit_variable_list_and_refuses_leftovers() -> None:
     script = RENDER_SCRIPT.read_text(encoding="utf-8")
     assert "set -euo pipefail" in script
@@ -189,19 +201,15 @@ def test_render_script_substitutes_an_explicit_variable_list_and_refuses_leftove
     assert "deploy/meridian.version" in script, "MERIDIAN_TAG defaults to the approved commit"
     assert "unrendered placeholder" in script
     assert "set -x" not in script, "tracing would print rendered values"
-    for name in (
-        "PROJECT_ID",
-        "PROJECT_NUMBER",
-        "IMAGE_DIGEST",
-        "DEPLOY_ID",
-        "MERIDIAN_TAG",
-        "GOOGLE_CLIENT_ID",
-        "GUIDES_WEB_BASE",
-        "CHAT_JWT_ISSUER_EMAIL",
-        "VIDEO_THUMBNAIL_URL",
-        "HELP_COMMAND_ID",
-    ):
-        assert re.search(rf"^\s+{name}$", script, re.MULTILINE), f"{name} not in the fixed list"
+
+
+def test_render_lists_exactly_the_placeholders_of_each_template() -> None:
+    script = RENDER_SCRIPT.read_text(encoding="utf-8")
+    common = _render_list(script, "COMMON_VARIABLES")
+    assert common == {"PROJECT_ID", "PROJECT_NUMBER", "IMAGE_DIGEST", "DEPLOY_ID"}
+    assert common | _render_list(script, "MCP_SERVER_VARIABLES") == _placeholders(MCP_FILE)
+    assert common | _render_list(script, "CHAT_BOT_VARIABLES") == _placeholders(BOT_FILE)
+    assert "IMAGE_TAG" not in script.replace("IMAGE_TAG leaves", "")
 
 
 def test_chat_bot_is_a_knative_service_with_exactly_one_port_on_the_ingress_container() -> None:
@@ -546,3 +554,22 @@ def test_runbook_documents_the_fernet_key_format() -> None:
         line for line in lines if "secrets versions add oauth-storage-encryption-key" in line
     )
     assert "--data-file=-" in sink and "|" in command + sink, "the key goes to gcloud on stdin"
+
+
+def _runbook_render_block() -> str:
+    text = RUNBOOK.read_text(encoding="utf-8")
+    start = text.index("## Render and deploy")
+    return text[start : text.index("\n## ", start + 1)]
+
+
+def test_runbook_looks_up_the_image_ci_pushed_by_its_full_commit_tag() -> None:
+    block = _runbook_render_block()
+    assert "git rev-parse HEAD" in block, "the tag CI pushes is the full 40-character commit"
+    assert "--short" not in block, "WR-06: a short tag finds no image"
+    assert "gcloud artifacts docker images describe" in block
+    assert "--format='value(image_summary.digest)'" in block
+    assert 'DEPLOY_ID="manual-$(date +%s)"' in block
+    assert "IMAGE_TAG" not in block
+    assert "all traffic" in block, "a manual replace without a traffic block shifts all traffic"
+    deploy = (ROOT / ".github" / "workflows" / "_deploy.yml").read_text(encoding="utf-8")
+    assert "/ai-buddy/${{ inputs.service }}:${{ github.sha }}" in deploy
