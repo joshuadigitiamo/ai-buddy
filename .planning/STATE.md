@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Infrastructure and CI/CD
 status: executing
-stopped_at: Completed 04-17-PLAN.md
-last_updated: "2026-11-15T14:18:48.187Z"
+stopped_at: Completed 04-19-PLAN.md
+last_updated: "2026-11-15T14:22:21.336Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 04 execution started
-state_head: 2c4a4ff19eef98da2f22d202addfdc97a75e9551
+state_head: a53265f6aaf46d15501af9b0c84fdf46d4a1cdc6
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 56
-  completed_plans: 45
+  completed_plans: 46
   percent: 60
 ---
 
@@ -99,6 +99,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P11 | 7 min | 3 tasks | 13 files |
 | Phase 04 P12 | 13 min | 2 tasks | 5 files |
 | Phase 04 P17 | 4 min | 2 tasks | 6 files |
+| Phase 04 P19 | 14 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -203,6 +204,7 @@ Recent decisions affecting current work:
 - [Phase 04]: D-18 coverage 708/2524 scene-mapped rows after the Guides maps (baseline 238/2524); 8 guides with video still at fallback (8 without durations)
 - [Phase 04]: 04-17: ci-deployer keeps roles/run.admin in bootstrap.sh (run.services.setIamPolicy for invoker-iam-disabled); every IAM bind call pinned by an exact test
 - [Phase 04]: 04-17: OAUTH_STORAGE_ENCRYPTION_KEY validated as a Fernet key at McpSettings config time, error names the variable only
+- [Phase 04]: 04-19: publish trusts a pointer only after its db object is confirmed via BucketPort.md5_base64; local-only runs re-resolve video links from the README
 
 ### Pending Todos
 
@@ -231,6 +233,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-15T14:18:47.991Z
-Stopped at: Completed 04-17-PLAN.md
+Last session: 2026-11-15T14:22:21.134Z
+Stopped at: Completed 04-19-PLAN.md
 Resume file: None
