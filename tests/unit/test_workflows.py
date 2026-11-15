@@ -22,6 +22,13 @@ ALL_WORKFLOWS = sorted(p.name for p in WORKFLOW_DIR.glob("*.yml"))
 STAGE_WORKFLOWS = {"mcp_server": "mcp-server.yml", "chat_bot": "chat-bot.yml", "sync": "sync.yml"}
 SERVICE_WORKFLOWS = tuple(STAGE_WORKFLOWS.values())
 DEPLOYING = ["mcp-server.yml", "chat-bot.yml"]
+GCP_IDENTIFIERS = (
+    "GCP_PROJECT_ID",
+    "GCP_PROJECT_NUMBER",
+    "GCP_DEPLOYER_SA",
+    "GCP_WIF_PROVIDER",
+    "GCP_OAUTH_CLIENT_ID",
+)
 PINNED = re.compile(r"^[\w.-]+/[\w./-]+@[0-9a-f]{40}$")
 TRACING = re.compile(
     r"\bset\s+-[a-z]*x|xtrace|\bbash\s+-[a-z]*x|ACTIONS_STEP_DEBUG|ACTIONS_RUNNER_DEBUG"
@@ -145,8 +152,8 @@ def test_deploy_authenticates_keyless_and_pushes_with_the_access_token() -> None
     deploy = _load("_deploy.yml")
     auth = _uses_step(deploy, "google-github-actions/auth")
     assert auth["with"]["token_format"] == "access_token"
-    assert auth["with"]["workload_identity_provider"] == "${{ vars.GCP_WIF_PROVIDER }}"
-    assert auth["with"]["service_account"] == "${{ vars.GCP_DEPLOYER_SA }}"
+    assert auth["with"]["workload_identity_provider"] == "${{ secrets.GCP_WIF_PROVIDER }}"
+    assert auth["with"]["service_account"] == "${{ secrets.GCP_DEPLOYER_SA }}"
     login = _uses_step(deploy, "docker/login-action")
     assert login["with"]["registry"] == "europe-west8-docker.pkg.dev"
     assert login["with"]["username"] == "oauth2accesstoken"
@@ -157,18 +164,73 @@ def test_deploy_authenticates_keyless_and_pushes_with_the_access_token() -> None
     assert push["with"]["tags"].endswith("/ai-buddy/${{ inputs.service }}:${{ github.sha }}")
 
 
-def test_deploy_job_runs_only_when_the_project_is_configured() -> None:
-    assert _load("_deploy.yml")["jobs"]["deploy"]["if"] == "vars.GCP_PROJECT_ID != ''"
+def _run_configuration_check(run_text: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    """Execute a configuration check step the way the runner does: bash, with only its env."""
+    return subprocess.run(
+        ["bash", "-c", run_text],
+        env={"PATH": "/usr/bin:/bin", **env},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
 
-def test_no_github_secrets_context_and_no_key_file_anywhere() -> None:
+def _assert_fails_fast_on_a_missing_identifier(check: dict[str, Any], names: tuple[str, ...]) -> None:
+    assert set(check["env"]) == set(names)
+    for name in names:
+        assert check["env"][name] == "${{ secrets." + name + " }}"
+    values = {name: f"value-of-{name.lower()}" for name in names}
+    ok = _run_configuration_check(check["run"], values)
+    assert ok.returncode == 0, ok.stderr
+    for name in names:
+        missing = _run_configuration_check(check["run"], {**values, name: ""})
+        assert missing.returncode == 1, f"{name} empty must fail the step"
+        assert f"::error::{name} is not set" in missing.stdout + missing.stderr
+        leaked = [v for v in values.values() if v in missing.stdout + missing.stderr]
+        assert leaked == [], "the check printed an identifier value"
+
+
+def test_deploy_fails_fast_when_the_project_is_not_configured() -> None:
+    job = _load("_deploy.yml")["jobs"]["deploy"]
+    assert "if" not in job, "a missing configuration must turn the run red, not skip the deploy"
+    assert job["steps"][0]["uses"].startswith("actions/checkout@")
+    check = job["steps"][1]
+    assert check["name"] == "Check the deploy configuration"
+    _assert_fails_fast_on_a_missing_identifier(check, GCP_IDENTIFIERS)
+
+
+def test_deploy_workflow_declares_the_five_identifiers_as_required_secrets() -> None:
+    declared = _triggers(_load("_deploy.yml"))["workflow_call"]["secrets"]
+    assert set(declared) == set(GCP_IDENTIFIERS)
+    assert all(spec["required"] is True for spec in declared.values())
+
+
+@pytest.mark.parametrize("name", DEPLOYING)
+def test_service_callers_pass_the_five_identifiers_by_name(name: str) -> None:
+    secrets = _load(name)["jobs"]["deploy"]["secrets"]
+    assert secrets == {n: "${{ secrets." + n + " }}" for n in GCP_IDENTIFIERS}
+
+
+def test_secrets_context_holds_only_the_five_gcp_identifiers() -> None:
+    names: set[str] = set()
     for path in sorted(WORKFLOW_DIR.parent.rglob("*")):
         if not path.is_file():
             continue
         text = path.read_text()
-        assert re.search(r"\bsecrets\s*[.\[]", text) is None, f"{path.name}: reads secrets"
+        assert re.search(r"\bsecrets\s*\[", text) is None, f"{path.name}: indexes secrets"
+        assert re.search(r"secrets:\s*inherit", text) is None, f"{path.name}: inherits secrets"
+        names.update(re.findall(r"\bsecrets\.([A-Za-z_]\w*)", text))
         assert "credentials_json" not in text, f"{path.name}: uses a JSON key"
         assert "GOOGLE_APPLICATION_CREDENTIALS" not in text, f"{path.name}: sets a key file path"
+    assert names <= set(GCP_IDENTIFIERS), f"unexpected secrets: {sorted(names - set(GCP_IDENTIFIERS))}"
+    assert names, "the workflows read no identifier at all"
+
+
+@pytest.mark.parametrize("name", ["_deploy.yml", *DEPLOYING])
+def test_no_workflow_reads_a_gcp_identifier_from_vars(name: str) -> None:
+    text = (WORKFLOW_DIR / name).read_text()
+    found = re.findall(r"\bvars\.(GCP_\w+)", text)
+    assert found == [], f"{name}: identifiers read from vars (public in logs): {found}"
 
 
 @pytest.mark.parametrize("name", ALL_WORKFLOWS)
