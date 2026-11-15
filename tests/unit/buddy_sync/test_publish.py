@@ -81,6 +81,55 @@ def test_same_content_hash_in_the_pointer_uploads_nothing(tmp_path: Path) -> Non
     assert bucket.uploads == uploads_before
 
 
+def test_unchanged_pointer_with_a_missing_db_object_republishes(tmp_path: Path) -> None:
+    meta = _local_index(tmp_path / "artifacts")
+    bucket = FakeBucket()
+    publish_index(tmp_path / "artifacts", _store(bucket, tmp_path), bucket)
+    del bucket.objects[_db_object(meta)]
+    result = publish_index(tmp_path / "artifacts", _store(bucket, tmp_path / "second"), bucket)
+    assert result == PublishResult("published", meta.build_id)
+    assert bucket.objects[_db_object(meta)] == (tmp_path / "artifacts" / INDEX_NAME).read_bytes()
+    assert json.loads(bucket.objects[POINTER])["object"] == f"index-{meta.build_id}.db"
+
+
+def test_unchanged_pointer_with_a_damaged_same_build_object_republishes(tmp_path: Path) -> None:
+    meta = _local_index(tmp_path / "artifacts")
+    bucket = FakeBucket()
+    publish_index(tmp_path / "artifacts", _store(bucket, tmp_path), bucket)
+    bucket.objects[_db_object(meta)] = b"damaged"
+    result = publish_index(tmp_path / "artifacts", _store(bucket, tmp_path / "second"), bucket)
+    assert result == PublishResult("published", meta.build_id)
+    assert bucket.objects[_db_object(meta)] == (tmp_path / "artifacts" / INDEX_NAME).read_bytes()
+
+
+def test_a_pointer_naming_an_unexpected_object_is_not_trusted(tmp_path: Path) -> None:
+    meta = _local_index(tmp_path / "artifacts")
+    bucket = FakeBucket()
+    publish_index(tmp_path / "artifacts", _store(bucket, tmp_path), bucket)
+    pointer = json.loads(bucket.objects[POINTER])
+    pointer["object"] = "other.db"
+    bucket.objects[POINTER] = json.dumps(pointer).encode("utf-8")
+    bucket.objects[PREFIX + "other.db"] = b"x"
+    result = publish_index(tmp_path / "artifacts", _store(bucket, tmp_path / "second"), bucket)
+    assert result == PublishResult("published", meta.build_id)
+    assert json.loads(bucket.objects[POINTER])["object"] == f"index-{meta.build_id}.db"
+
+
+def test_same_content_from_another_build_with_its_object_present_is_unchanged(
+    tmp_path: Path,
+) -> None:
+    first = _local_index(tmp_path / "first")
+    second = _local_index(tmp_path / "second", now=LATER)
+    assert first.content_hash == second.content_hash
+    assert first.build_id != second.build_id
+    bucket = FakeBucket()
+    publish_index(tmp_path / "first", _store(bucket, tmp_path), bucket)
+    uploads_before = list(bucket.uploads)
+    result = publish_index(tmp_path / "second", _store(bucket, tmp_path / "again"), bucket)
+    assert result == PublishResult("unchanged", first.build_id)
+    assert bucket.uploads == uploads_before
+
+
 def test_new_content_publishes_a_new_build_and_moves_the_pointer(tmp_path: Path) -> None:
     first = _local_index(tmp_path / "first")
     second = _local_index(tmp_path / "second", now=LATER, pages=1)
