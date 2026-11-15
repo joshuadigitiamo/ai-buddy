@@ -156,10 +156,13 @@ done
 # 8. Roles, least privilege (RESEARCH "Roles").
 log "role bindings"
 # ci-deployer: pushes images, deploys services, acts as the two runtime accounts. The services do not
-# exist before the first deploy, so run.developer is bound on the project.
+# exist before the first deploy, so the Cloud Run role is bound on the project. Both service templates
+# set run.googleapis.com/invoker-iam-disabled, which needs run.services.setIamPolicy: run.developer
+# lacks it, run.admin is the predefined role that holds it, and it is the role the live project has
+# used since 04-13. A narrower custom role is a one-line change here plus one live binding (README).
 gc artifacts repositories add-iam-policy-binding "${REPOSITORY}" --location="${REGION}" \
   --member="serviceAccount:${SA_CI_EMAIL}" --role=roles/artifactregistry.writer --quiet >/dev/null
-bind_project "serviceAccount:${SA_CI_EMAIL}" roles/run.developer
+bind_project "serviceAccount:${SA_CI_EMAIL}" roles/run.admin
 bind_sa "${SA_MCP_EMAIL}" "serviceAccount:${SA_CI_EMAIL}" roles/iam.serviceAccountUser
 bind_sa "${SA_BOT_EMAIL}" "serviceAccount:${SA_CI_EMAIL}" roles/iam.serviceAccountUser
 # sa-mcp-server: Firestore (OAuth state, gap log), the index bucket (read), its three secrets.

@@ -61,8 +61,12 @@ Re-running it is safe: each step describes the resource first.
 | Service accounts | `sa-mcp-server`, `sa-chat-bot`, `ci-deployer` |
 | WIF | pool `github`, provider `monorepo`, limited to the repository id and `refs/heads/main` |
 
-Roles, least privilege: `ci-deployer` pushes images, deploys, and acts as the two runtime accounts;
-`sa-mcp-server` uses Firestore, reads the index bucket and reads its three secrets; `sa-chat-bot` uses
+Roles, least privilege: `ci-deployer` pushes images, deploys, and acts as the two runtime accounts. It
+holds `roles/run.admin` on the project, because both service templates set
+`run.googleapis.com/invoker-iam-disabled`, which needs `run.services.setIamPolicy`; `roles/run.developer`
+lacks that permission, and this is the role the live project has used since 04-13. Only the WIF binding
+(repository id and `refs/heads/main`) can reach the account, and a narrower custom role is a one-line change
+in `bootstrap.sh` plus one live binding. `sa-mcp-server` uses Firestore, reads the index bucket and reads its three secrets; `sa-chat-bot` uses
 Firestore, reads and writes the credentials bucket (and only that one) and reads its three secrets. The
 owner reads the videos bucket, publishes to the index and videos buckets and can deploy.
 
@@ -115,6 +119,7 @@ rm -rf "$SEED_DIR"
 The image `ai-buddy/meridian:<commit>` exists after `scripts/kind-up.sh` or a Compose build. After the
 copy, only the Cloud Run instance refreshes this chain. The bucket is mounted read-write in the Meridian
 container only, owned by uid 1000 (the Meridian image user) through the mount option `uid=1000,gid=1000`.
+The service account belongs to the whole instance, so this is a separate mount, not separate access.
 
 ## GitHub repository variables
 
@@ -218,8 +223,9 @@ changes cost or behaviour that Joshua signed off.
 - **`gcloud run services replace` rejects a sidecar without a launch stage.** Add
   `run.googleapis.com/launch-stage: BETA` to the service annotations only if the dry run demands it
   (RESEARCH A2).
-- **`run.developer` cannot set `invoker-iam-disabled`.** Grant the deployer the role the error names
-  (RESEARCH A9), not a wider one.
+
+The deployer role is not a pending fallback: `roles/run.admin` is applied, and the Roles paragraph under
+Bootstrap says why.
 
 ## Design notes
 
