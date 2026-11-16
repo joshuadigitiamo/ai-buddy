@@ -88,7 +88,7 @@ Done 2026-11-15 (Claude in Joshua's Chrome session and gcloud through the pinned
 ## Gaps
 
 - Meridian login lost on Cloud Run (found during L9, fixed live): new instances logged `Claude auth status ... loggedIn: false; login required`, and every question ended in the error reply. Fixed 2026-11-16 by re-seeding `gs://<PROJECT_ID>-ai-buddy-claude/.credentials.json` with a fresh login (deploy/cloudrun/README.md "Seeding the Meridian credentials bucket"). Cause of the broken refresh chain not proven. backlog: alert or health signal when Meridian reports logged out.
-- The bot logs nothing when the LLM call fails: `workflow.py` catches `LlmError` in reformulate and returns the error reply without a log line, so Cloud Run showed no error for the failures above. backlog: log the error type there.
+- The bot logs nothing when the LLM call fails: `workflow.py` catches `LlmError` in reformulate and returns the error reply without a log line, so Cloud Run showed no error for the failures above. Fixed 2026-11-16 (`60aed0a`): the step logs `reformulate failed: <type>: <SDK error name>`, pinned by `test_reformulation_failure_is_logged_with_the_error_type_only`.
 - Cold start exceeds Chat's ~30 s HTTP limit: request at +0 s, Meridian ready at +11 s, bot started at +36 s, response at 55.7 s, so Chat shows "AI Buddy non risponde" on the first message after idle while the answer still arrives in the thread. Accepted (Joshua, 2026-11-16: no `minScale: 1`, free-hosting goal). backlog: profile the ~25 s between Meridian ready and bot start.
 
 ## Deferred review items
