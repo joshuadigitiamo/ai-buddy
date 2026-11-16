@@ -30,7 +30,7 @@
 | services update --update-env-vars (forced revision after publish, D-08) | INTEGRATE | |
 | services describe / list, revisions list | INTEGRATE | |
 | invoker-iam-disabled annotation | INTEGRATE | |
-| traffic splitting and revision tags | OPT-OUT | not needed: every new revision takes 100% of traffic |
+| traffic splitting and revision tags | INTEGRATE | candidate tag at 0%, `--to-latest`, `--remove-tags` (04-22, live 04-26) |
 | Cloud Run jobs | OPT-OUT | explicitly out of scope: D-09 (no sync job on Cloud Run) |
 | Cloud Scheduler triggers | OPT-OUT | explicitly out of scope: D-07 |
 | domain mappings | OPT-OUT | not needed: deterministic run.app URLs are the audiences |
@@ -43,7 +43,8 @@
 | docker push with an OAuth access token | INTEGRATE | |
 | images describe (Meridian tag present before chat-bot deploy) | INTEGRATE | |
 | repository creation with cleanup policy (keep 3) | INTEGRATE | |
-| vulnerability scanning | OPT-OUT | not needed yet: single private user; revisit before rollout |
+| deploy by image digest | INTEGRATE | |
+| vulnerability scanning | OPT-OUT | scanned in CI by Trivy (04-23) |
 
 ## Secret Manager (plans 04-08, 04-13)
 
@@ -70,6 +71,7 @@
 | workloadIdentityUser on the deployer service account (impersonation) | INTEGRATE | |
 | service accounts and role bindings per service | INTEGRATE | |
 | service-account keys | OPT-OUT | explicitly out of scope: INFRA-05 forbids key files |
+| service-account impersonation for one-hour publish tokens (sa-publisher) | INTEGRATE | |
 | impersonated Chat credentials for the bot | OPT-OUT | not needed yet: prepared fallback for RESEARCH Pitfall 3, applied only if the 04-13 live check fails and Joshua agrees |
 
 ## GitHub Actions (plan 04-09)
@@ -81,7 +83,10 @@
 | OIDC id-token for WIF | INTEGRATE | |
 | repository variables | INTEGRATE | |
 | concurrency groups | INTEGRATE | |
-| Dependabot for action SHAs | INTEGRATE | |
+| Dependabot for actions, docker and pip | INTEGRATE | |
+| gha build cache | INTEGRATE | |
+| SBOM and provenance attestations (BuildKit) | INTEGRATE | |
+| third-party scanner action pinned by commit (trivy-action) | INTEGRATE | |
 | environments with manual approval | OPT-OUT | explicitly out of scope: D-04 deploys automatically after tests |
 | required status checks and branch protection gate job | OPT-OUT | not needed yet: no pull-request flow against protected main |
-| GitHub secrets for GCP | OPT-OUT | explicitly out of scope: keyless WIF; ids are repository variables |
+| GitHub secrets for GCP | INTEGRATE | identifiers only, masked in public logs; authentication stays keyless WIF |

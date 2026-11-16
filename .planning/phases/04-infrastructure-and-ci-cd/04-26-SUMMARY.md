@@ -3,26 +3,26 @@ phase: 04-infrastructure-and-ci-cd
 plan: 26
 subsystem: infra
 tags: [live-proof, gap-closure, cloud-run, github-actions, iam, offline-gate]
-status: in-progress
+status: complete
 
 requires:
   - phase: 04-infrastructure-and-ci-cd
     provides: 04-17..04-25 gap fixes (role fix, locks, publish fixes, digest and revision names, base pin, staged traffic, cache/scan/SBOM, sa-publisher, identifiers as secrets)
 provides:
-  - "Task 1 only: offline gate result and live-readiness list; Tasks 2 and 3 (live setup, live checks, COVERAGE.md) are pending"
+  - "Offline gate, live setup, live checks L1..L11 (all passed), COVERAGE.md updated, five old repository variables deleted"
 affects: [04-26 continuation]
 
 plan_head_before: 65ce1b0c5a2a82655f27eb4bb279dd83f8856535
 
 requirements-completed: []
 
-duration: in progress
-completed: pending
+duration: 2026-11-15..2026-11-16
+completed: 2026-11-16
 ---
 
-# Phase 4 Plan 26: Live proof of the gap-closure hardening Summary (partial: Task 1 done)
+# Phase 4 Plan 26: Live proof of the gap-closure hardening Summary
 
-**Task 1 is done: every check that needs no cloud is green, and the live steps are listed by name. Tasks 2 (live setup) and 3 (live checks L1..L11, COVERAGE.md) are not run yet; this file is finished by the continuation.**
+**All three tasks are done: the offline gate is green, the live setup is in place, and live checks L1..L11 passed. Three gaps found on the way are listed under Gaps (one fixed live, two in the backlog). The five old repository variables were deleted on 2026-11-16 at Joshua's request.**
 
 ## Offline gate
 
@@ -69,11 +69,27 @@ Everything below needs Joshua's identity (gcloud config, gh login) and is run in
 
 ## Live setup
 
-Pending (Task 2).
+Done 2026-11-15 (Claude in Joshua's Chrome session and gcloud through the pinned cloud-sdk image, at Joshua's request): five repository secrets set, `deploy/cloudrun/bootstrap.sh` re-run (sa-publisher created, ci-deployer moved to `roles/run.admin`), main pushed at `86e7324`, all five runs green. 2026-11-16: the three follow-up fixes (`61d72f6`, `6efd761`, `cf7e7c3`) pushed; the owner's `roles/storage.objectAdmin` removed from the index and videos buckets after the publish worked (a pre-existing `objectViewer` on the videos bucket stays).
 
 ## Live checks
 
-Pending (Task 3: L1..L11).
+- L1 order: passed. Both deploy runs green; steps run build, scan, serving lookup, render, dry run, replace, candidate check, traffic switch, live check in that order.
+- L2 digest and name: passed. Both services run `@sha256:` images matching the build log digest; revision names have the shape `<service>-r<run_id>-1`.
+- L3 traffic: passed. One `latestRevision: true` target at 100, no `candidate` tag left.
+- L4 re-run: passed. "Re-run all jobs" created `mcp-server-r<run_id>-2`, which serves.
+- L5 scan and SBOM: passed. Scan ran with the 04-23 policy (fixable) after the zlib1g pin; the SBOM document is non-empty.
+- L6 cache: passed. The re-run's build log shows the gha cache import and CACHED steps.
+- L7 masking: passed. Project id and project number: 0 occurrences each in the deploy run log (read through the job-log API: `gh run view --log` returns nothing on gh 2.46).
+- L8 IAM: passed. ci-deployer has `roles/run.admin` and not `roles/run.developer`; sa-publisher has objectAdmin on the two buckets; the owner has serviceAccountTokenCreator on sa-publisher.
+- L9 publish: passed. Narrow-token publish prints `unchanged` with nothing changed; an edited `date_edited` published and forced `mcp-server-p<build>-<epoch>` serving 100%; Chat answered the Varese question citing `handbook://02-come-raggiungerci`, "revisione 2026-11-15" (2026-11-16, after the Meridian re-seed below); the date was restored and republished (build `20261116T221136Z-27f1055ba6de`), and the second forced revision has a different name.
+- L10 first-deploy form: passed. Render with SERVING_REVISION unset and the live digest is accepted by `gcloud run services replace --dry-run`.
+- L11 candidate at 0%: passed. In the first gap-closure push and in the L4 re-run, "Find the serving revision" was non-empty and the candidate line read `candidate <service>-r<run_id>-<attempt> at 0%, traffic on <previous revision>`; no `first deploy` line, no `took traffic` error.
+
+## Gaps
+
+- Meridian login lost on Cloud Run (found during L9, fixed live): new instances logged `Claude auth status ... loggedIn: false; login required`, and every question ended in the error reply. Fixed 2026-11-16 by re-seeding `gs://<PROJECT_ID>-ai-buddy-claude/.credentials.json` with a fresh login (deploy/cloudrun/README.md "Seeding the Meridian credentials bucket"). Cause of the broken refresh chain not proven. backlog: alert or health signal when Meridian reports logged out.
+- The bot logs nothing when the LLM call fails: `workflow.py` catches `LlmError` in reformulate and returns the error reply without a log line, so Cloud Run showed no error for the failures above. backlog: log the error type there.
+- Cold start exceeds Chat's ~30 s HTTP limit: request at +0 s, Meridian ready at +11 s, bot started at +36 s, response at 55.7 s, so Chat shows "AI Buddy non risponde" on the first message after idle while the answer still arrives in the thread. Accepted (Joshua, 2026-11-16: no `minScale: 1`, free-hosting goal). backlog: profile the ~25 s between Meridian ready and bot start.
 
 ## Deferred review items
 
