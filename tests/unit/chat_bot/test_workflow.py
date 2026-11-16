@@ -1,5 +1,6 @@
 """Workflow decisions over the real in-memory MCP server and a scripted model."""
 
+import logging
 import re
 from pathlib import Path
 
@@ -218,6 +219,21 @@ async def test_model_unavailable_during_reformulation_gives_the_error_reply(
     assert reply.kind == "error"
     assert connector.calls == []
     assert gaplog.records == []
+
+
+async def test_reformulation_failure_is_logged_with_the_error_type_only(
+    connector: RecordingConnector,
+    workflow_config: WorkflowConfig,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # 04-26 gap: a lost Meridian login ended every question in the error reply with no log line.
+    llm = FakeLlm({Reformulation: [LlmUnavailableError("AuthenticationError")]})
+
+    with caplog.at_level(logging.ERROR, logger="buddy_bot"):
+        await _run(llm, connector, workflow_config)
+
+    messages = [r.getMessage() for r in caplog.records if r.levelno == logging.ERROR]
+    assert messages == ["reformulate failed: LlmUnavailableError: AuthenticationError"]
 
 
 async def test_model_unavailable_during_answer_propagates_without_a_gap(
