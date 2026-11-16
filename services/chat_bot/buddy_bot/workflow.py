@@ -99,8 +99,10 @@ async def reformulate(state: State, runtime: Runtime[RunContext]) -> dict[str, A
             user=user,
             max_tokens=REFORMULATE_MAX_TOKENS,
         )
-    except LlmError:
-        # No standalone question exists, so there is nothing to retrieve and nothing to log.
+    except LlmError as exc:
+        # No standalone question exists, so there is nothing to retrieve and no gap to report.
+        # Type and message only: LlmUnavailableError carries the SDK error type name, never a body.
+        _LOGGER.error("reformulate failed: %s: %s", type(exc).__name__, exc)
         return {"reply": BotReply(kind="error")}
     return {"reformulation": _known_topic_only(reformulation, ctx.escalation)}
 
