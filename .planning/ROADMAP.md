@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Content Sync** - Repo foundation plus the local handbook snapshot and Guides synced into a redacted, incremental, citable index with video mapping (completed 2026-11-03)
 - [x] **Phase 2: MCP Server and Skill** - Five cited MCP tools over stateless HTTP with Firestore gap log, Google-domain auth, and the `digitiamo-buddy` Skill (completed 2026-11-06)
 - [x] **Phase 3: Google Chat Bot** - Guarded Google Chat bot with LangGraph 2-step RAG, citation and confidence gates, pluggable LLM client, and video cards (completed 2026-11-07)
-- [ ] **Phase 4: Infrastructure and CI/CD** - Service images, docker compose, kind manifests, Cloud Run YAMLs and path-filtered GitHub Actions with Workload Identity Federation
+- [x] **Phase 4: Infrastructure and CI/CD** - Service images, docker compose, kind manifests, Cloud Run YAMLs and path-filtered GitHub Actions with Workload Identity Federation (completed 2026-11-16)
 - [ ] **Phase 5: Evaluation and Milestone Gate** - Golden set, Recall@5, correctness and citation scoring, MLflow tracing, empty-context test and the gate verdict
 
 ## Phase Details
@@ -143,7 +143,7 @@ Plans:
   3. Cloud Run YAMLs for `mcp_server` and `chat_bot` target europe-west8 with scale-to-zero and request-based billing, the SYNC-07 handoff (bucket read through `GcsArtifactStore`) is wired in, and the sync job runs on demand from the laptop and forces a new `mcp_server` revision after each publish (no nightly Scheduler, no sync job on Cloud Run; D-07, D-09). (reworded 2026-11 per 04-CONTEXT D-07/D-09)
   4. A change under `services/mcp_server` triggers only that service's workflow, which runs `run-unit-tests.sh --all` (ruff, mypy, pytest with coverage) and blocks the image push on failure; on success it pushes to Artifact Registry and deploys, authenticating through Workload Identity Federation with no key file in the repo or secrets.
   5. Guide videos play inline in the browser from access-controlled hosting (not GitHub release downloads) and the Guarda button opens at the section's timestamp; timestamp coverage in the guides index improved beyond the 238/2524 scene-mapped rows. (Carried over from the Phase 3 live check, deferred by Joshua; recommended path: Cloud Storage with video/mp4 served inline, access-controlled because the Guides are private.)
-**Plans**: 26/26 plans executed (04-15 to 04-26 are gap-closure plans)
+**Plans**: 26/26 plans complete (04-15 to 04-26 are gap-closure plans)
 **Note**: Live deploy runs in the existing GCP project `ai-buddy-dev` (digitiamo.com organization, billing linked; org policies may apply) and still needs Workload Identity Federation (Admin Google); region europe-west8 is still to be confirmed (D7). Until the live deploy runs, criteria 3 and 4 are verified statically (YAML schema validation, workflow lint, dry runs) and the live deploy check is recorded as pending.
 
 Plans:
@@ -224,5 +224,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Content Sync | 11/11 | Complete    | 2026-11-03 |
 | 2. MCP Server and Skill | 7/7 | Complete    | 2026-11-06 |
 | 3. Google Chat Bot | 12/12 | Complete    | 2026-11-07 |
-| 4. Infrastructure and CI/CD | 26/26 | Verification: human_needed | - |
+| 4. Infrastructure and CI/CD | 26/26 | Complete    | 2026-11-16 |
 | 5. Evaluation and Milestone Gate | 0/0 | Not started | - |
