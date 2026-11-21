@@ -26,13 +26,13 @@
     {
       "number": "5",
       "name": "Evaluation and Milestone Gate",
-      "status": "pending"
+      "status": "in_progress"
     }
   ],
   "next": {
     "command": "/gsd-progress --next",
-    "label": "Advance to the next step (plan phase 5)",
-    "reason": "Phase 5 of 5 — needs a plan"
+    "label": "Advance to the next step",
+    "reason": "Phase 5 of 5 · 80% · executing"
   },
-  "updated_at": "2026-11-16T22:39:51.594Z"
+  "updated_at": "2026-11-21T14:09:56.927Z"
 }
