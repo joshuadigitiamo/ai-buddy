@@ -55,6 +55,26 @@ Task IDs are filled in by the planner and plan checker. Requirement → test map
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
+### Task mapping (planner, 2026-11-21; revised after the 05-03 split into 05-03, 05-04 and 05-05)
+
+| Requirement row | Plan / task | Automated command |
+|-----------------|-------------|-------------------|
+| EVAL-01 schema, split loader, privacy routing | 05-03 T1 | `./run-unit-tests.sh --single-file test_tracer.py tests/unit/buddy_eval` |
+| EVAL-01 lint, counts, committed-golden privacy | 05-09 T1 | `--single-file test_golden.py tests/unit/buddy_eval`; `--single-file test_repo_layout.py tests/unit` |
+| EVAL-01 review | 05-11 T2 (checkpoint) | lint in the test image after review (05-11 T3) |
+| EVAL-02 recall math, trigger, errors, cache | 05-09 T2 | `--single-file test_recall.py tests/unit/buddy_eval` |
+| EVAL-03 deterministic checks, errored items | 05-03 T1 | `./run-unit-tests.sh --single-file test_tracer.py tests/unit/buddy_eval` |
+| EVAL-03 consecutive-error stop, errored never wrong | 05-05 T1 | `--single-file test_runner.py tests/unit/buddy_eval` |
+| EVAL-03 real LLM client by default (LlmBackendSettings seam), `python -m buddy_eval` entry point | 05-04 T2 | `--single-file test_entrypoint.py tests/unit/buddy_eval`; `--single-file test_llm_client.py tests/unit/chat_bot` |
+| EVAL-03 resolver, cache, resume | 05-07 T1-T2 | `--single-file test_sources.py` / `test_cache.py` / `test_resume.py` |
+| EVAL-03 judge, scoring table, report | 05-08 T1-T2 | `--single-file test_scoring.py` / `test_judge.py` / `test_report.py` |
+| EVAL-04 fixture, command, stub variant | 05-10 T1-T2 | `--single-file test_fixture.py` / `test_empty_context.py` |
+| EVAL-05 MLflow trace sink adapter (trace mode, autolog suspension), tracking-URI locality | 05-04 T1 | `--single-file test_tracing_adapter.py tests/unit/buddy_eval` |
+| EVAL-05 compose structure | 05-06 T1, 05-10 T3 | `--single-file test_compose.py tests/unit` |
+| EVAL-05 traces in the real MLflow server | 05-06 T2, 05-12 T2 | `scripts/eval-smoke.sh` |
+| EVAL-06 gate table and command | 05-05 T2, 05-12 T1 | `--single-file test_gate.py` / `test_gate_command.py` |
+| Live (preflight, run, empty-context, gate) | 05-13 T2-T3 (checkpoints) | operator commands, verdict recorded in 05-13-SUMMARY.md |
+
 ---
 
 ## Wave 0 Requirements

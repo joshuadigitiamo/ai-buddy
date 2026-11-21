@@ -212,7 +212,37 @@ Plans:
   3. One command runs the golden set through the bot workflow with the configured `LLM_BACKEND` and prints the correctness-with-citation percentage and the count of invented policies; each judged answer has an MLflow trace (retrieval, generation, gate) viewable in a containerized MLflow UI.
   4. The empty-context test passes: with an index holding no matching content, every question gets a refusal and a logged gap, and the test fails if any answer is produced.
   5. The gate command prints PASS only when correctness-with-citation is >= 90%, invented policies are 0 and the empty-context test passes; otherwise it prints FAIL with the failing metric.
-**Plans**: TBD
+**Plans**: 13 plans
+
+Plans:
+**Wave 1**
+- [ ] 05-01-PLAN.md — D-01 prerequisite: regenerate GUIDES_INDEX.md at Guides 4526500 (Joshua commits), strict drift check, refreshed index identity
+- [ ] 05-02-PLAN.md — Legitimacy gate for mlflow-skinny and pandas, hashed locks, Dockerfile eval stage, phase decision record
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 05-03-PLAN.md — Tracer: golden files -> real run_workflow over MCP -> TraceSink port -> deterministic verdict -> gate, in-process (D-20 amended: collect-then-score)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 05-04-PLAN.md — Production adapters: MLflow trace sink (trace mode), tracking-URI locality, bot LLM seam, `python -m buddy_eval` entry point with real defaults
+- [ ] 05-05-PLAN.md — Slice error states: consecutive-error stop (errored never wrong) and the D-17 gate truth table
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 05-06-PLAN.md — Compose eval profile: pinned loopback MLflow server, eval service, hermetic eval smoke with trace checks
+- [ ] 05-07-PLAN.md — Source resolution (permalink to chunk key), index identity, per-item cache with resume and no duplicate scoring
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 05-08-PLAN.md — Opus judge via LlmClient, full D-09 verdicts, invented-policy count, scorers on traces, inspectable report
+- [ ] 05-09-PLAN.md — Golden lint and committed-golden privacy guard; Recall@5 per source with the D5 trigger
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 05-10-PLAN.md — Empty-context test: committed fixture, second mcp-server, real-LLM command, stub variant
+- [ ] 05-11-PLAN.md — Golden set drafted from the fresh index (public/private split), Joshua's review checkpoint
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 05-12-PLAN.md — Full gate command, preflight, eval README, smoke asserts the gate exit code
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 05-13-PLAN.md — Live checkpoints: Meridian preflight, then recall, run, empty-context and gate run by Joshua; verdict recorded
 
 ## Progress
 
@@ -225,4 +255,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. MCP Server and Skill | 7/7 | Complete    | 2026-11-06 |
 | 3. Google Chat Bot | 12/12 | Complete    | 2026-11-07 |
 | 4. Infrastructure and CI/CD | 26/26 | Complete    | 2026-11-16 |
-| 5. Evaluation and Milestone Gate | 0/0 | Not started | - |
+| 5. Evaluation and Milestone Gate | 0/13 | Planned | - |
