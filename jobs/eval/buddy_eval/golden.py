@@ -8,6 +8,7 @@ never question or answer text.
 from __future__ import annotations
 
 import logging
+import unicodedata
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -17,6 +18,8 @@ from typing import Any, Final, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
+from buddy_eval.sources import SourceIndex
+
 LOGGER: Final = logging.getLogger("buddy_eval")
 HANDBOOK_SCHEME: Final = "handbook://"
 SCHEMA_VERSION: Final = 1
@@ -24,6 +27,17 @@ _MAX_ID_ECHO: Final = 64
 
 Kind = Literal["handbook", "guides", "no_answer", "sensitive"]
 Review = Literal["draft", "approved", "rejected"]
+
+# D-03: the range of non-rejected items and the target mix per kind (a different mix only warns).
+MIN_ITEMS: Final = 30
+MAX_ITEMS: Final = 50
+KIND_TARGETS: Final[Mapping[str, int]] = {
+    "handbook": 15,
+    "guides": 13,
+    "no_answer": 7,
+    "sensitive": 5,
+}
+_CLICKUP: Final = "clickup"
 
 
 class GoldenError(ValueError):
@@ -179,3 +193,119 @@ def load_golden(public_path: Path, private_path: Path) -> GoldenSet:
     if duplicates:
         raise GoldenError(f"duplicate golden item id: {duplicates[0]}")
     return GoldenSet(tuple(sorted(items, key=lambda item: item.id)), private_present)
+
+
+@dataclass(frozen=True, slots=True)
+class LintIssue:
+    """One lint finding; it names an item id and a field, never question or answer text."""
+
+    severity: Literal["error", "warning"]
+    subject: str
+    field: str
+    problem: str
+
+    def render(self) -> str:
+        parts = [self.severity, self.subject, *([self.field] if self.field else []), self.problem]
+        return ": ".join(parts)
+
+
+def normalize_question(text: str) -> str:
+    """Casefold, drop punctuation, collapse whitespace (A-09-3): equal results are duplicates."""
+    kept = "".join(c for c in text.casefold() if not unicodedata.category(c).startswith("P"))
+    return " ".join(kept.split())
+
+
+def non_rejected(golden_set: GoldenSet) -> tuple[GoldenItem, ...]:
+    """The items that count toward the 30-50 range and the per-kind mix."""
+    return tuple(i for i in golden_set.items if i.review != "rejected")
+
+
+def kind_counts(items: tuple[GoldenItem, ...]) -> dict[str, int]:
+    counts: Counter[str] = Counter(item.kind for item in items)
+    return {kind: counts.get(kind, 0) for kind in KIND_TARGETS}
+
+
+def _count_issues(items: tuple[GoldenItem, ...]) -> list[LintIssue]:
+    issues: list[LintIssue] = []
+    if not MIN_ITEMS <= len(items) <= MAX_ITEMS:
+        issues.append(
+            LintIssue(
+                "error",
+                "golden_set",
+                "count",
+                f"{len(items)} non-rejected items, expected {MIN_ITEMS} to {MAX_ITEMS}",
+            )
+        )
+    counts = kind_counts(items)
+    for kind, target in KIND_TARGETS.items():
+        if counts[kind] == 0:
+            issues.append(LintIssue("error", "golden_set", f"kind {kind}", "no items"))
+        elif counts[kind] != target:
+            issues.append(
+                LintIssue(
+                    "warning",
+                    "golden_set",
+                    f"kind {kind}",
+                    f"{counts[kind]} items, target {target}",
+                )
+            )
+    if counts["sensitive"]:
+        branches = {item.sensitive_branch for item in items}
+        for branch in ("rule", "no_rule"):
+            if branch not in branches:
+                issues.append(
+                    LintIssue("error", "golden_set", "sensitive", f"no {branch} branch item")
+                )
+    return issues
+
+
+def _duplicate_issues(items: tuple[GoldenItem, ...]) -> list[LintIssue]:
+    first_seen: dict[str, str] = {}
+    issues: list[LintIssue] = []
+    for item in items:
+        normalized = normalize_question(item.question)
+        first = first_seen.setdefault(normalized, item.id)
+        if first != item.id:
+            issues.append(
+                LintIssue("error", item.id, "question", f"duplicates the question of {first}")
+            )
+    return issues
+
+
+def lint_golden(
+    golden_set: GoldenSet, index: SourceIndex, *, raw_texts: Mapping[str, str]
+) -> list[LintIssue]:
+    """Errors first, then warnings. `raw_texts` maps a golden file name to its raw text."""
+    items = non_rejected(golden_set)
+    issues: list[LintIssue] = []
+    if not golden_set.private_file_present:
+        issues.append(LintIssue("error", "golden_set", "", "private handbook file missing"))
+    for name, text in sorted(raw_texts.items()):
+        if _CLICKUP in text.casefold():
+            issues.append(LintIssue("error", name, "clickup", "ClickUp reference found"))
+    issues.extend(_count_issues(items))
+    for item in items:
+        issues.extend(
+            LintIssue("error", item.id, "expected_sources", f"{entry} not in the current index")
+            for entry in item.expected_sources
+            if not index.has_expected(entry)
+        )
+    issues.extend(_duplicate_issues(items))
+    return sorted(issues, key=lambda issue: issue.severity != "error")
+
+
+def format_lint(golden_set: GoldenSet, issues: list[LintIssue]) -> list[str]:
+    """One line per issue, then `lint: OK (...)` or `lint: <k> errors`."""
+    lines = [issue.render() for issue in issues]
+    errors = sum(1 for issue in issues if issue.severity == "error")
+    if errors:
+        lines.append(f"lint: {errors} errors")
+        return lines
+    items = non_rejected(golden_set)
+    kinds = " ".join(f"{kind}={count}" for kind, count in kind_counts(items).items())
+    reviews = Counter(item.review for item in golden_set.items)
+    lines.append(
+        f"lint: OK ({len(items)} items: {kinds}; draft={reviews['draft']} "
+        f"approved={reviews['approved']} rejected={reviews['rejected']})"
+    )
+    return lines

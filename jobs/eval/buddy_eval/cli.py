@@ -1,4 +1,4 @@
-"""Command line of the evaluation job: ``run`` and ``gate``.
+"""Command line of the evaluation job: ``run``, ``gate`` and ``lint``.
 
 Collaborators that talk to the outside world (the model client, the MCP connector, the trace
 sink) are injected, so the same entry point runs in-process in tests and, from 05-04, with the
@@ -22,10 +22,18 @@ from buddy_bot.mcp_client import FastMcpConnector
 from buddy_bot.ports import LlmClient, McpConnector
 from buddy_eval.config import EvalSettings
 from buddy_eval.gate import GateInputs, evaluate, format_verdict
-from buddy_eval.golden import GoldenError, GoldenItem, GoldenSet, load_golden
+from buddy_eval.golden import (
+    GoldenError,
+    GoldenItem,
+    GoldenSet,
+    format_lint,
+    lint_golden,
+    load_golden,
+)
 from buddy_eval.report import emit
 from buddy_eval.runner import RunResult, run_items
 from buddy_eval.scoring import headline
+from buddy_eval.sources import SourceIndex
 from buddy_eval.tracing import MlflowTraceSink, TraceSink, TracingError
 
 LOGGER_NAME: Final = "buddy_eval"
@@ -46,6 +54,7 @@ def _build_parser() -> argparse.ArgumentParser:
     run = sub.add_parser("run", help="run approved golden items through the bot and score them")
     run.add_argument("--item", action="append", default=[], metavar="ID", help="only this item")
     sub.add_parser("gate", help="run every approved item and print the milestone gate verdict")
+    sub.add_parser("lint", help="check the golden set against the schema, the index and privacy")
     return parser
 
 
@@ -90,6 +99,23 @@ def _collect(
     )
 
 
+def _lint(settings: EvalSettings, out: TextIO) -> int:
+    """No model, MCP or MLflow use: files and the index only."""
+    try:
+        golden = load_golden(settings.golden_public_path, settings.golden_private_path)
+    except GoldenError as exc:
+        print(f"error: golden_set: {exc}", file=out)
+        print("lint: 1 errors", file=out)
+        return 1
+    paths = (settings.golden_public_path, settings.golden_private_path)
+    raw_texts = {p.name: p.read_text(encoding="utf-8") for p in paths if p.is_file()}
+    index = SourceIndex.open(settings.artifact_dir)
+    issues = lint_golden(golden, index, raw_texts=raw_texts)
+    for line in format_lint(golden, issues):
+        print(line, file=out)
+    return 1 if any(issue.severity == "error" for issue in issues) else 0
+
+
 def _gate_inputs(result: RunResult, golden: GoldenSet) -> GateInputs:
     summary = headline(result.verdicts)
     return GateInputs(
@@ -110,9 +136,12 @@ def _execute(
     settings: EvalSettings,
     llm_factory: LlmFactory,
     sink_factory: SinkFactory,
-    connector_factory: ConnectorFactory,
+    connector_factory: ConnectorFactory | None,
     out: TextIO,
 ) -> int:
+    if args.command == "lint":
+        return _lint(settings, out)
+    run_connector = connector_factory or FastMcpConnector
     golden = load_golden(settings.golden_public_path, settings.golden_private_path)
     gate = args.command == "gate"
     selected = _select(golden, [] if gate else args.item)
@@ -133,7 +162,7 @@ def _execute(
         selected,
         settings=settings,
         llm_factory=llm_factory,
-        connector_factory=connector_factory,
+        connector_factory=run_connector,
         sink=sink,
     )
     emit(result, settings=settings, sink=sink, out=out)
@@ -176,7 +205,7 @@ def main(
             # Production defaults (D-13): the real model client, MCP connector and MLflow sink.
             llm_factory=llm_factory or (lambda: build_llm_client(resolved)),
             sink_factory=sink_factory or MlflowTraceSink,
-            connector_factory=connector_factory or FastMcpConnector,
+            connector_factory=connector_factory,
             out=stream,
         )
     except ValidationError as exc:

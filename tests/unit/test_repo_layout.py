@@ -2,6 +2,7 @@
 
 import importlib.metadata
 import re
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -203,3 +204,47 @@ def test_chat_bot_stage_disables_tracing() -> None:
     assert "USER 10001" in stage
     assert 'python", "-m", "buddy_bot"' in stage
     assert "COPY services/mcp_server services/mcp_server" not in stage
+
+
+GOLDEN_DIR = "jobs/eval/golden"
+PRIVATE_GOLDEN = "docs/internal/golden-handbook.yaml"
+
+
+def _handbook_violations(text: str) -> list[str]:
+    """What a committed golden file must not hold: a handbook:// reference or ClickUp (D-02)."""
+    found = ["handbook://"] if "handbook://" in text else []
+    return [*found, *(["clickup"] if "clickup" in text.casefold() else [])]
+
+
+def _committed_golden_paths() -> set[Path]:
+    listing = subprocess.run(
+        ["git", "ls-files", "--", GOLDEN_DIR],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    tracked = {ROOT / line for line in listing.splitlines() if line}
+    present = {p for p in (ROOT / GOLDEN_DIR).rglob("*") if p.is_file()}
+    return tracked | present
+
+
+def test_handbook_violation_checker_flags_private_references() -> None:
+    assert _handbook_violations("expected_sources: [handbook://02-ferie]") == ["handbook://"]
+    assert _handbook_violations("note: copied from ClickUp") == ["clickup"]
+    assert _handbook_violations("note: CLICKUP and handbook://x") == ["handbook://", "clickup"]
+    assert _handbook_violations("expected_sources: [AI-Engineering/GUIDE.md#h2]") == []
+
+
+def test_committed_golden_files_hold_no_handbook_reference() -> None:
+    offending = {
+        path.relative_to(ROOT).as_posix(): violations
+        for path in sorted(_committed_golden_paths())
+        if (violations := _handbook_violations(path.read_text(encoding="utf-8")))
+    }
+    assert offending == {}
+
+
+def test_private_golden_path_is_gitignored() -> None:
+    ignored = subprocess.run(["git", "check-ignore", "-q", PRIVATE_GOLDEN], cwd=ROOT, check=False)
+    assert ignored.returncode == 0
