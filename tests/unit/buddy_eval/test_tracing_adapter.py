@@ -37,6 +37,8 @@ class FakeMlflow:
     evaluate_error: Exception | None = None
     evaluate_kwargs: dict[str, Any] = field(default_factory=dict)
     autolog_state_during_evaluate: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
+    # Assessments the server holds per trace (Feedback and Expectation rows).
+    assessments: dict[str, list[SimpleNamespace]] = field(default_factory=dict)
 
     def record(self, event: str, /, **kwargs: Any) -> None:
         self.calls.append((event, kwargs))
@@ -79,7 +81,14 @@ def fake(monkeypatch: pytest.MonkeyPatch) -> FakeMlflow:
 
     def get_trace(trace_id: str) -> SimpleNamespace:
         state.record("get_trace", trace_id=trace_id)
-        return SimpleNamespace(info=SimpleNamespace(trace_id=trace_id))
+        held = list(state.assessments.get(trace_id, []))
+        return SimpleNamespace(info=SimpleNamespace(trace_id=trace_id, assessments=held))
+
+    def delete_assessment(*, trace_id: str, assessment_id: str) -> None:
+        state.record("delete_assessment", trace_id=trace_id, assessment_id=assessment_id)
+        state.assessments[trace_id] = [
+            a for a in state.assessments.get(trace_id, []) if a.assessment_id != assessment_id
+        ]
 
     def evaluate(**kwargs: Any) -> None:
         state.record("evaluate")
@@ -116,6 +125,7 @@ def fake(monkeypatch: pytest.MonkeyPatch) -> FakeMlflow:
     monkeypatch.setattr(mlflow, "get_last_active_trace_id", get_last_active_trace_id)
     monkeypatch.setattr(mlflow, "log_expectation", log_expectation)
     monkeypatch.setattr(mlflow, "get_trace", get_trace)
+    monkeypatch.setattr(mlflow, "delete_assessment", delete_assessment)
     monkeypatch.setattr(mlflow, "start_run", StartRun)
     monkeypatch.setattr(mlflow, "trace", trace)
     monkeypatch.setattr(mlflow.genai, "evaluate", evaluate)
@@ -412,6 +422,115 @@ class TestScore:
     def test_the_adapter_never_runs_evaluate_with_a_prediction_function(self) -> None:
         # Trace mode only (amended D-20); the call keywords are pinned in the test above.
         assert "predict_fn" not in inspect.getsource(tracing)
+
+
+def _feedback(name: str, assessment_id: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        name=name,
+        assessment_id=assessment_id,
+        feedback=SimpleNamespace(value=True),
+        expectation=None,
+    )
+
+
+def _expectation(name: str, assessment_id: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        name=name, assessment_id=assessment_id, feedback=None, expectation=SimpleNamespace(value=[])
+    )
+
+
+def _deleted(fake: FakeMlflow) -> list[tuple[str, str]]:
+    return [
+        (kw["trace_id"], kw["assessment_id"])
+        for name, kw in fake.calls
+        if name == "delete_assessment"
+    ]
+
+
+class TestStaleFeedback:
+    def test_earlier_same_name_feedback_is_deleted_before_evaluate_and_expectations_stay(
+        self, fake: FakeMlflow
+    ) -> None:
+        sink = MlflowTraceSink(_settings())
+        fake.assessments["tr-1"] = [
+            _feedback("correctness", "a-1"),
+            _feedback("citation", "a-2"),
+            _feedback("invented_policy", "a-3"),
+            _expectation("key_facts", "a-4"),
+        ]
+        fake.calls.clear()
+
+        sink.score(["tr-1"], {"tr-1": _verdict("tr-1", "correct", True)})
+
+        assert _deleted(fake) == [("tr-1", "a-1"), ("tr-1", "a-2"), ("tr-1", "a-3")]
+        names = fake.names()
+        last_delete = max(i for i, name in enumerate(names) if name == "delete_assessment")
+        assert last_delete < names.index("evaluate")
+        (trace,) = fake.evaluate_kwargs["data"]
+        # evaluate gets the trace as it is after the deletions: only the expectation is left.
+        assert [a.assessment_id for a in trace.info.assessments] == ["a-4"]
+
+    def test_feedback_of_an_unrelated_name_is_kept(self, fake: FakeMlflow) -> None:
+        sink = MlflowTraceSink(_settings())
+        fake.assessments["tr-1"] = [_feedback("relevance", "a-1"), _feedback("refused", "a-2")]
+
+        sink.score(["tr-1"], {"tr-1": _verdict("tr-1", "correct", True)})
+
+        assert _deleted(fake) == []
+
+    def test_empty_context_scoring_deletes_only_earlier_refused_feedback(
+        self, fake: FakeMlflow
+    ) -> None:
+        sink = MlflowTraceSink(_settings())
+        fake.assessments["tr-1"] = [_feedback("refused", "a-1"), _feedback("correctness", "a-2")]
+
+        sink.score(
+            ["tr-1"],
+            {"tr-1": EmptyContextItem("a", "refused", "refusal", True, 0, "tr-1")},
+            scorers="empty_context",
+        )
+
+        assert _deleted(fake) == [("tr-1", "a-1")]
+
+    def test_a_trace_without_earlier_feedback_is_fetched_once_and_nothing_is_deleted(
+        self, fake: FakeMlflow
+    ) -> None:
+        sink = MlflowTraceSink(_settings())
+        fake.assessments["tr-1"] = [_expectation("key_facts", "a-1")]
+        fake.calls.clear()
+
+        sink.score(["tr-1", "tr-2"], {t: _verdict(t, "correct", True) for t in ("tr-1", "tr-2")})
+
+        assert fake.count("delete_assessment") == 0
+        assert fake.count("get_trace") == 2
+
+
+class TestCitationRationale:
+    def _citation_feedback(self, fake: FakeMlflow, verdict: ItemVerdict) -> Any:
+        sink = MlflowTraceSink(_settings())
+        sink.score(["tr-1"], {"tr-1": verdict})
+        _correctness, citation, _invented = fake.evaluate_kwargs["scorers"]
+        (trace,) = fake.evaluate_kwargs["data"]
+        return citation(trace=trace)
+
+    def test_a_facts_only_failure_gives_citation_ok(self, fake: FakeMlflow) -> None:
+        cited = self._citation_feedback(fake, _verdict("tr-1", "wrong", True, "facts: failed"))
+
+        assert cited.feedback.value is True
+        assert cited.rationale == "citation: ok"
+        assert "facts" not in cited.rationale
+
+    def test_a_failed_citation_gives_citation_failed(self, fake: FakeMlflow) -> None:
+        verdict = _verdict("tr-1", "wrong", False, "citation: failed", "facts: failed")
+
+        cited = self._citation_feedback(fake, verdict)
+
+        assert (cited.feedback.value, cited.rationale) == (False, "citation: failed")
+
+    def test_an_unchecked_citation_gives_not_checked(self, fake: FakeMlflow) -> None:
+        cited = self._citation_feedback(fake, _verdict("tr-1", "unjudged", None))
+
+        assert (cited.feedback.value, cited.rationale) == (None, "citation: not checked")
 
 
 class TestTrackingUriLocality:
