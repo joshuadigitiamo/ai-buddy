@@ -212,12 +212,12 @@ Plans:
   3. One command runs the golden set through the bot workflow with the configured `LLM_BACKEND` and prints the correctness-with-citation percentage and the count of invented policies; each judged answer has an MLflow trace (retrieval, generation, gate) viewable in a containerized MLflow UI.
   4. The empty-context test passes: with an index holding no matching content, every question gets a refusal and a logged gap, and the test fails if any answer is produced.
   5. The gate command prints PASS only when correctness-with-citation is >= 90%, invented policies are 0 and the empty-context test passes; otherwise it prints FAIL with the failing metric.
-**Plans**: 13 plans
+**Plans**: 2/13 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 05-01-PLAN.md — D-01 prerequisite: regenerate GUIDES_INDEX.md at Guides 4526500 (Joshua commits), strict drift check, refreshed index identity
-- [ ] 05-02-PLAN.md — Legitimacy gate for mlflow-skinny and pandas, hashed locks, Dockerfile eval stage, phase decision record
+- [x] 05-01-PLAN.md — D-01 prerequisite: regenerate GUIDES_INDEX.md at Guides 4526500 (Joshua commits), strict drift check, refreshed index identity
+- [x] 05-02-PLAN.md — Legitimacy gate for mlflow-skinny and pandas, hashed locks, Dockerfile eval stage, phase decision record
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 05-03-PLAN.md — Tracer: golden files -> real run_workflow over MCP -> TraceSink port -> deterministic verdict -> gate, in-process (D-20 amended: collect-then-score)
@@ -255,4 +255,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. MCP Server and Skill | 7/7 | Complete    | 2026-11-06 |
 | 3. Google Chat Bot | 12/12 | Complete    | 2026-11-07 |
 | 4. Infrastructure and CI/CD | 26/26 | Complete    | 2026-11-16 |
-| 5. Evaluation and Milestone Gate | 0/13 | Planned | - |
+| 5. Evaluation and Milestone Gate | 2/13 | In Progress | - |
