@@ -1,0 +1,45 @@
+# Synthetic sources of the empty-context fixture index (D-16, 05-10).
+#
+# The vocabulary is unrelated to the office, HR, software and the Guides on purpose: mycology in
+# Italian for the handbook pages, celestial mechanics in English for the Guides chunks. Both are
+# written as term lists without function words, so that no common word can match a question.
+# `python -m buddy_eval build-fixture` turns this file into a reproducible index.
+schema_version: 1
+pages:
+  - page_id: fixture-01-micologia
+    title: Micologia, morfologia
+    last_updated: "2026-01-15"
+    text: |
+      micelio, ife, setti, basidiomiceti, ascomiceti, sporocarpo, imenio, lamelle, tubuli,
+      volva, anello, gambo, cappello, cuticola, trama, basidi, sterigmi, basidiospore.
+  - page_id: fixture-02-micologia-ecologia
+    title: Micologia, ecologia
+    last_updated: "2026-01-20"
+    text: |
+      saprofiti, simbiosi micorrizica, ectomicorrize, lignicoli, humus, lettiera, cariosside,
+      carpoforo, fruttificazione, ciclo sessuale, plasmogamia, cariogamia, meiosi.
+chunks:
+  - file: Fixture/CELESTIAL_MECHANICS.md
+    h2: Orbital elements
+    h3: null
+    line_start: 3
+    line_end: 8
+    text: |
+      perihelion, aphelion, eccentricity, semi-major axis, inclination, ascending node,
+      argument of periapsis, true anomaly, mean anomaly.
+  - file: Fixture/CELESTIAL_MECHANICS.md
+    h2: Perturbations
+    h3: Apsidal precession
+    line_start: 10
+    line_end: 15
+    text: |
+      apsidal precession, nodal regression, secular perturbation, quadrupole moment,
+      oblateness, Lense-Thirring effect, geodetic precession.
+  - file: Fixture/CELESTIAL_MECHANICS.md
+    h2: Perturbations
+    h3: Lagrangian points
+    line_start: 17
+    line_end: 22
+    text: |
+      Lagrangian points, Trojan asteroids, tadpole orbit, horseshoe orbit, restricted
+      three-body problem, Hill sphere, Jacobi constant.

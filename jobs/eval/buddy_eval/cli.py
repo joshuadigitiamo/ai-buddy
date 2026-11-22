@@ -1,4 +1,5 @@
-"""Command line of the evaluation job: ``run``, ``gate``, ``lint`` and ``recall``.
+"""Command line of the evaluation job: ``run``, ``gate``, ``lint``, ``recall``, ``build-fixture``
+and ``empty-context``.
 
 Collaborators that talk to the outside world (the model client, the MCP connector, the trace
 sink) are injected, so the same entry point runs in-process in tests and, from 05-04, with the
@@ -13,6 +14,7 @@ import asyncio
 import logging
 import sys
 from collections.abc import Callable, Sequence
+from pathlib import Path
 from typing import Final, TextIO
 
 from pydantic import ValidationError
@@ -22,6 +24,7 @@ from buddy_bot.mcp_client import FastMcpConnector
 from buddy_bot.ports import LlmClient, McpConnector
 from buddy_eval.cache import ResultCache
 from buddy_eval.config import EvalSettings
+from buddy_eval.fixture import FixtureError, build_fixture
 from buddy_eval.gate import GateInputs, evaluate, format_verdict
 from buddy_eval.golden import (
     GoldenError,
@@ -44,7 +47,7 @@ LOG_FORMAT: Final = "%(levelname)s %(name)s %(message)s"
 _VALUE_ERROR_PREFIX: Final = "Value error, "
 
 # Failures that end a command with one ERROR line and exit code 1.
-_EXPECTED_ERRORS: Final = (GoldenError, TracingError, OSError)
+_EXPECTED_ERRORS: Final = (GoldenError, TracingError, FixtureError, OSError)
 
 LlmFactory = Callable[[], LlmClient]
 SinkFactory = Callable[[EvalSettings], TraceSink]
@@ -60,6 +63,12 @@ def _build_parser() -> argparse.ArgumentParser:
     sub.add_parser("lint", help="check the golden set against the schema, the index and privacy")
     recall = sub.add_parser("recall", help="measure Recall@5 of handbook and Guides search")
     recall.add_argument("--item", action="append", default=[], metavar="ID", help="only this item")
+    fixture = sub.add_parser(
+        "build-fixture", help="build the empty-context fixture index from its committed sources"
+    )
+    fixture.add_argument(
+        "--dest", required=True, type=Path, help="directory that receives index.db"
+    )
     return parser
 
 
@@ -72,6 +81,17 @@ def _describe_validation_error(exc: ValidationError) -> str:
         else:
             parts.add(str(err["msg"]).removeprefix(_VALUE_ERROR_PREFIX))
     return "invalid settings: " + "; ".join(sorted(parts) or ["(unknown)"])
+
+
+def _build_fixture(dest: Path, out: TextIO) -> int:
+    """Build the fixture index; no settings, model, MCP or MLflow use."""
+    try:
+        meta = build_fixture(dest)
+    except (FixtureError, OSError) as exc:
+        print(f"ERROR: {type(exc).__name__}: {exc}", file=out)
+        return 1
+    print(f"fixture built: build_id={meta.build_id} content_hash={meta.content_hash}", file=out)
+    return 0
 
 
 def _select(golden: GoldenSet, requested: Sequence[str]) -> tuple[GoldenItem, ...] | str:
@@ -258,6 +278,8 @@ def main(
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
     try:
+        if args.command == "build-fixture":
+            return _build_fixture(args.dest, stream)
         resolved = settings if settings is not None else EvalSettings()
         return _execute(
             args,
