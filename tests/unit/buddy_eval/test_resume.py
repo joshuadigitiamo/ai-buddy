@@ -7,8 +7,9 @@ Synthetic data only.
 import asyncio
 import dataclasses
 import logging
-from collections.abc import Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastmcp import FastMCP
@@ -31,7 +32,7 @@ from buddy_eval.golden import GoldenItem, load_golden
 from buddy_eval.judge import FactCheck, JudgeVerdict
 from buddy_eval.runner import RunResult, run_items, scored_version
 from buddy_eval.sources import SourceIndex
-from buddy_eval.tracing import SCORER_SET_VERSION
+from buddy_eval.tracing import SCORER_SET_VERSION, TracingError
 
 A, B = "item-aa-01", "item-bb-01"
 
@@ -484,3 +485,26 @@ def test_the_pause_applies_only_to_items_that_are_collected(
         record,
     )
     assert slept == [0.5]
+
+
+class _BrokenTraceSink(RecordingTraceSink):
+    async def traced(
+        self,
+        name: str,
+        tags: Mapping[str, str],
+        fn: Callable[[], Awaitable[dict[str, Any]]],
+    ) -> tuple[dict[str, Any], str]:
+        raise TracingError("trace backend down")
+
+
+def test_a_tracing_error_inside_the_trace_still_ends_the_run(
+    eval_settings: EvalSettings, mcp_server: FastMCP
+) -> None:
+    with pytest.raises(TracingError):
+        _run(
+            eval_settings,
+            mcp_server,
+            _llm([GOOD_DRAFT]),
+            _BrokenTraceSink(),
+            _items(eval_settings, [A]),
+        )

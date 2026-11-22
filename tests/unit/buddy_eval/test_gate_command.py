@@ -8,7 +8,8 @@ Synthetic data only.
 import io
 import json
 import logging
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import AsyncIterator, Callable, Iterator, Sequence
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -23,8 +24,8 @@ from tests.unit.buddy_eval.conftest import (
 from tests.unit.chat_bot.conftest import GOOD_DRAFT, REFORMULATION, FakeLlm
 from tests.unit.mcp_server.conftest import NOW, WEB_BASE
 
-from buddy_bot.mcp_client import FastMcpConnector
-from buddy_bot.ports import LlmUnavailableError, McpConnector
+from buddy_bot.mcp_client import FastMcpConnector, McpToolError
+from buddy_bot.ports import LlmUnavailableError, McpConnector, McpTools
 from buddy_bot.schemas import AnswerDraft, Reformulation, RetryPlan
 from buddy_core.index_writer import build_index
 from buddy_core.models import IndexContent
@@ -37,7 +38,7 @@ from buddy_eval.fixture import build_fixture_content
 from buddy_eval.golden import GoldenItem
 from buddy_eval.judge import JudgeVerdict
 from buddy_eval.recall import RecallItem, RecallResult
-from buddy_eval.runner import RunResult
+from buddy_eval.runner import STOP_MESSAGE, RunResult
 from buddy_eval.scoring import ItemVerdict
 from buddy_eval.scoring import Status as VerdictStatus
 from buddy_eval.sources import IndexIdentity
@@ -640,6 +641,78 @@ def test_an_unavailable_model_errors_the_item_and_the_gate_fails(
 
     assert code == 1
     assert "FAIL errored: 1 items errored (incomplete run)" in text.splitlines()
+
+
+class _ConnectError(Exception):
+    """An httpx-style transport error: neither OSError nor McpToolError."""
+
+
+class _DownConnector:
+    """An MCP connector whose session never opens (server unreachable or restarting)."""
+
+    def session(self) -> AbstractAsyncContextManager[McpTools]:
+        return self._session()
+
+    @asynccontextmanager
+    async def _session(self) -> AsyncIterator[McpTools]:
+        raise _ConnectError("connect failed SENTINEL-DETAIL")
+        yield  # pragma: no cover
+
+
+def test_an_mcp_outage_errors_items_stops_the_run_and_still_reports_a_fail(
+    real_settings: EvalSettings,
+    mcp_server: FastMCP,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    settings = real_settings.model_copy(update={"max_consecutive_errors": 2})
+    _both_items(settings)
+    llm = FakeLlm({Reformulation: [REFORMULATION] * 6, RetryPlan: [NO_RESULT_RETRY] * 6})
+    harness = Gate(settings, mcp_server, llm)
+
+    def down(url: str) -> McpConnector:
+        harness.connector_calls.append(url)
+        return _DownConnector()  # type: ignore[return-value]
+
+    harness._connector = down  # type: ignore[method-assign]
+
+    with caplog.at_level(logging.INFO, logger="buddy_eval"):
+        code, text = harness.main()
+
+    lines = text.splitlines()
+    captured = capsys.readouterr()
+    assert code == 1
+    assert STOP_MESSAGE.format(n=2) in lines
+    assert "FAIL errored: 2 items errored (incomplete run)" in lines
+    assert RUN_ABORTED in lines
+    assert lines[-1] == "GATE: FAIL"
+    assert len(harness.reports) == 1
+    assert "Traceback" not in text + captured.err
+    assert "item item-gap-01 errored: _ConnectError" in caplog.text
+    assert "SENTINEL-DETAIL" not in text + captured.out + captured.err + caplog.text
+
+
+@pytest.mark.parametrize("error", [McpToolError("tool down"), LlmUnavailableError("down")])
+def test_an_mcp_or_llm_error_reaching_main_is_one_error_line_and_exit_1(
+    eval_settings: EvalSettings, mcp_server: FastMCP, error: Exception
+) -> None:
+    _both_items(eval_settings)
+
+    def broken_sink(_settings: EvalSettings) -> RecordingTraceSink:
+        raise error
+
+    out = io.StringIO()
+    code = cli.main(
+        ["run"],
+        settings=eval_settings,
+        llm_factory=lambda: FakeLlm({}),
+        connector_factory=lambda _url: FastMcpConnector(mcp_server),
+        sink_factory=broken_sink,
+        out=out,
+    )
+
+    assert code == 1
+    assert out.getvalue().splitlines() == [f"ERROR: {type(error).__name__}: {error}"]
 
 
 # --- privacy ----------------------------------------------------------------------------------

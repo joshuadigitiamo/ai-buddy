@@ -7,10 +7,11 @@ FakeLlm. Synthetic data only.
 import asyncio
 import io
 import json
+import logging
 import urllib.error
 import urllib.request
-from collections.abc import Callable, Iterator, Mapping, Sequence
-from contextlib import AbstractContextManager
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Mapping, Sequence
+from contextlib import AbstractAsyncContextManager, AbstractContextManager, asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
@@ -37,12 +38,14 @@ from buddy_eval.empty_context import (
     GapCountError,
     classify,
     count_gap_documents,
+    empty_scored_version,
     format_empty_context,
     run_empty_context,
+    unscored,
 )
 from buddy_eval.fixture import build_fixture_content
 from buddy_eval.golden import GoldenItem
-from buddy_eval.tracing import EMPTY_SCORER_SET_VERSION
+from buddy_eval.tracing import EMPTY_SCORER_SET_VERSION, TracingError
 from buddy_mcp.config import McpSettings
 from buddy_mcp.gaplog import GapLog, GapRecord, InMemoryGapLog
 from buddy_mcp.server import build_server
@@ -351,6 +354,82 @@ def test_a_failed_tool_call_errors_the_item(serve: Callable[..., Served]) -> Non
     assert "empty_context: INCOMPLETE (1 errored: item-a)" in out.getvalue().splitlines()
 
 
+class _ConnectError(Exception):
+    """An httpx-style transport error: neither OSError nor McpToolError."""
+
+
+class _DownConnector:
+    """An MCP connector whose session never opens (server unreachable or restarting)."""
+
+    def session(self) -> AbstractAsyncContextManager[McpTools]:
+        return self._session()
+
+    @asynccontextmanager
+    async def _session(self) -> AsyncIterator[McpTools]:
+        raise _ConnectError("connect failed SENTINEL-DETAIL")
+        yield  # pragma: no cover
+
+
+def test_a_transport_failure_errors_the_item_and_logs_only_the_type_name(
+    serve: Callable[..., Served], caplog: pytest.LogCaptureFixture
+) -> None:
+    served = serve()
+    _write(served.settings, ("item-a", "handbook"))
+    out = io.StringIO()
+
+    with caplog.at_level(logging.WARNING, logger="buddy_eval"):
+        code = cli.main(
+            ["empty-context"],
+            settings=served.settings,
+            llm_factory=lambda: _refusal_llm(1),
+            connector_factory=lambda _url: _DownConnector(),  # type: ignore[arg-type,return-value]
+            sink_factory=lambda _s: RecordingTraceSink(),
+            out=out,
+        )
+
+    text = out.getvalue()
+    assert code == 1
+    assert "item-a errored evidence=0 trace=none" in text
+    # errored never passes (D-16).
+    assert "empty_context: INCOMPLETE (1 errored: item-a)" in text.splitlines()
+    assert "_ConnectError" in caplog.text
+    assert "SENTINEL-DETAIL" not in caplog.text
+    assert "SENTINEL-DETAIL" not in text
+
+
+class _BrokenTraceSink(RecordingTraceSink):
+    async def traced(
+        self,
+        name: str,
+        tags: Mapping[str, str],
+        fn: Callable[[], Awaitable[dict[str, Any]]],
+    ) -> tuple[dict[str, Any], str]:
+        raise TracingError("trace backend down")
+
+
+def test_a_tracing_error_inside_the_trace_still_ends_the_run(
+    serve: Callable[..., Served],
+) -> None:
+    served = serve()
+
+    with pytest.raises(TracingError):
+        _run_direct(served, _refusal_llm(1), _BrokenTraceSink(), _items(("item-a", "handbook")))
+
+
+def test_unscored_follows_the_item_status(tmp_path: Path) -> None:
+    cache = ResultCache(tmp_path / "cache")
+    refused = EmptyContextItem("item-a", "refused", "refusal", True, 0, "tr-1")
+    answered = EmptyContextItem("item-a", "answered", "answer", False, 2, "tr-1")
+    result = EmptyContextResult((refused,), True, "gap cross-check skipped")
+
+    cache.mark_scored("tr-1", empty_scored_version(answered))
+    assert unscored(result, cache) == {"tr-1": refused}
+
+    cache.mark_scored("tr-1", empty_scored_version(refused))
+    assert unscored(result, cache) == {}
+    assert empty_scored_version(refused) == f"{EMPTY_SCORER_SET_VERSION}-refused"
+
+
 def test_a_failure_with_an_error_is_a_failure_not_incomplete(
     serve: Callable[..., Served],
 ) -> None:
@@ -517,8 +596,8 @@ def test_second_run_makes_no_model_call_and_gives_the_same_verdict(
     assert len(sink.score_calls) == 2 and sink.score_calls[1].trace_ids == ()
     scored = served.settings.private_dir / "eval" / "cache" / "scored"
     assert sorted(p.name for p in scored.glob("*.json")) == [
-        f"tr-1-{EMPTY_SCORER_SET_VERSION}.json",
-        f"tr-2-{EMPTY_SCORER_SET_VERSION}.json",
+        f"tr-1-{EMPTY_SCORER_SET_VERSION}-refused.json",
+        f"tr-2-{EMPTY_SCORER_SET_VERSION}-refused.json",
     ]
 
 
