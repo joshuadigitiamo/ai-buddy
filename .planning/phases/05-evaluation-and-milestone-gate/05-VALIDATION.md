@@ -2,10 +2,11 @@
 phase: "5"
 slug: "evaluation-and-milestone-gate"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: "2026-11-21"
+validated: "2026-11-22"
 ---
 
 # Phase 5 — Validation Strategy
@@ -41,17 +42,17 @@ Task IDs are filled in by the planner and plan checker. Requirement → test map
 
 | Requirement | Behavior | Test Type | Automated Command | File Exists | Status |
 |-------------|----------|-----------|-------------------|-------------|--------|
-| EVAL-01 | golden schema, public+private merge, missing private file → incomplete, committed YAML has no `handbook://`/`clickup`, 30-50 count, unknown expected sources rejected | unit | `./run-unit-tests.sh --single-file test_golden.py tests/unit/buddy_eval` | ❌ W0 | ⬜ pending |
-| EVAL-01 | Joshua reviews drafts (`draft` → `approved`) | manual checkpoint | human-verify task | n/a | ⬜ pending |
-| EVAL-02 | recall hit-any + fractional per source, `< 0.8` flag boundary, tool failure = error not miss, cached reformulation → 0 LLM calls, permalink → chunk_key resolution | unit | `--single-file test_recall.py tests/unit/buddy_eval` | ❌ W0 | ⬜ pending |
-| EVAL-03 | per-kind scoring table, invented count over answered items only, judge prompt fences full source text, cache key ingredients, errored never cached, resume | unit | `--single-file test_scoring.py` / `test_judge.py` / `test_cache.py` / `test_runner.py` | ❌ W0 | ⬜ pending |
-| EVAL-03 | live scoring through Meridian | live checkpoint | `docker compose --profile eval run --rm eval run` | n/a | ⬜ pending |
-| EVAL-04 | PASS when all refusal/referral with `gap_reported`; FAIL on any answer; fixture index loads and returns no hits | unit | `--single-file test_empty_context.py tests/unit/buddy_eval` | ❌ W0 | ⬜ pending |
-| EVAL-04 | real-LLM empty-context | live checkpoint | `docker compose --profile eval run --rm eval empty-context` | n/a | ⬜ pending |
-| EVAL-05 | compose structure: mlflow digest pin, only `127.0.0.1:5000` published, `--allowed-hosts`, telemetry off, profile `eval` | unit (structural) | `--single-file test_compose.py tests/unit` | ✅ (update) | ⬜ pending |
-| EVAL-05 | one trace per item with reformulate/retrieve/answer/gate spans + assessments | smoke | `scripts/eval-smoke.sh` | ❌ W0 | ⬜ pending |
-| EVAL-06 | gate boundaries (89.9 vs 90.0, invented 0 vs 1, empty-context fail, draft present, private file missing, errored items), failing metric named, exit 0 only on PASS | unit | `--single-file test_gate.py tests/unit/buddy_eval` | ❌ W0 | ⬜ pending |
-| EVAL-06 | real gate | live checkpoint | `docker compose --profile eval run --rm eval gate` | n/a | ⬜ pending |
+| EVAL-01 | golden schema, public+private merge, missing private file → incomplete, committed YAML has no handbook-scheme or clickup reference, 30-50 count, unknown expected sources rejected | unit | `./run-unit-tests.sh --single-file test_golden.py tests/unit/buddy_eval` | ✅ | ✅ green |
+| EVAL-01 | Joshua reviews drafts (`draft` → `approved`) | manual checkpoint | human-verify task | n/a | ✅ done (05-11) |
+| EVAL-02 | recall hit-any + fractional per source, `< 0.8` flag boundary, tool failure = error not miss, cached reformulation → 0 LLM calls, permalink → chunk_key resolution | unit | `--single-file test_recall.py tests/unit/buddy_eval` | ✅ | ✅ green |
+| EVAL-03 | per-kind scoring table, invented count over answered items only, judge prompt fences full source text, cache key ingredients, errored never cached, resume | unit | `--single-file test_scoring.py` / `test_judge.py` / `test_cache.py` / `test_runner.py` | ✅ | ✅ green |
+| EVAL-03 | live scoring through Meridian | live checkpoint | `docker compose --profile eval run --rm eval run` | n/a | ✅ done (05-17, manual-only) |
+| EVAL-04 | PASS when all refusal/referral with `gap_reported`; FAIL on any answer; fixture index loads and returns no hits | unit | `--single-file test_empty_context.py tests/unit/buddy_eval` | ✅ | ✅ green |
+| EVAL-04 | real-LLM empty-context | live checkpoint | `docker compose --profile eval run --rm eval empty-context` | n/a | ✅ done (05-17, manual-only) |
+| EVAL-05 | compose structure: mlflow digest pin, only `127.0.0.1:5000` published, `--allowed-hosts`, telemetry off, profile `eval` | unit (structural) | `--single-file test_compose.py tests/unit` | ✅ | ✅ green |
+| EVAL-05 | one trace per item with reformulate/retrieve/answer/gate spans + assessments | smoke | `scripts/eval-smoke.sh` | ✅ | ✅ green (05-12 run; not re-run in this audit) |
+| EVAL-06 | gate boundaries (89.9 vs 90.0, invented 0 vs 1, empty-context fail, draft present, private file missing, errored items), failing metric named, exit 0 only on PASS | unit | `--single-file test_gate.py tests/unit/buddy_eval` | ✅ | ✅ green |
+| EVAL-06 | real gate | live checkpoint | `docker compose --profile eval run --rm eval gate` | n/a | ✅ GATE: PASS 38/40 accepted (05-17, 05-GAP-DECISION) |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -74,16 +75,21 @@ Task IDs are filled in by the planner and plan checker. Requirement → test map
 | EVAL-05 traces in the real MLflow server | 05-06 T2, 05-12 T2 | `scripts/eval-smoke.sh` |
 | EVAL-06 gate table and command | 05-05 T2, 05-12 T1 | `--single-file test_gate.py` / `test_gate_command.py` |
 | Live (preflight, run, empty-context, gate) | 05-13 T2-T3 (checkpoints) | operator commands, verdict recorded in 05-13-SUMMARY.md |
+| Gap closure: question-text Guides search (k=8), CASE_SCOPE_RULE | 05-14 | `--single-file test_workflow.py tests/unit/chat_bot`; `--single-file test_prompts.py tests/unit/chat_bot` |
+| Gap closure: golden edits, lint names handbook entries by position, recall survives session failure | 05-15 | `--single-file test_golden.py` / `test_recall.py tests/unit/buddy_eval` |
+| Gap closure: reply-bound verdicts, stale feedback replacement, transport failures error the item, status-bound empty-context marker | 05-16 | `--single-file test_resume.py` / `test_tracing_adapter.py` / `test_gate_command.py` / `test_empty_context.py tests/unit/buddy_eval` |
+| Meridian own long-lived token profile and restart policy | 05-17 / 8ee67fb | `--single-file test_compose.py tests/unit` |
+| Live re-run (GATE: PASS 38/40, accepted) | 05-17 (checkpoint) | operator commands, recorded in 05-17-SUMMARY.md and 05-GAP-DECISION.md |
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `tests/unit/buddy_eval/conftest.py`: fixture index (reuse `tests/unit/mcp_server/conftest.py` helpers), FakeLlm, recording connector, fake tracing sink
-- [ ] `jobs/eval/` skeleton + `requirements.txt` / `requirements.lock` + Dockerfile `eval` stage + `scripts/lock-requirements.sh` extension
-- [ ] `pyproject.toml`: pythonpath, coverage source, mypy files, ruff first-party for `buddy_eval`
-- [ ] Update structural tests: `tests/unit/test_compose.py`, `test_dockerfile_stages.py`, `test_requirements_lock.py`, `test_repo_layout.py`, `test_workflows.py`, `.github/dependabot.yml`
-- [ ] `deploy/compose/stub_llm.py` + `tests/unit/test_stub_llm.py`: judge schema branch
+- [x] `tests/unit/buddy_eval/conftest.py`: fixture index (reuse `tests/unit/mcp_server/conftest.py` helpers), FakeLlm, recording connector, fake tracing sink
+- [x] `jobs/eval/` skeleton + `requirements.txt` / `requirements.lock` + Dockerfile `eval` stage + `scripts/lock-requirements.sh` extension
+- [x] `pyproject.toml`: pythonpath, coverage source, mypy files, ruff first-party for `buddy_eval`
+- [x] Update structural tests: `tests/unit/test_compose.py`, `test_dockerfile_stages.py`, `test_requirements_lock.py`, `test_repo_layout.py`, `test_workflows.py`, `.github/dependabot.yml`
+- [x] `deploy/compose/stub_llm.py` + `tests/unit/test_stub_llm.py`: judge schema branch
 
 ---
 
@@ -100,11 +106,19 @@ Task IDs are filled in by the planner and plan checker. Requirement → test map
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 120s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 120s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-11-22 (full suite `./run-unit-tests.sh --all`: 2088 passed, 26 skipped, coverage 98%; ruff and mypy clean)
+
+## Validation Audit 2026-11-22
+
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
