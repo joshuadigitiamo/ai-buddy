@@ -22,14 +22,14 @@ items:
     question: "Quando conviene usare il RAG invece del fine-tuning?"
     expected_answer: "Il fine-tuning cambia i pesi del modello e insegna comportamento, stile o competenze, ma non insegna in modo affidabile nuovi fatti. Il RAG lascia il modello intatto e inietta fatti nel contesto a query time: e' lo strumento giusto per conoscenza che cambia, documenti privati, fonti da citare o dati da cancellare."
     key_facts:
-      - "il fine-tuning cambia i pesi e insegna stile o comportamento, non fatti in modo affidabile"
-      - "il RAG cambia il contesto in input al modello e inietta fatti"
+      - "il fine-tuning serve per stile o comportamento, non per insegnare fatti in modo affidabile"
+      - "il RAG serve per dare fatti o conoscenza al modello"
       - "il RAG e' adatto a conoscenza che cambia, fonti da citare e dati da cancellare"
     expected_sources:
       - "AI-Engineering/RAG_CHATBOT_GUIDE.md#1-what-is-rag-and-why-does-it-exist/rag-vs-fine-tuning-what-is-the-difference"
     expected_referente_role: null
     review: approved
-    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now); 2026-11-22 key facts 1-2 narrowed per 05-GAP-DECISION.md"
 
   - id: gd-03
     kind: guides
