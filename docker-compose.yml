@@ -12,7 +12,8 @@
 # and the sync one-shot completed successfully, then mcp-server healthy, then chat-bot. A failed
 # sync (for example an empty handbook folder) therefore keeps mcp-server and chat-bot down.
 #
-# No service publishes a port to the host; secrets come only by ${...} interpolation.
+# The default services publish nothing; profile eval publishes only the MLflow UI, on
+# 127.0.0.1:5000. Secrets come only by ${...} interpolation.
 # The images run as uid 10001: a host directory mounted for writing must be writable by that
 # uid, or the container must run with --user. Host read-only inputs must be world-readable.
 #
@@ -29,6 +30,14 @@
 #   baked into an image and the host ~/.claude is never mounted. The compose Meridian stays
 #   writable so it can refresh its own login.
 # - Meridian is built only from the commit recorded in deploy/meridian.version.
+#
+# Profile `eval` is the evaluation job (05-06): a pinned, loopback-only MLflow server and the eval
+# container, which runs the bot workflow in-process against the compose mcp-server:
+#   docker compose --profile eval run --rm eval <command>
+#   scripts/eval-smoke.sh           # hermetic run: stub LLM, real MLflow container, no Meridian
+# Optional host variables: EVAL_LLM_BACKEND, EVAL_LLM_BASE_URL, EVAL_PRIVATE_DIR (default
+# ./docs/internal, mounted at /private), EVAL_GOLDEN_PUBLIC_PATH, EVAL_GOLDEN_PRIVATE_PATH,
+# JUDGE_MODEL, the Meridian Opus tier override, HOST_UID and HOST_GID. Nothing is deployed from this profile.
 services:
   firestore:
     image: google/cloud-sdk:592.0.0-emulators
@@ -185,7 +194,7 @@ services:
   # Built only from the commit in deploy/meridian.version (approved at 03-01; test_compose.py
   # asserts the SHA below equals that file).
   meridian:
-    profiles: [live]
+    profiles: [live, eval]
     build:
       context: https://github.com/rynfar/meridian.git#cafdcf780f1b40c8f0dee17481132f47b4cbb353
     environment:
@@ -199,6 +208,9 @@ services:
       # BOT-11: drops Meridian's routine per-request [PROXY] stderr lines (docs/configuration.md).
       # Meridian has no other option to reduce request logging; debug flags stay unset.
       MERIDIAN_SILENT: "1"
+      # The Opus judge (eval profile) must not fall to the [1m] tier by default; the live bot
+      # uses only Haiku and Sonnet, so the live profile is unaffected.
+      MERIDIAN_OPUS_MODEL: ${MERIDIAN_OPUS_MODEL:-opus}
     volumes:
       - meridian-claude:/home/claude/.claude
 
@@ -249,7 +261,90 @@ services:
       firestore:
         condition: service_healthy
 
+  # ---- profile eval: the evaluation job and its local MLflow server (05-06, D-12, D-21) ----
+
+  # The only published port of the stack, on loopback. The image is pinned by index digest and
+  # runs as root (accepted: cap_drop ALL, no-new-privileges, no host mount, loopback port).
+  # --allowed-hosts admits the Service name the eval container calls; the Host check would
+  # answer 403 otherwise. The healthcheck uses an API route: /health is not served here.
+  mlflow:
+    profiles: [eval]
+    image: ghcr.io/mlflow/mlflow:v3.18.0@sha256:257204c77980b0f3450a26eb6089e487603fcdd4509529eadaf88f90669f5c13
+    command:
+      - mlflow
+      - server
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+      - --backend-store-uri
+      - sqlite:////mlflow/mlflow.db
+      - --artifacts-destination
+      - /mlflow/artifacts
+      - --allowed-hosts
+      - mlflow:5000,localhost:*,127.0.0.1:*
+    environment:
+      MLFLOW_DISABLE_TELEMETRY: "true"
+    ports:
+      - "127.0.0.1:5000:5000"
+    cap_drop: [ALL]
+    security_opt:
+      - "no-new-privileges:true"
+    volumes:
+      - mlflow-data:/mlflow
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/2.0/mlflow/experiments/search?max_results=1', timeout=3)"
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  # Never deployed. Runs as the host user because it writes its cache and reports into the
+  # host-owned private directory. Only the Meridian key arrives, by interpolation.
+  eval:
+    profiles: [eval]
+    build:
+      context: .
+      target: eval
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      HOME: /tmp
+      LLM_BACKEND: ${EVAL_LLM_BACKEND:-meridian}
+      LLM_BASE_URL: ${EVAL_LLM_BASE_URL:-http://meridian:3456}
+      MERIDIAN_API_KEY: ${MERIDIAN_API_KEY:-}
+      JUDGE_MODEL: ${JUDGE_MODEL:-claude-opus-5-5}
+      MCP_URL: http://mcp-server:8000/mcp
+      ARTIFACT_DIR: /artifacts
+      GOLDEN_PUBLIC_PATH: ${EVAL_GOLDEN_PUBLIC_PATH:-/app/jobs/eval/golden/guides.yaml}
+      GOLDEN_PRIVATE_PATH: ${EVAL_GOLDEN_PRIVATE_PATH:-/private/golden-handbook.yaml}
+      PRIVATE_DIR: /private
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_UI_BASE_URL: http://127.0.0.1:5000
+      MLFLOW_DISABLE_TELEMETRY: "true"
+      LANGSMITH_TRACING: "false"
+      FIRESTORE_EMULATOR_HOST: firestore:8080
+      GOOGLE_CLOUD_PROJECT: demo-ai-buddy
+    volumes:
+      - artifacts:/artifacts:ro
+      # Long syntax so a relative path is read as a path, never as a named volume.
+      - type: bind
+        source: ${EVAL_PRIVATE_DIR:-./docs/internal}
+        target: /private
+    depends_on:
+      mcp-server:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+      firestore:
+        condition: service_healthy
+      meridian:
+        condition: service_started
+
 volumes:
   artifacts:
+  mlflow-data:
   meridian-claude:
     external: true

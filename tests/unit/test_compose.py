@@ -15,6 +15,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 COMPOSE_FILE = ROOT / "docker-compose.yml"
 SMOKE_SCRIPT = ROOT / "scripts" / "compose-smoke.sh"
+EVAL_SMOKE_SCRIPT = ROOT / "scripts" / "eval-smoke.sh"
 MERIDIAN_VERSION_FILE = ROOT / "deploy" / "meridian.version"
 
 # 03-01-SUMMARY.md, decision meridian_credentials, and 04-01 token_chain (b): option "b" is a
@@ -32,6 +33,8 @@ HERMETIC_SERVICES = {
     "chat-bot",
 }
 LIVE_SERVICES = {"meridian", "chat-bot-live"}
+EVAL_SERVICES = {"meridian", "mlflow", "eval"}
+MLFLOW_IMAGE = re.compile(r"ghcr\.io/mlflow/mlflow:v3\.18\.0@sha256:[0-9a-f]{64}")
 HERMETIC_PROJECT = "demo-ai-buddy"
 BOTS = ("chat-bot", "chat-bot-live")
 SECRET_SUFFIXES = ("_KEY", "_SECRET", "_TOKEN")
@@ -76,16 +79,26 @@ def test_default_services_are_exactly_the_seven_hermetic_ones() -> None:
     assert set(_hermetic()) == HERMETIC_SERVICES
 
 
-def test_profile_live_adds_exactly_meridian_and_the_live_bot() -> None:
-    live = {name for name, svc in _services().items() if _profiles(svc)}
+def test_profiles_add_exactly_the_live_and_eval_services() -> None:
+    services = _services()
+    live = {name for name, svc in services.items() if "live" in _profiles(svc)}
+    evaluation = {name for name, svc in services.items() if "eval" in _profiles(svc)}
     assert live == LIVE_SERVICES
-    for name in LIVE_SERVICES:
-        assert _profiles(_services()[name]) == ["live"]
+    assert evaluation == EVAL_SERVICES
+    assert _profiles(services["meridian"]) == ["live", "eval"]
+    assert _profiles(services["chat-bot-live"]) == ["live"]
+    for name in EVAL_SERVICES - {"meridian"}:
+        assert _profiles(services[name]) == ["eval"], name
+    profiled = {name for name, svc in services.items() if _profiles(svc)}
+    assert profiled == LIVE_SERVICES | EVAL_SERVICES
 
 
-def test_no_service_publishes_a_port_or_shares_a_network_namespace() -> None:
+def test_only_mlflow_publishes_a_port_and_only_on_loopback() -> None:
     for name, service in _services().items():
-        assert "ports" not in service, f"{name} publishes a port to the host (T-04-20)"
+        if name == "mlflow":
+            assert service["ports"] == ["127.0.0.1:5000:5000"], "the UI stays on the host loopback"
+        else:
+            assert "ports" not in service, f"{name} publishes a port to the host (T-04-20)"
         assert "network_mode" not in service, f"{name} shares or bypasses the compose network"
 
 
@@ -287,9 +300,62 @@ def test_default_stack_inputs_have_no_default() -> None:
 
 def test_profile_services_require_nothing_at_load_time() -> None:
     # Compose interpolates every service, including one in an inactive profile, so a required
-    # (${VAR:?}) variable in the live profile would stop the default stack from loading.
-    for name in LIVE_SERVICES:
+    # (${VAR:?}) variable in the live or eval profile would stop the default stack from loading.
+    profiled = {name for name, svc in _services().items() if _profiles(svc)}
+    assert profiled == LIVE_SERVICES | EVAL_SERVICES
+    for name in profiled:
         assert ":?" not in json.dumps(_services()[name]), name
+
+
+def test_mlflow_server_is_pinned_and_hardened() -> None:
+    mlflow = _services()["mlflow"]
+    assert MLFLOW_IMAGE.fullmatch(mlflow["image"]), "pinned by the approved index digest (T-05-15)"
+    command = [str(part) for part in mlflow["command"]]
+    assert command[:2] == ["mlflow", "server"]
+    assert "sqlite:////mlflow/mlflow.db" in command, "a SQL backend, never a file store"
+    allowed = command[command.index("--allowed-hosts") + 1].split(",")
+    assert "mlflow:5000" in allowed, "the Service name the eval container calls"
+    assert "*" not in allowed and all(entry.strip() for entry in allowed), "T-05-13"
+    assert _environment(mlflow)["MLFLOW_DISABLE_TELEMETRY"] == "true"
+    assert mlflow["cap_drop"] == ["ALL"]
+    assert "no-new-privileges:true" in mlflow["security_opt"]
+    assert mlflow["volumes"] == ["mlflow-data:/mlflow"], "no host bind"
+    assert "mlflow-data" in _load()["volumes"]
+    assert "env_file" not in mlflow
+    health = " ".join(str(part) for part in mlflow["healthcheck"]["test"])
+    assert "/api/2.0/mlflow/experiments/search" in health
+    assert "/health" not in health
+
+
+def test_eval_service_is_wired_to_local_services_only() -> None:
+    evaluation = _services()["eval"]
+    environment = _environment(evaluation)
+    assert evaluation["build"]["target"] == "eval"
+    assert "env_file" not in evaluation
+    assert environment["MLFLOW_TRACKING_URI"] == "http://mlflow:5000"
+    assert environment["MCP_URL"] == "http://mcp-server:8000/mcp"
+    assert environment["LANGSMITH_TRACING"] == "false"
+    assert environment["MLFLOW_DISABLE_TELEMETRY"] == "true"
+    for secret in ("THREAD_KEY_SECRET", "ANTHROPIC_API_KEY"):
+        assert secret not in environment, f"T-05-16: {secret} stays out of the eval container"
+    assert INTERPOLATION.fullmatch(environment["MERIDIAN_API_KEY"])
+    mounts = [str(v) for v in evaluation["volumes"] if not isinstance(v, dict)]
+    assert mounts == ["artifacts:/artifacts:ro"]
+    private = [v for v in evaluation["volumes"] if isinstance(v, dict)]
+    assert [(v["type"], v["target"]) for v in private] == [("bind", "/private")]
+    assert str(private[0]["source"]).startswith("${EVAL_PRIVATE_DIR:-")
+    deps = _depends_on("eval")
+    assert deps["mcp-server"] == "service_healthy"
+    assert deps["mlflow"] == "service_healthy"
+    assert deps["meridian"] == "service_started"
+
+
+def test_meridian_opus_tier_opts_out_of_the_1m_default() -> None:
+    # RESEARCH Pitfall 11: the Opus judge must not resolve to the [1m] tier by default.
+    assert (
+        _environment(_services()["meridian"])["MERIDIAN_OPUS_MODEL"]
+        == "${MERIDIAN_OPUS_MODEL:-opus}"
+    )
 
 
 def test_live_bot_fails_fast_when_its_live_inputs_are_missing() -> None:
