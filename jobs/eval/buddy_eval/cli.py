@@ -1,4 +1,4 @@
-"""Command line of the evaluation job: ``run``, ``gate`` and ``lint``.
+"""Command line of the evaluation job: ``run``, ``gate``, ``lint`` and ``recall``.
 
 Collaborators that talk to the outside world (the model client, the MCP connector, the trace
 sink) are injected, so the same entry point runs in-process in tests and, from 05-04, with the
@@ -20,6 +20,7 @@ from pydantic import ValidationError
 from buddy_bot.llm import build_llm_client
 from buddy_bot.mcp_client import FastMcpConnector
 from buddy_bot.ports import LlmClient, McpConnector
+from buddy_eval.cache import ResultCache
 from buddy_eval.config import EvalSettings
 from buddy_eval.gate import GateInputs, evaluate, format_verdict
 from buddy_eval.golden import (
@@ -30,7 +31,9 @@ from buddy_eval.golden import (
     lint_golden,
     load_golden,
 )
-from buddy_eval.report import emit
+from buddy_eval.recall import default_connector_factory, format_recall, measure_recall
+from buddy_eval.recall import payload as recall_payload
+from buddy_eval.report import emit, write_json_report
 from buddy_eval.runner import RunResult, run_items
 from buddy_eval.scoring import headline
 from buddy_eval.sources import SourceIndex
@@ -55,6 +58,8 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--item", action="append", default=[], metavar="ID", help="only this item")
     sub.add_parser("gate", help="run every approved item and print the milestone gate verdict")
     sub.add_parser("lint", help="check the golden set against the schema, the index and privacy")
+    recall = sub.add_parser("recall", help="measure Recall@5 of handbook and Guides search")
+    recall.add_argument("--item", action="append", default=[], metavar="ID", help="only this item")
     return parser
 
 
@@ -116,6 +121,52 @@ def _lint(settings: EvalSettings, out: TextIO) -> int:
     return 1 if any(issue.severity == "error" for issue in issues) else 0
 
 
+def _recall_items(golden: GoldenSet, requested: Sequence[str]) -> tuple[GoldenItem, ...] | str:
+    """Approved handbook and Guides items, or the id of the first requested item that is not."""
+    searchable = {i.id: i for i in golden.approved() if i.kind in ("handbook", "guides")}
+    for item_id in requested:
+        if item_id not in searchable:
+            return item_id
+    if not requested:
+        return tuple(searchable.values())
+    return tuple(searchable[item_id] for item_id in sorted(set(requested)))
+
+
+def _recall(
+    args: argparse.Namespace,
+    *,
+    settings: EvalSettings,
+    llm_factory: LlmFactory,
+    connector_factory: ConnectorFactory,
+    out: TextIO,
+) -> int:
+    golden = load_golden(settings.golden_public_path, settings.golden_private_path)
+    selected = _recall_items(golden, args.item)
+    if isinstance(selected, str):
+        print(f"ERROR: item {selected} is not an approved handbook or guides item", file=out)
+        return 1
+    if not selected:
+        print("no approved handbook or guides items", file=out)
+        return 1
+    result = asyncio.run(
+        measure_recall(
+            selected,
+            settings=settings,
+            llm_factory=llm_factory,
+            connector_factory=connector_factory,
+            cache=ResultCache(settings.private_dir / "eval" / "cache"),
+        )
+    )
+    for line in format_recall(result):
+        print(line, file=out)
+    # Retrieved ids are private page ids: the per-item file stays under PRIVATE_DIR.
+    path = write_json_report(
+        settings.private_dir / "eval" / "reports", "recall", recall_payload(result)
+    )
+    print(f"report: {path}", file=out)
+    return 1 if result.errored_ids else 0
+
+
 def _gate_inputs(result: RunResult, golden: GoldenSet) -> GateInputs:
     summary = headline(result.verdicts)
     return GateInputs(
@@ -141,6 +192,15 @@ def _execute(
 ) -> int:
     if args.command == "lint":
         return _lint(settings, out)
+    if args.command == "recall":
+        return _recall(
+            args,
+            settings=settings,
+            llm_factory=llm_factory,
+            # The measurement needs the top five results of both tools, not the bot's limits.
+            connector_factory=connector_factory or default_connector_factory,
+            out=out,
+        )
     run_connector = connector_factory or FastMcpConnector
     golden = load_golden(settings.golden_public_path, settings.golden_private_path)
     gate = args.command == "gate"
