@@ -172,21 +172,30 @@ def test_the_no_answer_item_logs_its_gap_through_the_real_workflow(
 
 
 def test_gate_prints_fail_with_one_line_per_failing_metric(
-    eval_settings: EvalSettings, harness_factory: Callable[[FakeLlm], Harness]
+    eval_settings: EvalSettings, mcp_server: FastMCP
 ) -> None:
     _both_items(eval_settings)
+    # The fixture directory is the main index here, so the bot finds the answer and the
+    # empty-context test fails; everything else passes.
+    settings = eval_settings.model_copy(update={"fixture_dir": eval_settings.artifact_dir})
+    llm = FakeLlm(
+        {
+            # Recall, the no_answer item, the handbook item, then the empty-context test.
+            Reformulation: [REFORMULATION, NO_RESULT, REFORMULATION, REFORMULATION],
+            RetryPlan: [NO_RESULT_RETRY],
+            AnswerDraft: [GOOD_DRAFT, GOOD_DRAFT],
+            JudgeVerdict: [GOOD_VERDICT],
+        }
+    )
 
-    code, text = harness_factory(_happy_llm()).main("gate")
+    code, text = Harness(settings, mcp_server, llm).main("gate")
 
     lines = text.splitlines()
     assert code == 1
-    assert lines[lines.index("GATE: FAIL") + 1 :] == [
-        "FAIL invented_policies: not measured",
-        "FAIL empty_context: not run",
-    ]
+    assert lines[lines.index("GATE: FAIL") + 1 :] == ["FAIL empty_context: failed"]
 
 
-def test_missing_private_file_warns_once_runs_public_items_and_fails_the_gate(
+def test_missing_private_file_warns_once_and_fails_the_gate_without_running_anything(
     eval_settings: EvalSettings,
     harness_factory: Callable[[FakeLlm], Harness],
     caplog: pytest.LogCaptureFixture,
@@ -201,7 +210,8 @@ def test_missing_private_file_warns_once_runs_public_items_and_fails_the_gate(
     warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert len(warnings) == 1
     assert str(eval_settings.golden_private_path) in warnings[0].getMessage()
-    assert [c.tags["item_id"] for c in harness.sink.traced_calls] == [GAP_ID]
+    assert harness.sink.traced_calls == []
+    assert llm.calls == []
     assert code == 1
     assert "FAIL golden_set: private handbook file missing (incomplete set)" in text
 

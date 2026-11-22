@@ -14,6 +14,7 @@ import asyncio
 import logging
 import sys
 from collections.abc import Callable, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, TextIO
 
@@ -35,7 +36,7 @@ from buddy_eval.empty_context import (
 )
 from buddy_eval.empty_context import payload as empty_payload
 from buddy_eval.fixture import FixtureError, build_fixture
-from buddy_eval.gate import GateInputs, evaluate, format_verdict
+from buddy_eval.gate import GateInputs, GateVerdict, evaluate, format_verdict
 from buddy_eval.golden import (
     GoldenError,
     GoldenItem,
@@ -44,7 +45,12 @@ from buddy_eval.golden import (
     lint_golden,
     load_golden,
 )
-from buddy_eval.recall import default_connector_factory, format_recall, measure_recall
+from buddy_eval.recall import (
+    RecallResult,
+    default_connector_factory,
+    format_recall,
+    measure_recall,
+)
 from buddy_eval.recall import payload as recall_payload
 from buddy_eval.report import emit, write_json_report
 from buddy_eval.runner import RunResult, run_items
@@ -62,6 +68,10 @@ _EXPECTED_ERRORS: Final = (GoldenError, TracingError, FixtureError, OSError)
 LlmFactory = Callable[[], LlmClient]
 SinkFactory = Callable[[EvalSettings], TraceSink]
 ConnectorFactory = Callable[[str], McpConnector]
+
+
+class _FixtureMissing(Exception):
+    """The empty-context fixture index does not exist under FIXTURE_DIR."""
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -201,35 +211,24 @@ def _recall(
     return 1 if result.errored_ids else 0
 
 
-def _empty_context(
-    args: argparse.Namespace,
+def _run_empty_context(
+    selected: Sequence[GoldenItem],
     *,
     settings: EvalSettings,
     llm_factory: LlmFactory,
     connector_factory: ConnectorFactory,
-    sink_factory: SinkFactory,
-    out: TextIO,
-) -> int:
-    """Real bot over the fixture server; PASS only when every item is refused with a gap."""
-    golden = load_golden(settings.golden_public_path, settings.golden_private_path)
-    selected = _recall_items(golden, args.item)
-    if isinstance(selected, str):
-        print(f"ERROR: item {selected} is not an approved handbook or guides item", file=out)
-        return 1
-    if not selected:
-        # Nothing to test is a failure, never a pass; no index or MLflow run is opened.
-        for line in format_empty_context(EmptyContextResult((), False, "")):
-            print(line, file=out)
-        return 1
+    make_sink: Callable[[], TraceSink],
+) -> tuple[EmptyContextResult, TraceSink]:
+    """One traced and scored empty-context run over the fixture server.
+
+    Raises _FixtureMissing, before `make_sink` is called, when the fixture index is missing.
+    """
     try:
         identity = SourceIndex.open(settings.fixture_dir).identity
-    except FileNotFoundError:
-        print(
-            f"ERROR: fixture index not found under FIXTURE_DIR ({settings.fixture_dir})", file=out
-        )
-        return 1
+    except FileNotFoundError as exc:
+        raise _FixtureMissing(str(settings.fixture_dir)) from exc
     cache = ResultCache(settings.private_dir / "eval" / "cache")
-    sink = sink_factory(settings)
+    sink = make_sink()
     tags = {
         "items": str(len(selected)),
         "fixture_content_hash": identity.content_hash,
@@ -253,6 +252,40 @@ def _empty_context(
         sink.score(list(fresh), fresh, scorers="empty_context")
         for trace_id in fresh:
             cache.mark_scored(trace_id, EMPTY_SCORER_SET_VERSION)
+    return result, sink
+
+
+def _empty_context(
+    args: argparse.Namespace,
+    *,
+    settings: EvalSettings,
+    llm_factory: LlmFactory,
+    connector_factory: ConnectorFactory,
+    sink_factory: SinkFactory,
+    out: TextIO,
+) -> int:
+    """Real bot over the fixture server; PASS only when every item is refused with a gap."""
+    golden = load_golden(settings.golden_public_path, settings.golden_private_path)
+    selected = _recall_items(golden, args.item)
+    if isinstance(selected, str):
+        print(f"ERROR: item {selected} is not an approved handbook or guides item", file=out)
+        return 1
+    if not selected:
+        # Nothing to test is a failure, never a pass; no index or MLflow run is opened.
+        for line in format_empty_context(EmptyContextResult((), False, "")):
+            print(line, file=out)
+        return 1
+    try:
+        result, sink = _run_empty_context(
+            selected,
+            settings=settings,
+            llm_factory=llm_factory,
+            connector_factory=connector_factory,
+            make_sink=lambda: sink_factory(settings),
+        )
+    except _FixtureMissing as exc:
+        print(f"ERROR: fixture index not found under FIXTURE_DIR ({exc})", file=out)
+        return 1
     for line in format_empty_context(result, trace_url=sink.trace_url):
         print(line, file=out)
     path = write_json_report(
@@ -262,7 +295,43 @@ def _empty_context(
     return 0 if result.passed else 1
 
 
-def _gate_inputs(result: RunResult, golden: GoldenSet) -> GateInputs:
+SKIPPED_NOT_READY: Final = (
+    "SKIPPED recall, run, empty_context: golden set not ready (no model call made)"
+)
+SKIPPED_EMPTY_CONTEXT: Final = "SKIPPED empty_context: run stopped after consecutive errors"
+_GOLDEN_SET_PREFIX: Final = "golden_set:"
+_EMPTY_FAILED: Final = ("answered", "smalltalk", "no_gap")
+
+
+def _invented_count(result: RunResult, golden: GoldenSet) -> int | None:
+    """Items flagged with an invented policy, or None when the count cannot be trusted.
+
+    The count is complete only when every approved item has a judged verdict. A partial count
+    that already found a flagged item is reported as it is (the gate fails on it either way);
+    a partial count of zero says nothing, so it stays unmeasured (carry-forward from 05-08).
+    """
+    summary = headline(result.verdicts)
+    complete = (
+        len(result.verdicts) == len(golden.approved())
+        and summary.errored == 0
+        and summary.unjudged == 0
+    )
+    if complete or summary.invented > 0:
+        return summary.invented
+    return None
+
+
+def _empty_context_detail(result: EmptyContextResult) -> str:
+    errored = len(result.ids_with("errored"))
+    hard_failure = result.gap_mismatch or any(result.ids_with(s) for s in _EMPTY_FAILED)
+    if errored and not hard_failure:
+        return f"incomplete ({errored} errored)"
+    return "failed"
+
+
+def _gate_inputs(
+    result: RunResult, golden: GoldenSet, empty: EmptyContextResult | None
+) -> GateInputs:
     summary = headline(result.verdicts)
     return GateInputs(
         approved_total=len(golden.approved()),
@@ -271,9 +340,178 @@ def _gate_inputs(result: RunResult, golden: GoldenSet) -> GateInputs:
         errored=summary.errored,
         drafts=len(golden.drafts()),
         private_file_present=golden.private_file_present,
-        invented=None,
-        empty_context_passed=None,
+        invented=_invented_count(result, golden),
+        empty_context_passed=None if empty is None else empty.passed,
+        empty_context_detail=None if empty is None else _empty_context_detail(empty),
     )
+
+
+def _gate_payload(
+    verdict: GateVerdict,
+    *,
+    result: RunResult | None,
+    golden: GoldenSet | None,
+    inputs: GateInputs | None,
+    recall: RecallResult | None,
+    empty: EmptyContextResult | None,
+) -> dict[str, object]:
+    """The private gate report: numbers, the verdict, failing item ids and the index identity."""
+    payload: dict[str, object] = {
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "verdict": "PASS" if verdict.passed else "FAIL",
+        "failures": list(verdict.failures),
+        "identity": None,
+        "metrics": None,
+        "failing_items": None,
+    }
+    if result is None or golden is None or inputs is None:
+        return payload
+    identity = result.identity
+    if identity is not None:
+        payload["identity"] = {
+            "content_hash": identity.content_hash,
+            "guides_commit_sha": identity.guides_commit_sha,
+            "build_id": identity.build_id,
+        }
+    approved = inputs.approved_total
+    payload["metrics"] = {
+        "approved": approved,
+        "correct": inputs.correct,
+        "unjudged": inputs.unjudged,
+        "errored": inputs.errored,
+        "correctness_with_citation_pct": inputs.correct * 100 / approved if approved else None,
+        "invented_policies": inputs.invented,
+        "empty_context": {
+            "passed": inputs.empty_context_passed,
+            "detail": inputs.empty_context_detail,
+        },
+        "recall": None
+        if recall is None
+        else {
+            "handbook": [recall.handbook_hits, recall.handbook_total],
+            "guides": [recall.guides_hits, recall.guides_total],
+            "errored": list(recall.errored_ids),
+        },
+    }
+    payload["failing_items"] = {
+        "not_correct": [v.item_id for v in result.verdicts if v.status != "correct"],
+        "invented": [v.item_id for v in result.verdicts if v.invented is True],
+        "empty_context": []
+        if empty is None
+        else [i.item_id for i in empty.items if i.status != "refused"],
+    }
+    return payload
+
+
+def _finish_gate(
+    verdict: GateVerdict, settings: EvalSettings, payload: dict[str, object], out: TextIO
+) -> int:
+    """Write the report first, so a failed write never leaves a printed verdict behind."""
+    path = write_json_report(settings.private_dir / "eval" / "reports", "gate", payload)
+    print(f"report: {path}", file=out)
+    for line in format_verdict(verdict):
+        print(line, file=out)
+    return 0 if verdict.passed else 1
+
+
+def _gate_not_ready(
+    failures: Sequence[str], settings: EvalSettings, golden: GoldenSet | None, out: TextIO
+) -> int:
+    """FAIL on the golden set alone: no model, MCP or MLflow use (D-14 budget)."""
+    verdict = GateVerdict(passed=False, failures=tuple(failures))
+    print(SKIPPED_NOT_READY, file=out)
+    return _finish_gate(
+        verdict,
+        settings,
+        _gate_payload(verdict, result=None, golden=golden, inputs=None, recall=None, empty=None),
+        out,
+    )
+
+
+def _gate(
+    *,
+    settings: EvalSettings,
+    llm_factory: LlmFactory,
+    sink_factory: SinkFactory,
+    connector_factory: ConnectorFactory | None,
+    out: TextIO,
+) -> int:
+    """Recall (informational), the scoring run and the empty-context test, then one verdict."""
+    try:
+        golden = load_golden(settings.golden_public_path, settings.golden_private_path)
+    except GoldenError as exc:
+        return _gate_not_ready([f"{_GOLDEN_SET_PREFIX} {exc}"], settings, None, out)
+    readiness = evaluate(
+        GateInputs(
+            approved_total=len(golden.approved()),
+            correct=0,
+            unjudged=0,
+            errored=0,
+            drafts=len(golden.drafts()),
+            private_file_present=golden.private_file_present,
+            invented=None,
+            empty_context_passed=None,
+        )
+    )
+    not_ready = [f for f in readiness.failures if f.startswith(_GOLDEN_SET_PREFIX)]
+    if not_ready:
+        return _gate_not_ready(not_ready, settings, golden, out)
+
+    run_connector = connector_factory or FastMcpConnector
+    answerable = tuple(i for i in golden.approved() if i.kind in ("handbook", "guides"))
+    recall = asyncio.run(
+        measure_recall(
+            answerable,
+            settings=settings,
+            llm_factory=llm_factory,
+            # The measurement needs the top five results of both tools, not the bot's limits.
+            connector_factory=connector_factory or default_connector_factory,
+            cache=ResultCache(settings.private_dir / "eval" / "cache"),
+        )
+    )
+    print("recall (informational, not gating):", file=out)
+    for line in format_recall(recall):
+        print(line, file=out)
+
+    sink = sink_factory(settings)
+    result = _collect(
+        golden.approved(),
+        settings=settings,
+        llm_factory=llm_factory,
+        connector_factory=run_connector,
+        sink=sink,
+    )
+    emit(result, settings=settings, sink=sink, out=out)
+
+    empty: EmptyContextResult | None = None
+    if result.aborted:
+        print(SKIPPED_EMPTY_CONTEXT, file=out)
+    elif not answerable:
+        # Nothing to test is a failure, never a pass; no index or MLflow run is opened.
+        empty = EmptyContextResult((), False, "")
+        for line in format_empty_context(empty):
+            print(line, file=out)
+    else:
+        try:
+            empty, _ = _run_empty_context(
+                answerable,
+                settings=settings,
+                llm_factory=llm_factory,
+                connector_factory=run_connector,
+                make_sink=lambda: sink,
+            )
+        except _FixtureMissing as exc:
+            print(f"ERROR: fixture index not found under FIXTURE_DIR ({exc})", file=out)
+        else:
+            for line in format_empty_context(empty, trace_url=sink.trace_url):
+                print(line, file=out)
+
+    inputs = _gate_inputs(result, golden, empty)
+    verdict = evaluate(inputs)
+    payload = _gate_payload(
+        verdict, result=result, golden=golden, inputs=inputs, recall=recall, empty=empty
+    )
+    return _finish_gate(verdict, settings, payload, out)
 
 
 def _execute(
@@ -306,20 +544,22 @@ def _execute(
             sink_factory=sink_factory,
             out=out,
         )
+    if args.command == "gate":
+        return _gate(
+            settings=settings,
+            llm_factory=llm_factory,
+            sink_factory=sink_factory,
+            connector_factory=connector_factory,
+            out=out,
+        )
     golden = load_golden(settings.golden_public_path, settings.golden_private_path)
-    gate = args.command == "gate"
-    selected = _select(golden, [] if gate else args.item)
+    selected = _select(golden, args.item)
     if isinstance(selected, str):
         print(f"ERROR: item {selected} is not an approved item", file=out)
         return 1
     if not selected:
         # Nothing to run: no sink is built, so no MLflow run opens (EVAL-05 empty edge).
-        if gate:
-            verdict = evaluate(_gate_inputs(RunResult((), (), aborted=False), golden))
-            for line in format_verdict(verdict):
-                print(line, file=out)
-        else:
-            print("no approved items", file=out)
+        print("no approved items", file=out)
         return 1
     sink = sink_factory(settings)
     result = _collect(
@@ -330,11 +570,6 @@ def _execute(
         sink=sink,
     )
     emit(result, settings=settings, sink=sink, out=out)
-    if gate:
-        verdict = evaluate(_gate_inputs(result, golden))
-        for line in format_verdict(verdict):
-            print(line, file=out)
-        return 0 if verdict.passed else 1
     summary = headline(result.verdicts)
     return 1 if result.aborted or summary.errored else 0
 

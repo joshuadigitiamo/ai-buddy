@@ -25,6 +25,8 @@ class GateInputs:
     private_file_present: bool
     invented: int | None
     empty_context_passed: bool | None
+    # Why the empty-context test failed: "failed" or "incomplete (<n> errored)"; None means failed.
+    empty_context_detail: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +77,7 @@ def evaluate(inputs: GateInputs) -> GateVerdict:
     if inputs.empty_context_passed is None:
         failures.append("empty_context: not run")
     elif not inputs.empty_context_passed:
-        failures.append("empty_context: failed")
+        failures.append(f"empty_context: {inputs.empty_context_detail or 'failed'}")
     return GateVerdict(passed=not failures, failures=tuple(failures))
 
 
