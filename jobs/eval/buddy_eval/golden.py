@@ -197,7 +197,10 @@ def load_golden(public_path: Path, private_path: Path) -> GoldenSet:
 
 @dataclass(frozen=True, slots=True)
 class LintIssue:
-    """One lint finding; it names an item id and a field, never question or answer text."""
+    """One lint finding; it names an item id and a field.
+
+    It never holds question or answer text, and never a handbook page id (WR-03).
+    """
 
     severity: Literal["error", "warning"]
     subject: str
@@ -207,6 +210,12 @@ class LintIssue:
     def render(self) -> str:
         parts = [self.severity, self.subject, *([self.field] if self.field else []), self.problem]
         return ": ".join(parts)
+
+
+def _missing_source(position: int, entry: str) -> str:
+    """A handbook entry is named by its position only; a Guides entry is public and named."""
+    label = f"expected_sources[{position}]" if entry.startswith(HANDBOOK_SCHEME) else entry
+    return f"{label} not in the current index"
 
 
 def normalize_question(text: str) -> str:
@@ -286,8 +295,8 @@ def lint_golden(
     issues.extend(_count_issues(items))
     for item in items:
         issues.extend(
-            LintIssue("error", item.id, "expected_sources", f"{entry} not in the current index")
-            for entry in item.expected_sources
+            LintIssue("error", item.id, "expected_sources", _missing_source(position, entry))
+            for position, entry in enumerate(item.expected_sources)
             if not index.has_expected(entry)
         )
     issues.extend(_duplicate_issues(items))

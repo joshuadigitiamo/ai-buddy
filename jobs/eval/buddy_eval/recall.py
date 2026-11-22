@@ -2,7 +2,9 @@
 
 The query of each item is the one the bot itself would send: the keywords of the real
 `reformulate` node, joined by spaces. Reformulations are cached, so a second run makes no model
-call. One MCP session serves every item and no trace is created. Output is limited to item ids,
+call. The Recall@5 query stays the keyword query of the reformulation (D-15), while the bot also
+searches the standalone question in Guides (05-14), which Recall@5 does not measure. One MCP
+session serves every item and no trace is created. Output is limited to item ids,
 numbers and the D5 trigger line; question text and retrieved ids stay out of the console.
 """
 
@@ -154,7 +156,9 @@ async def measure_recall(
 ) -> RecallResult:
     """Search with the bot's reformulation of every handbook and Guides item, in id order.
 
-    A failed reformulation or tool call errors the item; it is never counted as a miss.
+    A failed reformulation or tool call errors the item; it is never counted as a miss. A session
+    that fails to open, breaks mid-run or fails to close errors every item not yet measured
+    (WR-01), so the run ends INCOMPLETE instead of raising.
     """
     config = WorkflowConfig(
         reformulate_model=settings.reformulate_model,
@@ -168,41 +172,53 @@ async def measure_recall(
         return _summarise(())
     llm: LlmClient | None = None
     measured: list[RecallItem] = []
-    async with connector_factory(settings.mcp_url).session() as tools:
-        for position, item in enumerate(ordered):
-            if position and settings.item_pause_seconds > 0:
-                # The MCP server rate limit counts every request (RESEARCH Pitfall 7).
-                await sleep(settings.item_pause_seconds)
-            key = _reformulation_key(settings, item.question)
-            reformulation = _cached_reformulation(cache, key)
-            if reformulation is None:
-                llm = llm if llm is not None else llm_factory()
-                runtime = Runtime(context=RunContext(llm=llm, tools=tools, config=config))
-                update = await reformulate({"question": item.question, "history": []}, runtime)
-                reformulation = update.get("reformulation")
+    try:
+        async with connector_factory(settings.mcp_url).session() as tools:
+            for position, item in enumerate(ordered):
+                if position and settings.item_pause_seconds > 0:
+                    # The MCP server rate limit counts every request (RESEARCH Pitfall 7).
+                    await sleep(settings.item_pause_seconds)
+                key = _reformulation_key(settings, item.question)
+                reformulation = _cached_reformulation(cache, key)
                 if reformulation is None:
-                    LOGGER.warning("item %s reformulation failed", item.id)
+                    llm = llm if llm is not None else llm_factory()
+                    runtime = Runtime(context=RunContext(llm=llm, tools=tools, config=config))
+                    update = await reformulate({"question": item.question, "history": []}, runtime)
+                    reformulation = update.get("reformulation")
+                    if reformulation is None:
+                        LOGGER.warning("item %s reformulation failed", item.id)
+                        measured.append(_errored(item))
+                        continue
+                    cache.put("reformulation", key, reformulation.model_dump(mode="json"))
+                try:
+                    if item.kind == "handbook":
+                        found = await tools.handbook_search(" ".join(reformulation.keywords_it))
+                        retrieved = tuple(r.source_url for r in found.results[:TOP_K])
+                    else:
+                        guides = await tools.guides_search(" ".join(reformulation.keywords_en))
+                        retrieved = tuple(r.section_id for r in guides.results[:TOP_K])
+                except McpToolError as exc:
+                    LOGGER.warning("item %s search failed: %s", item.id, exc)
                     measured.append(_errored(item))
                     continue
-                cache.put("reformulation", key, reformulation.model_dump(mode="json"))
-            try:
-                if item.kind == "handbook":
-                    found = await tools.handbook_search(" ".join(reformulation.keywords_it))
-                    retrieved = tuple(r.source_url for r in found.results[:TOP_K])
-                else:
-                    guides = await tools.guides_search(" ".join(reformulation.keywords_en))
-                    retrieved = tuple(r.section_id for r in guides.results[:TOP_K])
-            except McpToolError as exc:
-                LOGGER.warning("item %s search failed: %s", item.id, exc)
-                measured.append(_errored(item))
-                continue
-            hit, fraction = _score(item.expected_sources, retrieved)
-            measured.append(
-                RecallItem(
-                    item.id, _source_of(item), hit, fraction, False, retrieved, reformulation.intent
+                hit, fraction = _score(item.expected_sources, retrieved)
+                measured.append(
+                    RecallItem(
+                        item.id,
+                        _source_of(item),
+                        hit,
+                        fraction,
+                        False,
+                        retrieved,
+                        reformulation.intent,
+                    )
                 )
-            )
-            LOGGER.info("item %s recall %s", item.id, "hit" if hit else "miss")
+                LOGGER.info("item %s recall %s", item.id, "hit" if hit else "miss")
+    except Exception as exc:
+        # Transport errors (httpx, fastmcp, ExceptionGroup) are neither OSError nor McpToolError.
+        LOGGER.warning("recall session failed: %s", type(exc).__name__)
+        done = {i.item_id for i in measured}
+        measured.extend(_errored(item) for item in ordered if item.id not in done)
     return _summarise(tuple(measured))
 
 
