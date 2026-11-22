@@ -1,0 +1,274 @@
+# Golden set, parte pubblica (D-02): item Guides, senza risposta e sensibili senza regola.
+# Bozza di Claude: ogni item parte come bozza (campo review) finche' Joshua lo imposta (D-07).
+# Le sorgenti Guides sono prefissi di sezione `file#h2/h3` presenti nell'indice.
+schema_version: 1
+items:
+  - id: gd-01
+    kind: guides
+    question: "Come funziona la Reciprocal Rank Fusion per unire i risultati di ricerca densa e sparsa?"
+    expected_answer: "La RRF ignora i punteggi grezzi e usa solo la posizione (rank) in ciascuna lista: ogni documento riceve 1/(k + rank) per lista e i punteggi si sommano, con k = 60 come costante di default. Non richiede normalizzazione dei punteggi ne' pesi da regolare."
+    key_facts:
+      - "usa solo la posizione in classifica, non i punteggi grezzi"
+      - "ogni documento vale 1/(k + rank) per lista e i valori si sommano"
+      - "k vale 60 per convenzione"
+    expected_sources:
+      - "AI-Engineering/RAG_CHATBOT_GUIDE.md#11-hybrid-retrieval-dense-sparse-rrf/reciprocal-rank-fusion-rrf-the-robust-default"
+    expected_referente_role: null
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: gd-02
+    kind: guides
+    question: "Quando conviene usare il RAG invece del fine-tuning?"
+    expected_answer: "Il fine-tuning cambia i pesi del modello e insegna comportamento, stile o competenze, ma non insegna in modo affidabile nuovi fatti. Il RAG lascia il modello intatto e inietta fatti nel contesto a query time: e' lo strumento giusto per conoscenza che cambia, documenti privati, fonti da citare o dati da cancellare."
+    key_facts:
+      - "il fine-tuning cambia i pesi e insegna stile o comportamento, non fatti in modo affidabile"
+      - "il RAG cambia il contesto in input al modello e inietta fatti"
+      - "il RAG e' adatto a conoscenza che cambia, fonti da citare e dati da cancellare"
+    expected_sources:
+      - "AI-Engineering/RAG_CHATBOT_GUIDE.md#1-what-is-rag-and-why-does-it-exist/rag-vs-fine-tuning-what-is-the-difference"
+    expected_referente_role: null
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: gd-03
+    kind: guides
+    question: "Che cos'e' HyDE nel RAG e perche' si embedda una risposta ipotetica invece della domanda?"
+    expected_answer: "HyDE (Hypothetical Document Embeddings) chiede all'LLM di scrivere una risposta ipotetica alla domanda e ne calcola l'embedding al posto della domanda: una risposta finta somiglia molto di piu' a un chunk di risposta reale di quanto faccia la domanda. L'accuratezza fattuale della risposta ipotetica non conta."
+    key_facts:
+      - "l'LLM genera una risposta ipotetica alla domanda"
+      - "si fa l'embedding della risposta ipotetica, non della domanda"
+      - "una risposta finta somiglia a un chunk di risposta piu' della domanda"
+    expected_sources:
+      - "AI-Engineering/RAG_CHATBOT_GUIDE.md#13-query-transformation-hyde-multi-query-step-back/hyde-hypothetical-document-embeddings"
+    expected_referente_role: null
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: gd-04
+    kind: guides
+    question: "Che differenza c'e' tra pre-filtering e post-filtering dei metadati nella ricerca vettoriale?"
+    expected_answer: "Con il pre-filtering (preferito) il filtro sui metadati si applica prima e la ricerca ANN avviene solo nel sottoinsieme che corrisponde. Con il post-filtering si fa prima la ricerca ANN e poi si scartano i risultati non corrispondenti: e' rischioso perche' se il filtro scarta tutti i top-k non torna nulla."
+    key_facts:
+      - "pre-filtering: il filtro viene applicato prima della ricerca ANN"
+      - "post-filtering: si cerca prima e si scartano dopo i risultati non corrispondenti"
+      - "il post-filtering puo' restituire meno di k risultati o nessuno"
+    expected_sources:
+      - "AI-Engineering/RAG_CHATBOT_GUIDE.md#14-metadata-filtering-self-querying/pre-filtering-vs-post-filtering"
+    expected_referente_role: null
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: gd-05
+    kind: guides
+    question: "Come si gestisce una dimensione di tipo SCD Type 2 quando un dato cambia?"
+    expected_answer: "Si chiude la riga corrente impostando effective_end_date e is_current = false e si inserisce una nuova riga con le date di validita'. Si conserva tutta la storia, ed e' lo standard per audit e query point-in-time. L'intervallo e' semiaperto: la data di inizio e' inclusa e quella di fine esclusa."
+    key_facts:
+      - "si chiude la riga corrente con effective_end_date e is_current = false"
+      - "si inserisce una nuova riga con le date di validita'"
+      - "preserva la storia completa per audit e query point-in-time"
+    expected_sources:
+      - "Data-Engineering/ETL_VS_ELT_GUIDE.md#11-slowly-changing-dimensions-scd/type-2-versioned-rows-the-audit-standard"
+    expected_referente_role: null
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: gd-06
+    kind: guides
+    question: "Come si usa una dead letter queue in una pipeline ETL?"
+    expected_answer: "I record non validi vengono messi da parte (quarantena) mentre il resto del batch continua a essere caricato, invece di far fallire l'intera esecuzione. I record scartati sono conservati per ispezione o replay e scatta un alert quando la percentuale di errori supera una soglia (nell'esempio il 5%)."
+    key_facts:
+      - "i record non validi vengono messi in quarantena e il resto del batch prosegue"
+      - "i record scartati sono conservati per ispezione o replay"
+      - "si genera un alert quando il tasso di errori supera una soglia"
+    expected_sources:
+      - "Data-Engineering/ETL_VS_ELT_GUIDE.md#12-error-handling-resilience-delivery-semantics/dead-letter-queue-dlq"
+    expected_referente_role: null
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: gd-07
+    kind: guides
+    question: "Quale problema risolve l'outbox pattern?"
+    expected_answer: "Risolve il problema del dual-write: non si puo' fare commit atomico di una scrittura su database e di una pubblicazione su broker senza 2PC. L'evento da pubblicare si scrive nella stessa transazione del cambiamento dei dati e un processo relay separato lo pubblica dopo (polling publisher o CDC con Debezium)."
+    key_facts:
+      - "risolve il problema del dual-write tra database e broker"
+      - "l'evento viene scritto nella stessa transazione del cambiamento dei dati"
+      - "un relay separato pubblica l'evento in seguito, con consegna at-least-once"
+    expected_sources:
+      - "Foundations/DESIGN_PATTERNS_GUIDE.md#20-outbox-pattern"
+    expected_referente_role: null
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: gd-08
+    kind: guides
+    question: "Perche' la paginazione con cursore keyset e' meglio dell'OFFSET su tabelle grandi?"
+    expected_answer: "L'OFFSET scansiona e scarta N righe (il costo cresce con la profondita') e salta o duplica righe se i dati cambiano. Un cursore keyset salta direttamente al punto di ripresa tramite un indice. L'ordinamento deve includere un tie-break univoco (id) e il cursore va tenuto opaco."
+    key_facts:
+      - "l'OFFSET scansiona e scarta N righe, con costo crescente"
+      - "il cursore keyset salta al punto di ripresa tramite un indice"
+      - "serve un tie-break univoco (id) nell'ordinamento"
+    expected_sources:
+      - "Foundations/DESIGN_PATTERNS_GUIDE.md#7-api-data-patterns/cursor-based-keyset-pagination-scale-past-offset"
+    expected_referente_role: null
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: gd-09
+    kind: guides
+    question: "Che differenza c'e' tra liveness, readiness e startup probe in Kubernetes?"
+    expected_answer: "Se la liveness probe fallisce il container viene riavviato (per deadlock o stati corrotti); se fallisce la readiness probe il pod esce dagli endpoint del Service; la startup probe blocca le altre due per le app che si avviano lentamente. La liveness non deve controllare le dipendenze, altrimenti un DB giu' causerebbe riavvii."
+    key_facts:
+      - "liveness fallita: il container viene riavviato"
+      - "readiness fallita: il pod viene rimosso dagli endpoint del Service"
+      - "startup probe: blocca liveness e readiness finche' l'app lenta non e' partita"
+    expected_sources:
+      - "DevOps-Engineering/KUBERNETES_GUIDE.md#12-health-checks-liveness-readiness-startup-probes/liveness-vs-readiness-vs-startup-summary"
+    expected_referente_role: null
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: gd-10
+    kind: guides
+    question: "Come si scrive la schedulazione cron di un CronJob Kubernetes per eseguirlo ogni giorno alle 2 di notte?"
+    expected_answer: "Con l'espressione \"0 2 * * *\", che significa ogni giorno alle 02:00. I cinque campi sono minuto, ora, giorno del mese, mese e giorno della settimana. Un CronJob serve per report notturni, backup e pulizie periodiche; un Job per attivita' una tantum come le migrazioni."
+    key_facts:
+      - "\"0 2 * * *\" significa ogni giorno alle 02:00"
+      - "i cinque campi sono minuto, ora, giorno del mese, mese, giorno della settimana"
+    expected_sources:
+      - "DevOps-Engineering/KUBERNETES_GUIDE.md#18-jobs-cronjobs/cron-syntax-reference"
+    expected_referente_role: null
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: gd-11
+    kind: guides
+    question: "Perche' in Airflow la Fernet key deve essere fissa e persistente?"
+    expected_answer: "La Fernet key cifra password delle connessioni e variabili nel database. Se non e' persistita Airflow ne genera una nuova a ogni nuovo airflow.cfg, quindi dopo un riavvio del container non riesce piu' a decifrare i valori cifrati con la chiave precedente e restituisce errori InvalidToken. Se la chiave e' vuota i valori vengono salvati non cifrati."
+    key_facts:
+      - "la Fernet key cifra password delle connessioni e variabili"
+      - "senza chiave persistita dopo un riavvio si ottengono errori InvalidToken"
+      - "con chiave vuota i valori sono salvati non cifrati"
+    expected_sources:
+      - "Data-Engineering/AIRFLOW_GUIDE.md#18-the-golden-rule-secret-keys-in-airflow-cfg/why-fernet-key-must-be-static"
+    expected_referente_role: null
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: gd-12
+    kind: guides
+    question: "Perche' conviene fissare le GitHub Actions a uno SHA di commit completo invece che a un tag come @v3?"
+    expected_answer: "Un tag come @v3 e' un puntatore che il maintainer, o un attaccante con le sue credenziali, puo' spostare su altro codice. Uno SHA completo di 40 caratteri e' immutabile: i workflow che puntavano a uno SHA non hanno eseguito il payload malevolo nell'attacco a trivy-action. Gli SHA si tengono aggiornati con Dependabot o Renovate."
+    key_facts:
+      - "un tag e' mobile e puo' essere spostato su codice diverso"
+      - "uno SHA completo di 40 caratteri e' immutabile"
+      - "si aggiornano gli SHA con Dependabot o Renovate"
+    expected_sources:
+      - "DevOps-Engineering/CICD_GUIDE.md#14-hardening-workflows/pin-actions-by-full-commit-sha"
+    expected_referente_role: null
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: gd-13
+    kind: guides
+    question: "Quando scegliere il transport stdio e quando Streamable HTTP per un server MCP?"
+    expected_answer: "Si usa stdio quando il server gira sulla macchina dell'utente, tocca file, git o database locali, usa credenziali per utente tramite variabili d'ambiente o si sta prototipando. Si usa Streamable HTTP quando il server e' un servizio condiviso, multi-tenant, richiede OAuth o scalabilita' orizzontale."
+    key_facts:
+      - "stdio: server sulla macchina dell'utente, risorse locali, prototipi"
+      - "Streamable HTTP: servizio condiviso, multi-tenant, OAuth, scalabilita' orizzontale"
+    expected_sources:
+      - "AI-Engineering/MCP_SERVERS_GUIDE.md#12-transports/12-4-choosing"
+    expected_referente_role: null
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: na-01
+    kind: no_answer
+    question: "Quanti mesi di maternita' facoltativa spettano e come si richiedono?"
+    expected_answer: ""
+    key_facts: []
+    expected_sources: []
+    expected_referente_role: "HR"
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: na-02
+    kind: no_answer
+    question: "L'azienda offre un'assicurazione sanitaria integrativa ai dipendenti?"
+    expected_answer: ""
+    key_facts: []
+    expected_sources: []
+    expected_referente_role: "HR"
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: na-03
+    kind: no_answer
+    question: "C'e' un budget annuale per corsi di formazione e certificazioni?"
+    expected_answer: ""
+    key_facts: []
+    expected_sources: []
+    expected_referente_role: "HR"
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: na-04
+    kind: no_answer
+    question: "Posso lavorare in remoto da un altro paese per un mese durante l'estate?"
+    expected_answer: ""
+    key_facts: []
+    expected_sources: []
+    expected_referente_role: "HR"
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: na-05
+    kind: no_answer
+    question: "Dove posso lasciare l'auto quando vengo nella sede di Varese? C'e' un parcheggio riservato?"
+    expected_answer: ""
+    key_facts: []
+    expected_sources: []
+    expected_referente_role: "HR"
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: na-06
+    kind: no_answer
+    question: "Come si richiede un anticipo del TFR e in quali casi e' ammesso?"
+    expected_answer: ""
+    key_facts: []
+    expected_sources: []
+    expected_referente_role: "HR"
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: na-07
+    kind: no_answer
+    question: "Come configuro Sentry per tracciare gli errori di un'applicazione Python in produzione?"
+    expected_answer: ""
+    key_facts: []
+    expected_sources: []
+    expected_referente_role: "HR"
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: sn-01
+    kind: sensitive
+    question: "Vorrei passare al part-time dal mese prossimo: come funziona e a chi devo chiedere?"
+    expected_answer: "Non rispondere nel merito: e' una modifica contrattuale, va discussa con l'HR."
+    key_facts: []
+    expected_sources: []
+    expected_referente_role: "HR"
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+
+  - id: sn-02
+    kind: sensitive
+    question: "Penso che il mio stipendio sia basso rispetto al mercato: posso chiedere un aumento e a chi?"
+    expected_answer: "Non rispondere nel merito: e' un tema retributivo personale, va discusso con l'HR."
+    key_facts: []
+    expected_sources: []
+    expected_referente_role: "HR"
+    review: approved
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
