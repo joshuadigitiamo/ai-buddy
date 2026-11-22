@@ -9,12 +9,14 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import Final, Literal
+from urllib.parse import urlparse
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _TRUE_VALUES: Final = frozenset({"1", "true", "yes"})
 _TRACING_VARIABLES: Final = ("LANGSMITH_TRACING", "LANGCHAIN_TRACING_V2")
+_LOCAL_MLFLOW_HOSTS: Final = frozenset({"mlflow", "localhost", "127.0.0.1"})
 
 
 class EvalSettings(BaseSettings):
@@ -45,6 +47,20 @@ class EvalSettings(BaseSettings):
     mlflow_ui_base_url: str = "http://127.0.0.1:5000"
     max_consecutive_errors: int = Field(default=3, ge=1)
     item_pause_seconds: float = Field(default=0.5, ge=0)
+
+    @field_validator("mlflow_tracking_uri")
+    @classmethod
+    def _tracking_uri_is_local(cls, value: str | None) -> str | None:
+        # D-21: traces hold questions and handbook text, so they stay on the host.
+        if value is None:
+            return value
+        parsed = urlparse(value)
+        if parsed.scheme != "http" or parsed.hostname not in _LOCAL_MLFLOW_HOSTS:
+            raise ValueError(
+                "MLFLOW_TRACKING_URI must point at the local MLflow server "
+                "(mlflow, localhost or 127.0.0.1)"
+            )
+        return value
 
     @model_validator(mode="after")
     def _check_startup_guards(self) -> EvalSettings:
