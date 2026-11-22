@@ -69,9 +69,10 @@ items:
       - "preserva la storia completa per audit e query point-in-time"
     expected_sources:
       - "Data-Engineering/ETL_VS_ELT_GUIDE.md#11-slowly-changing-dimensions-scd/type-2-versioned-rows-the-audit-standard"
+      - "Data-Engineering/BIGQUERY_DATA_WAREHOUSE_GUIDE.md#17-slowly-changing-dimensions-scd/scd-type-2-versioned-rows-full-history"
     expected_referente_role: null
     review: approved
-    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"
+    review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now); 2026-11-22 second expected source added per 05-GAP-DECISION.md"
 
   - id: gd-06
     kind: guides
