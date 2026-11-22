@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, Literal
 
 from buddy_eval.golden import HANDBOOK_SCHEME, GoldenItem
+from buddy_eval.sources import matches
 
 if TYPE_CHECKING:
     from buddy_eval.runner import ItemOutcome
@@ -75,11 +76,16 @@ def _verdict(
 def _checks(item: GoldenItem, outcome: ItemOutcome, resolve: SourceResolver) -> dict[str, bool]:
     reply = outcome.reply
     assert reply is not None
-    expected = set(item.expected_sources)
-    cited = any(
-        (resolved := resolve(s.source_url)) is not None and resolved in expected
-        for s in reply.sources
-    )
+    # The expected entries any resolved citation satisfies: several citations of one section
+    # (its parts) fill the same entry once, and an unresolvable citation matches nothing.
+    matched = {
+        entry
+        for source in reply.sources
+        if (resolved := resolve(source.source_url)) is not None
+        for entry in item.expected_sources
+        if matches(resolved, entry)
+    }
+    cited = bool(matched)
     gap = reply.gap_reported
     role = _role_matches(
         reply.referente.role if reply.referente else None, item.expected_referente_role

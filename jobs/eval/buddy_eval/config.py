@@ -42,6 +42,7 @@ class EvalSettings(BaseSettings):
     golden_public_path: Path = Path("/app/jobs/eval/golden/guides.yaml")
     golden_private_path: Path = Path("/private/golden-handbook.yaml")
     private_dir: Path = Path("/private")
+    artifact_dir: Path = Path("/artifacts")
     mlflow_tracking_uri: str | None = None
     mlflow_experiment: str = "ai-buddy-eval"
     mlflow_ui_base_url: str = "http://127.0.0.1:5000"
