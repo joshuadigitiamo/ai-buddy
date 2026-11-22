@@ -212,7 +212,7 @@ Plans:
   3. One command runs the golden set through the bot workflow with the configured `LLM_BACKEND` and prints the correctness-with-citation percentage and the count of invented policies; each judged answer has an MLflow trace (retrieval, generation, gate) viewable in a containerized MLflow UI.
   4. The empty-context test passes: with an index holding no matching content, every question gets a refusal and a logged gap, and the test fails if any answer is produced.
   5. The gate command prints PASS only when correctness-with-citation is >= 90%, invented policies are 0 and the empty-context test passes; otherwise it prints FAIL with the failing metric.
-**Plans**: 3/13 plans executed
+**Plans**: 5/13 plans executed
 
 Plans:
 **Wave 1**
@@ -223,8 +223,8 @@ Plans:
 - [x] 05-03-PLAN.md — Tracer: golden files -> real run_workflow over MCP -> TraceSink port -> deterministic verdict -> gate, in-process (D-20 amended: collect-then-score)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 05-04-PLAN.md — Production adapters: MLflow trace sink (trace mode), tracking-URI locality, bot LLM seam, `python -m buddy_eval` entry point with real defaults
-- [ ] 05-05-PLAN.md — Slice error states: consecutive-error stop (errored never wrong) and the D-17 gate truth table
+- [x] 05-04-PLAN.md — Production adapters: MLflow trace sink (trace mode), tracking-URI locality, bot LLM seam, `python -m buddy_eval` entry point with real defaults
+- [x] 05-05-PLAN.md — Slice error states: consecutive-error stop (errored never wrong) and the D-17 gate truth table
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 05-06-PLAN.md — Compose eval profile: pinned loopback MLflow server, eval service, hermetic eval smoke with trace checks
@@ -255,4 +255,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. MCP Server and Skill | 7/7 | Complete    | 2026-11-06 |
 | 3. Google Chat Bot | 12/12 | Complete    | 2026-11-07 |
 | 4. Infrastructure and CI/CD | 26/26 | Complete    | 2026-11-16 |
-| 5. Evaluation and Milestone Gate | 3/13 | In Progress | - |
+| 5. Evaluation and Milestone Gate | 5/13 | In Progress | - |
