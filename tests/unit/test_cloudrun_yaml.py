@@ -109,7 +109,7 @@ def test_mcp_server_uses_request_based_billing() -> None:
     assert BILLING_MODE == "a", "04-01 billing_mode changed: revisit this annotation rule"
     for annotations in (_template_annotations(_mcp()), _mcp()["metadata"]["annotations"]):
         assert "run.googleapis.com/cpu-throttling" not in annotations, (
-            "the fallback needs Joshua's consent (RESEARCH Pitfall 1)"
+            "the fallback needs the owner's consent (RESEARCH Pitfall 1)"
         )
 
 
@@ -247,7 +247,7 @@ def test_chat_bot_uses_request_based_billing_and_names_the_fallback() -> None:
         line for line in BOT_FILE.read_text(encoding="utf-8").splitlines() if "#" in line
     )
     assert "cpu-throttling" in comments, "the prepared fallback is named in a comment"
-    assert "consent" in comments, "and says it needs Joshua's consent (RESEARCH Pitfall 1)"
+    assert "consent" in comments, "and says it needs the owner's consent (RESEARCH Pitfall 1)"
 
 
 def test_chat_bot_single_user_guards_hold_while_the_llm_is_meridian() -> None:
@@ -403,7 +403,7 @@ def test_bootstrap_never_creates_a_project_and_takes_ids_only_from_the_environme
     assert "require PROJECT_ID PROJECT_NUMBER GITHUB_REPO_ID OWNER_EMAIL" in script
     assert 'REGION="${REGION:-${DEFAULT_REGION}}"' in script
     assert 'DEFAULT_REGION="europe-west8"' in script
-    assert "ALLOW_REGION_FALLBACK" in script, "D-03: another region only after asking Joshua"
+    assert "ALLOW_REGION_FALLBACK" in script, "D-03: another region only after asking the owner"
     assert RENDER_SCRIPT.read_text(encoding="utf-8").count("PROJECT_ID") >= 1
     assert not re.search(r"PROJECT_(ID|NUMBER)=['\"]?[A-Za-z0-9-]", script), "no default id"
 
@@ -457,7 +457,7 @@ def test_runbook_covers_the_bootstrap_seeding_fallbacks_and_org_policy_notes() -
         "cpu-throttling",
         "minScale",
         "auth login",
-        "report it to Joshua",
+        "report it to the owner",
         "docs/internal/gcp-project.md",
     ):
         assert needle in text, f"the runbook does not mention {needle!r}"

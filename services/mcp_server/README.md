@@ -8,25 +8,25 @@ Everything runs in Docker. Do not run it with the host Python.
 
 | Name | Purpose |
 |------|---------|
-| `handbook_search` | Keyword search over whole handbook pages (Italian stemming). |
+| `handbook_search(query, limit=5)` | Keyword search over whole handbook pages (Italian stemming). |
 | `handbook_get` | One handbook page selected by the `section` argument, or the table of contents when it is omitted. |
-| `guides_search` | Keyword search over the Guides sections. |
+| `guides_search(query, limit=5)` | Keyword search over the Guides sections. |
 | `guides_get_section` | One Guides section by its `id`. |
-| `buddy_report_gap` | Records a question the sources could not answer. The only tool that writes, and it only appends. |
+| `buddy_report_gap(question, tried=None)` | Records a question the sources could not answer. The only tool that writes, and it only appends. |
 | resource `handbook://{pagina}` | A handbook page as Markdown. |
 
-Every result carries `source_url`, `revision_date`, `revision_kind` and, for Guides sections with a video, `video_url`. Every reply carries `status` (`ok` or `no_results`). The contract (D-06) is in `buddy_mcp/models.py`; the chat bot and the Skill parse it, so rename a field only together with both.
+Every result carries `source_url`, `revision_date`, `revision_kind` and, for Guides sections with a video, `video_url`. `limit` is clamped to 1..10. Every search and get reply carries `status` (`ok` or `no_results`); `buddy_report_gap` replies with `status` `recorded`. The contract (D-06) is in `buddy_mcp/models.py`; the chat bot and the Skill parse it, so rename a field only together with both.
 
 ## Run it locally
 
-Build the test image and run the whole offline gate or the Firestore emulator tests:
+Build the test image and run the whole offline gate or the emulator tests:
 
 ```bash
 ./run-unit-tests.sh --all
 ./run-unit-tests.sh --emulator
 ```
 
-`--emulator` starts the Firestore emulator in a private compose network and runs the tests marked `firestore`, among them the real-process test that starts `python -m buddy_mcp` and calls it over HTTP.
+`--emulator` starts the Firestore and Pub/Sub emulators in a private compose network and runs `-m "firestore or pubsub" tests/integration`, among them the real-process test that starts `python -m buddy_mcp` and calls it over HTTP.
 
 Run the process from the test image. This is `AUTH_MODE=off` with `DEPLOY_ENV=local`, so it is for your machine only. It needs a published `index.db` in `./artifacts` (see `jobs/sync/README.md`) and a Firestore to write gaps to: either the emulator, or a real project reached with credentials you mount yourself.
 
@@ -55,7 +55,7 @@ The index is read once, at cold start. After a new sync, restart the server.
 
 ### With compose
 
-`docker-compose.yml` at the repository root runs the server from this image next to the `sync` one-shot, both emulators, a stub LLM and the chat bot. The server uses `ARTIFACT_STORE=local` over the named volume `artifacts`, which `sync` writes and the server mounts read-only; compose starts the server only after `sync` exits successfully, so an empty handbook folder never gives an empty or stale index. The bot calls the server at `http://mcp-server:8000/mcp`, and the server lists `mcp-server` in `MCP_ALLOWED_HOSTS` so its Host guard admits that name on plain http (`DEPLOY_ENV=local`, `AUTH_MODE=off`). The compose healthcheck calls `/health`. The images run as uid 10001: a host directory used for the artifacts instead of the named volume must be writable by that uid, or the container must run with `--user`. `scripts/compose-smoke.sh` proves the whole path offline (see `services/chat_bot/README.md`, "Hermetic smoke").
+`docker-compose.yml` at the repository root runs the server from this image next to the `sync` one-shot, both emulators, a stub LLM and the chat bot. The server uses `ARTIFACT_STORE=local` over the named volume `artifacts`, which `sync` writes and the server mounts read-only; compose starts the server only after `sync` exits successfully, so an empty handbook folder never gives an empty or stale index. The bot calls the server at `http://mcp-server:8000/mcp`, and the server lists `mcp-server` in `MCP_ALLOWED_HOSTS` so its Host guard admits that name on plain http (`DEPLOY_ENV=local`, `AUTH_MODE=off`). The compose healthcheck calls `/health`. The images run as uid 10001: a host directory used for the artifacts instead of the named volume must be writable by that uid, or the container must run with `--user`. `scripts/compose-smoke.sh` proves the whole path offline (see `services/chat_bot/README.md`, "Hermetic smoke"). The `eval` profile (`docker compose --profile eval ...`) adds the evaluation services and a second server, `mcp-server-empty`: the same image on a fixture index with its own gap collection (`gaps_empty_context`), with no published port.
 
 ### Where the index comes from
 

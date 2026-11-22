@@ -10,10 +10,8 @@ Research di supporto, in `docs/research/`:
 
 | File | Contenuto |
 |---|---|
-| `01-handbook-inventory.md` + `handbook-raw/` (interno, non pubblicato) | Inventario completo dell'handbook: 23 pagine, ~4.000 parole, problemi di qualità |
-| `02-meridian-e-backend-ai.md` (interno, non pubblicato) | Meridian, termini Anthropic, opzioni di backend, costi |
+| Note di ricerca interne (non pubblicate) | Inventario dell'handbook, Meridian e opzioni di backend AI, gap analysis dell'handbook |
 | `03-onboarding-best-practices.md` | Deep research sull'onboarding (32 fonti) |
-| `04-handbook-gap-analysis.md` (interno, non pubblicato) | Tassonomia di un handbook completo, gap e pagine da aggiungere |
 | `05-modelli-open-self-hosted.md` | Modelli open-weight per la Fase 2: shortlist, licenze, serving |
 | `06-hosting-modello-self-hosted.md` | Dove ospitare un modello, costi, Docker, cold start |
 | `07-costi-hosting-cloud-run.md` | Costi di hosting del server MCP: free tier Cloud Run e servizi di contorno |
@@ -40,10 +38,10 @@ Research di supporto, in `docs/research/`:
 | D4 | **Handbook in contesto completo, niente vector DB** per l'handbook | ~8k token, e l'intero handbook sta in un solo contesto (Guides, LANGCHAIN_GUIDE §14). Un RAG su 23 pagine è complessità senza beneficio. | [High] |
 | D5 | **Guides: indice per sezioni + ricerca full-text (SQLite FTS5/BM25)**, embeddings solo se l'eval lo richiede | ~15 guide da ~100 KB non stanno in un contesto. `GUIDES_INDEX.md` mappa già sezione → riga, quindi il chunking per heading è gratis. Ibrido dense+BM25 con RRF (RAG_CHATBOT_GUIDE §11) diventa l'upgrade quando Recall@5 < 0,8. | [Medium] |
 | D6 | **Fase 2 via Claude API su cloud EU**: Vertex AI se si ospita su GCP, Bedrock EU in alternativa | Il bot condiviso deve usare credenziali commerciali, non abbonamenti. Serve residenza UE (GDPR). Stima ~35–70 $/mese per 15 utenti × 10 domande al giorno, inclusa la maggiorazione del 10% per il routing UE. | [Medium] costi |
-| D7 | **Hosting: Cloud Run europe-west8 (Milano)**, da confermare | Il connettore MCP deve essere raggiungibile da internet (lo chiamano i server Anthropic). Ci sono già Google Workspace e un login Google che permette di restringere l'accesso al dominio `digitiamo.com`. Con scale-to-zero e billing request-based il costo è ~0 €/mese: ~20k richieste al mese usano circa il 6% del free tier (180k vCPU-s, 360k GiB-s, 2M richieste). Milano è Tier 1, quindi coperta per intero. Serve comunque un billing account attivo. Vedi `07-costi-hosting-cloud-run.md`. Aggiornamento 14/11/2026: il progetto GCP `ai-buddy-dev` esiste già, nell'organizzazione Google Cloud di digitiamo.com, con billing account collegato. La regione europe-west8 resta da confermare. | [High] prezzi, [Medium] traffico |
+| D7 | **Hosting: Cloud Run europe-west8 (Milano)**, da confermare (superato: confermato in Fase 4) | Il connettore MCP deve essere raggiungibile da internet (lo chiamano i server Anthropic). Ci sono già Google Workspace e un login Google che permette di restringere l'accesso al dominio `digitiamo.com`. Con scale-to-zero e billing request-based il costo è ~0 €/mese: ~20k richieste al mese usano circa il 6% del free tier (180k vCPU-s, 360k GiB-s, 2M richieste). Milano è Tier 1, quindi coperta per intero. Serve comunque un billing account attivo. Vedi `07-costi-hosting-cloud-run.md`. Aggiornamento 14/11/2026: il progetto GCP (`<project-id>`) esiste già, nell'organizzazione Google Cloud di digitiamo.com, con billing account collegato. La regione europe-west8 resta da confermare (superato: regione europe-west8 confermata, D-03 della Fase 4). | [High] prezzi, [Medium] traffico |
 | D10 | **Server MCP stateless, gap log su Firestore** | Cloud Run fattura l'istanza finché una richiesta è aperta: uno stream SSE tenuto aperto tutto il giorno fa uscire dal free tier (~15 $/mese). Stateless con risposte JSON lo evita. Il filesystem di Cloud Run è effimero, quindi il gap log non può stare in SQLite nel container. Firestore ha un free tier anche in UE; quello di Cloud Storage vale solo per tre regioni USA. | [High] |
 | D9 | **Backend Fase 2 indipendente dal modello**: default Claude API UE. Proposta alternativa: modello open (Qwen3.8-27B) via API UE a consumo oppure self-hosted con vLLM in Docker | Tiene aperta la porta a sovranità dei dati e indipendenza dal fornitore senza pagarle da subito. A ~3.300 domande al mese una GPU è inattiva il 94–98% del tempo: il self-hosted costa 4–30 volte l'API. Vedi §3.1. | [Medium] |
-| D8 | **Correggere l'handbook prima di indicizzarlo** | Password Wi-Fi in chiaro, due indirizzi legali diversi, due processi ferie in conflitto, valori L.O.V.E. solo come immagine. Un bot sopra contenuti sbagliati amplifica gli errori (caso Air Canada 2024). | [High] |
+| D8 | **Correggere l'handbook prima di indicizzarlo** | L'handbook è una copia di test con incongruenze note. Un bot sopra contenuti sbagliati amplifica gli errori (caso Air Canada 2024). | [High] |
 
 ## 2.1 Decisioni Milestone 1 (03/11/2026)
 
@@ -56,9 +54,9 @@ Queste decisioni aggiornano §2 per la Milestone 1. Dove c'è conflitto, vale qu
 | D11 | **Monorepo** (questo repo): `packages/buddy_core`, `services/mcp_server`, `services/chat_bot`, `jobs/sync`, `deploy/`. Un'immagine Docker per servizio. | Server MCP, bot e sync condividono modello dei contenuti e indice, e cambiano insieme. Una persona sola costruisce il progetto. Il bot chiama il server MCP via HTTP come client MCP, quindi una separazione futura non richiede di riscrivere il codice. | [Medium-High] |
 | D12 | **CI/CD con GitHub Actions**: build con filtri per path, push su Artifact Registry, deploy, autenticazione Workload Identity Federation (niente chiavi). | Il repo è già su GitHub. | [High] |
 | D13 | **Milestone 1 = sync, server MCP, bot Google Chat, infra ed eval insieme.** Il bot riceve gli eventi via Pub/Sub in sviluppo e via HTTP (JWT Google) su Cloud Run. | Richiesta del proprietario. Pub/Sub non richiede un URL pubblico verso la macchina locale. | [Medium] |
-| D14 | **Dati di test:** doc ClickUp separato "AI Buddy – Test Handbook" (privato, space Wiki), copiato dallo snapshot `docs/research/handbook-raw/` con redazione del Wi-Fi. L'handbook ufficiale non si tocca: è in riscrittura. ID del doc via variabile d'ambiente. | Evita conflitti con la riscrittura in corso e permette di provare il percorso reale dell'API ClickUp. Aggiornamento 14/11/2026: superata. ClickUp viene dismesso; i dati di test sono lo snapshot locale `docs/research/handbook-raw/`, letto dal sync come cartella. | [High] |
+| D14 | **Dati di test:** doc ClickUp separato (privato), copiato dallo snapshot `docs/research/handbook-raw/` con redazione del Wi-Fi. L'handbook ufficiale non si tocca: è in riscrittura. ID del doc via variabile d'ambiente. | Evita conflitti con la riscrittura in corso e permette di provare il percorso reale dell'API ClickUp. Aggiornamento 14/11/2026: superata. ClickUp viene dismesso; i dati di test sono lo snapshot locale `docs/research/handbook-raw/`, letto dal sync come cartella. | [High] |
 | D15 | **Video delle Guides nella chat** come pulsante "Guarda" e miniatura nelle card, con il clip della singola scena collegato alla sezione citata. | Google Chat non incorpora un player video. Il repo Guides è privato e gli URL delle release danno 404 senza login: va bene in sviluppo, ma per altri utenti i video vanno spostati su Google Drive (condivisione al dominio) prima del rollout. | [Medium] |
-| D16 | **Applicare le best practice delle Guides** (`~/Desktop/WORK/Guides`) a ogni fase: MCP_SERVERS_GUIDE (server MCP, tool, transport, auth), RAG_CHATBOT_GUIDE (retrieval, chunking, eval), LANGCHAIN/LANGGRAPH_GUIDE (bot), MLFLOW_GENAI_GUIDE (tracing, eval), KUBERNETES_GUIDE (manifest, deploy), DESIGN_PATTERNS_GUIDE (architettura). Ogni piano di fase cita le sezioni applicate e motiva le eccezioni. | Richiesta del proprietario. Le Guides sono lo standard tecnico del team e la fonte stessa di AI Buddy. | [High] |
+| D16 | **Applicare le best practice delle Guides** (`/path/to/Guides`) a ogni fase: MCP_SERVERS_GUIDE (server MCP, tool, transport, auth), RAG_CHATBOT_GUIDE (retrieval, chunking, eval), LANGCHAIN/LANGGRAPH_GUIDE (bot), MLFLOW_GENAI_GUIDE (tracing, eval), KUBERNETES_GUIDE (manifest, deploy), DESIGN_PATTERNS_GUIDE (architettura). Ogni piano di fase cita le sezioni applicate e motiva le eccezioni. | Richiesta del proprietario. Le Guides sono lo standard tecnico del team e la fonte stessa di AI Buddy. | [High] |
 
 ## 3. Architettura
 
@@ -73,7 +71,7 @@ Custom connector ──HTTPS + OAuth (Google, solo @digitiamo.com)──► MCP 
                                                                    ├─ handbook_search(query)     → sezioni pertinenti
                                                                    ├─ guides_search(query)       → sezioni Guides (FTS5)
                                                                    ├─ guides_get_section(id)     → testo sezione + riferimento
-                                                                   └─ buddy_report_gap(question) → log domande senza risposta
+                                                                   └─ buddy_report_gap(question, tried) → log domande senza risposta
                                                                           ▲
                            Sync job (lanciato a mano) ── cartella handbook locale (snapshot Markdown, sola lettura)
                                                      └── clone del checkout locale delle Guides
@@ -81,7 +79,7 @@ Custom connector ──HTTPS + OAuth (Google, solo @digitiamo.com)──► MCP 
 
 - **Meno di 10 tool, nomi con namespace** (MCP_SERVERS_GUIDE §20). Ogni output include la fonte, perché "le citazioni che il modello non vede sono citazioni che inventa" (LANGCHAIN_GUIDE L1561).
 - **Resource** `handbook://{pagina}` per chi vuole allegare pagine intere, più i **tool** di ricerca per il modello (MCP_SERVERS_GUIDE §6.3).
-- **Sync ClickUp:** una chiamata `list_document_pages` restituisce tutto l'albero, `get_document_pages` restituisce markdown. Per il sync incrementale si usano `date_edited` e un hash del contenuto, non `date_updated`. Prima dell'indicizzazione si applica un filtro di redazione (pagina Wi-Fi esclusa). **Da decidere:** come i dati del sync arrivano al container, cioè se il sync ricostruisce l'immagine oppure scrive su un bucket che il server legge all'avvio. Aggiornamento 14/11/2026: il sync ClickUp non esiste più (vedi `jobs/sync/README.md`); la consegna dei dati è decisa in `docs/adr/0001-index-handoff.md` (porta `ArtifactStore`, bucket o immagine scelti in Fase 4).
+- **Sync ClickUp:** una chiamata `list_document_pages` restituisce tutto l'albero, `get_document_pages` restituisce markdown. Per il sync incrementale si usano `date_edited` e un hash del contenuto, non `date_updated`. Prima dell'indicizzazione si applica un filtro di redazione (pagina Wi-Fi esclusa). **Da decidere:** come i dati del sync arrivano al container, cioè se il sync ricostruisce l'immagine oppure scrive su un bucket che il server legge all'avvio. Aggiornamento 14/11/2026: il sync ClickUp non esiste più (vedi `jobs/sync/README.md`); la consegna dei dati è decisa in `docs/adr/0001-index-handoff.md` (porta `ArtifactStore`, bucket o immagine scelti in Fase 4; superato: la Fase 4 ha scelto il bucket, vedi ADR 0001).
 - **Skill `digitiamo-buddy`** (SKILL.md): quando usare i tool, formato della risposta (risposta, fonte, owner, data di revisione), lista dei temi da escalare, rimando ai referenti.
 - **Gap log:** collezione Firestore (D10) con domanda, timestamp e "nessuna fonte trovata", **senza user id** (vedi Rischi: Statuto dei Lavoratori art. 4). Revisione settimanale durante il pilota, mensile a regime (Fase 3), che alimenta il backlog dell'handbook.
 
@@ -101,7 +99,7 @@ Google Chat app (DM / @menzione)   oppure   Web app interna (SSO Google)
 
 - **Riusa il server MCP della Fase 1** come retrieval layer. Nessuna logica duplicata.
 - **Workflow, non agente:** ogni domanda richiede retrieval, quindi basta un 2-step RAG (LANGCHAIN_GUIDE §14; DEEP_AGENTS_GUIDE §19: Deep Agents è lo strumento sbagliato per Q&A brevi).
-- **Google Chat vs web app:** Google Chat vince su adozione (i dipendenti sono già lì) e autenticazione (l'identità Workspace arriva già verificata) e non richiede una UI. La web app vince su UI ricca e controllo. Raccomandazione: **Google Chat** [Medium]. Da confermare: l'inventario ha trovato ClickUp Chat molto attiva (40 canali). Quale chat usa davvero il team?
+- **Google Chat vs web app:** Google Chat vince su adozione (i dipendenti sono già lì) e autenticazione (l'identità Workspace arriva già verificata) e non richiede una UI. La web app vince su UI ricca e controllo. Raccomandazione: **Google Chat** [Medium]. Da confermare: quale chat usa davvero il team?
 ### 3.1 Proposta: quale modello e dove (Fase 2)
 
 Research: `docs/research/05-modelli-open-self-hosted.md` (modelli) e `06-hosting-modello-self-hosted.md` (hosting e costi).
@@ -126,16 +124,16 @@ Research: `docs/research/05-modelli-open-self-hosted.md` (modelli) e `06-hosting
 
 ### Fase 0: Prerequisiti e pulizia contenuti (nessun codice)
 1. **Licenze:** un seat per persona. Valutare Claude Team al posto dei Max (decisione della direzione).
-2. **Sicurezza:** togliere le password Wi-Fi in chiaro dalla pagina ClickUp e spostarle in un password manager o in un QR in ufficio.
-3. **Correzioni handbook:** indirizzo legale unico, processo ferie unico (Factorial o form ClickUp), trascrizione testuale dei valori L.O.V.E., pagina Team compilata, "Luoghi utili" completata o rimossa, date scadute aggiornate, link mancanti nell'indice.
+2. **Sicurezza:** rimuovere dalla fonte eventuali dati sensibili in chiaro (redazione nel sync come difesa aggiuntiva).
+3. **Correzioni handbook:** risolvere le incongruenze note della copia di test (dettagli nelle note interne, non pubblicate).
 4. **Metadati per pagina:** owner (ruolo), data di ultima revisione, validità.
-5. **Nuove pagine P0** (dettaglio in `04-handbook-gap-analysis.md`): chi fa cosa / a chi chiedere, canali di comunicazione e regole, tool e accessi, **policy di uso dell'AI** (tool approvati, dati ammessi nei prompt, AI literacy, informativa L. 132/2025), IT e sicurezza di base, note spese, cosa fa Digitiamo. La FAQ è P1 e nasce dal gap log.
+5. **Nuove pagine P0** (dettaglio nelle note di ricerca interne, non pubblicate): chi fa cosa / a chi chiedere, canali di comunicazione e regole, tool e accessi, **policy di uso dell'AI** (tool approvati, dati ammessi nei prompt, AI literacy, informativa L. 132/2025), IT e sicurezza di base, note spese, cosa fa Digitiamo. La FAQ è P1 e nasce dal gap log.
 6. **Guides:** decidere quali guide rendere pubbliche all'azienda (oggi sono personali).
 7. **Golden set:** 30–50 domande reali con risposta attesa e pagina fonte, raccolte da HR e dai colleghi. Diventa il test di accettazione.
 - **Uscita:** handbook "pulito" con owner, golden set pronto, decisione sulle licenze presa.
 
 ### Fase 1: MVP dentro Claude
-1. Server MCP Python (SDK `mcp`, streamable-http in modalità stateless con risposte JSON, D10) con i 5 tool sopra. Handbook in memoria, Guides in SQLite FTS5, gap log su Firestore.
+1. Server MCP Python (SDK `mcp`; superato: il server usa `fastmcp`, vedi `services/mcp_server/requirements.txt`; streamable-http in modalità stateless con risposte JSON, D10) con i 5 tool sopra. Handbook in memoria, Guides in SQLite FTS5, gap log su Firestore.
 2. Job di sync handbook + Guides con redazione e hash (aggiornamento 14/11/2026: fonti locali, non ClickUp).
 3. Auth OAuth 2.1 con Google, dominio ristretto (MCP_SERVERS_GUIDE §17).
 4. Deploy su Cloud Run EU, Docker (standard del team). Durante il pilota si controlla la metrica `container/billable_instance_time` per confermare che si resta nel free tier.
@@ -162,7 +160,7 @@ Research: `docs/research/05-modelli-open-self-hosted.md` (modelli) e `06-hosting
 |---|---|---|
 | Decisione licenze Max → Team | D2, conformità | Direzione |
 | ~~Accesso API ClickUp (token di sola lettura)~~ Non più necessario (14/11/2026): il sync legge fonti locali | Sync | — |
-| Progetto GCP + fatturazione: fatto (14/11/2026), progetto esistente `ai-buddy-dev` con billing collegato | Hosting, Vertex AI | Admin Google |
+| Progetto GCP + fatturazione: fatto (14/11/2026), progetto esistente (`<project-id>`) con billing collegato | Hosting, Vertex AI | Admin Google |
 | Owner di ogni pagina | Freschezza, escalation | HR (da confermare) |
 | Consenso a rendere pubbliche le Guides | Fonte Guides | Proprietario |
 | Parere legale/DPO | Informativa AI, log, AI Act | Consulente esterno |

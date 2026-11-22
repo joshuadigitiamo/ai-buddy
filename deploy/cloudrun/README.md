@@ -5,7 +5,7 @@ Two Cloud Run services in `europe-west8` (Milan), both scale to zero and are cap
 | Service | File | What it runs |
 |---------|------|--------------|
 | `mcp-server` | `mcp-server.yaml` | the MCP server; reads its index from a private bucket at cold start |
-| `chat-bot` | `chat-bot.yaml` | the Google Chat bot (HTTP intake) plus Meridian, the Claude Max proxy, as a sidecar on `127.0.0.1:3456` |
+| `chat-bot` | `chat-bot.yaml` | the Google Chat bot (HTTP intake) plus Meridian, the Claude Max proxy, as a sidecar on port 3456 (`MERIDIAN_HOST=0.0.0.0`, no declared port, so only the ingress container takes traffic) |
 
 The YAML files are templates. They carry `${PLACEHOLDER}` markers instead of project identifiers,
 because this repository is public. `scripts/render-cloudrun.sh` fills them from environment
@@ -14,7 +14,7 @@ id or secret value is ever committed.** The id of the project lives in `docs/int
 (gitignored) and reaches the scripts only as `PROJECT_ID` and `PROJECT_NUMBER`.
 
 This directory holds static files only. Nothing here deploys by itself: the live run is the Phase 4
-live checkpoint (04-13), with Joshua present.
+live checkpoint (04-13), with the owner present.
 
 ## Prerequisites
 
@@ -33,7 +33,7 @@ live checkpoint (04-13), with Joshua present.
 Run once. It creates everything the services need outside git: APIs, the Firestore `(default)` database
 in `europe-west8` (one-way, confirmed by typing the region), Firestore TTL on `expire_at` for the `gaps`
 and `thread_memory` collections (D-05), the Artifact Registry repository `ai-buddy` (cleanup policy: keep
-the 3 most recent versions per image), three private buckets, three service accounts with their roles,
+the 3 most recent versions per image), three private buckets, four service accounts with their roles,
 six empty secrets, and the Workload Identity Federation pool `github` with provider `monorepo`.
 
 ```bash
@@ -87,7 +87,7 @@ and its bindings. Dropping the owner's old bucket admin bindings on the live pro
 that needs the owner's go-ahead (04-26).
 
 The region is fixed to `europe-west8` (D-03). Any other `REGION` is refused unless
-`ALLOW_REGION_FALLBACK` names the same region, which is set only after asking Joshua.
+`ALLOW_REGION_FALLBACK` names the same region, which is set only after asking the owner.
 
 ## Secrets
 
@@ -121,8 +121,10 @@ disable the old version at once to stay inside the quota.
 ## Seeding the Meridian credentials bucket
 
 Decision `token_chain` (b): the Cloud Run bucket gets a **fresh, separate** `claude` login. Never copy
-the local `meridian-claude` volume: two copies of one OAuth refresh-token chain invalidate each other
-(RESEARCH Pitfall 5), and the local volume keeps its own chain. The login runs in the Meridian image into
+an existing login (for example the host `~/.claude/.credentials.json`) into it: two copies of one OAuth
+refresh-token chain invalidate each other (RESEARCH Pitfall 5). Local Compose does not use a credentials
+file at all: it logs Meridian in with a `claude setup-token` token in `MERIDIAN_OAUTH_TOKEN`, and the
+local `meridian-claude` volume holds only Meridian's session state, so there is nothing local to copy. The login runs in the Meridian image into
 a temporary directory, and the file is never printed.
 
 ```bash
@@ -297,7 +299,7 @@ verifies Google's JWT on every request before any model call (`INTAKE=http`).
 The project sits under the digitiamo.com organization (decision `org_policy`: yes), so organization
 policies may block a step. Likely candidates: a resource-location constraint that does not list
 `europe-west8`, domain-restricted sharing on an IAM binding, a constraint on service accounts or buckets.
-If a step fails with a policy error, **record the exact error text and report it to Joshua**. Do not
+If a step fails with a policy error, **record the exact error text and report it to the owner**. Do not
 change a policy and do not switch region or approach on your own.
 
 ## Cost
@@ -314,8 +316,8 @@ Not zero, but small. Figures are from the Google Cloud free-tier pages (RESEARCH
 
 ## Prepared fallbacks
 
-Each fallback below is prepared and **not applied**. Apply one only with Joshua's consent, because each
-changes cost or behaviour that Joshua signed off.
+Each fallback below is prepared and **not applied**. Apply one only with the owner's consent, because each
+changes cost or behaviour that the owner signed off.
 
 - **Background work stalls (Pitfall 1).** If a slow answer never replaces the "Sto cercando nelle fonti..."
   placeholder, add `run.googleapis.com/cpu-throttling: 'false'` to the template annotations of `chat-bot`
@@ -327,16 +329,15 @@ changes cost or behaviour that Joshua signed off.
   `chat.bot` scope (needs `roles/iam.serviceAccountTokenCreator` on that account).
 - **The video link does not play inline at the timestamp (Pitfall 13).** First a small HTML player page
   that sets `currentTime` from `?t=`; only then signed URLs, which contradicts D-16.
-- **The Meridian start-up probe cannot reach the loopback port.** Cloud Run has no exec probe, and the docs
-  do not say whether a start-up probe reaches a port bound to `127.0.0.1`. If the sidecar never turns
-  healthy: first a `tcpSocket` probe on 3456; then `MERIDIAN_HOST` `0.0.0.0`, which stays unreachable from
-  outside because only the ingress container takes traffic.
 - **`gcloud run services replace` rejects a sidecar without a launch stage.** Add
   `run.googleapis.com/launch-stage: BETA` to the service annotations only if the dry run demands it
   (RESEARCH A2).
 
 The deployer role is not a pending fallback: `roles/run.admin` is applied, and the Roles paragraph under
-Bootstrap says why.
+Bootstrap says why. Neither is `MERIDIAN_HOST=0.0.0.0` on the Meridian sidecar: it is applied in
+`chat-bot.yaml`, because the 04-13 live run showed that a Cloud Run start-up probe does not reach a port
+bound to `127.0.0.1`. Meridian stays unreachable from outside: it declares no port, only the ingress
+container takes traffic, and `MERIDIAN_API_KEY` still guards every call.
 
 ## Design notes
 

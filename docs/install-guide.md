@@ -5,7 +5,7 @@ AI Buddy risponde alle domande sul manuale aziendale e sulle Guide tecniche di D
 ## Prima di iniziare
 
 - Un account Google Digitiamo (`@digitiamo.com`): è l'unico account che può accedere.
-- L'indirizzo del server: `https://<server-host>/mcp`. Il valore reale sarà noto quando verrà scelto l'hosting (Fase 4).
+- L'indirizzo del server: `https://<server-host>/mcp`. Il server gira su Cloud Run (Fase 4): `<server-host>` è l'host del servizio `mcp-server`, che fornisce chi gestisce il servizio (vedi `deploy/cloudrun/README.md`).
 
 ## claude.ai
 
