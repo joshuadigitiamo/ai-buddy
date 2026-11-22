@@ -38,7 +38,12 @@ MLFLOW_IMAGE = re.compile(r"ghcr\.io/mlflow/mlflow:v3\.18\.0@sha256:[0-9a-f]{64}
 HERMETIC_PROJECT = "demo-ai-buddy"
 BOTS = ("chat-bot", "chat-bot-live")
 SECRET_SUFFIXES = ("_KEY", "_SECRET", "_TOKEN")
-BOT_ONLY_SECRETS = ("THREAD_KEY_SECRET", "MERIDIAN_API_KEY", "ANTHROPIC_API_KEY")
+BOT_ONLY_SECRETS = (
+    "THREAD_KEY_SECRET",
+    "MERIDIAN_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "MERIDIAN_OAUTH_TOKEN",
+)
 MERIDIAN_CONTEXT = re.compile(r"https://github\.com/rynfar/meridian\.git#([0-9a-f]{40})")
 INTERPOLATION = re.compile(r"\$\{[^}]+\}")
 
@@ -135,6 +140,22 @@ def test_meridian_credentials_follow_the_recorded_decision() -> None:
                     f"{name} must not mount the credentials volume"
                 )
         assert not [key for key in _environment(meridian) if "READ_ONLY" in key.upper()]
+
+
+def test_meridian_authenticates_with_its_own_long_lived_token() -> None:
+    # A volume seeded from the host ~/.claude/.credentials.json shares one rotating refresh
+    # token with the host Claude Code CLI; whichever side refreshes first logs the other out.
+    # A `claude setup-token` token in an oauthToken profile has no refresh token to rotate.
+    environment = _environment(_services()["meridian"])
+    profiles = environment["MERIDIAN_PROFILES"]
+    assert '"oauthToken"' in profiles
+    assert "${MERIDIAN_OAUTH_TOKEN" in profiles, "the token comes from .env, never the file"
+    assert not re.search(r"sk-ant-[A-Za-z0-9]", profiles), "no literal token in compose"
+    assert f'"id":"{environment["MERIDIAN_DEFAULT_PROFILE"]}"' in profiles.replace(" ", "")
+
+
+def test_meridian_comes_back_after_a_host_restart() -> None:
+    assert _services()["meridian"]["restart"] == "unless-stopped"
 
 
 def test_hermetic_chat_bot_cannot_reach_a_real_service() -> None:
