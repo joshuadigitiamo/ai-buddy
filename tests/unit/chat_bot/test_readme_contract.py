@@ -47,7 +47,7 @@ def test_readme_names_no_real_address() -> None:
 
 def test_readme_documents_the_manual_chat_app_settings() -> None:
     text = _text()
-    assert "Joshua only" in text
+    assert "the owner only" in text
     assert "Authentication Audience" in text
     assert "ttls update expire_at" in text
 

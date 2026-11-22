@@ -2,7 +2,7 @@
 #
 # The default services are hermetic: Firestore and Pub/Sub emulators, a stub LLM, the recording
 # Chat adapter and the demo-ai-buddy project id. Nothing reaches the real Google Chat API,
-# Joshua's Max session, a service-account key or a real GCP project.
+# the owner's Max session, a service-account key or a real GCP project.
 #
 #   HANDBOOK_SRC_DIR=... GUIDES_SRC_DIR=... REDACT_PAGE_FILES=... THREAD_KEY_SECRET=... \
 #     docker compose up --build
@@ -19,16 +19,18 @@
 #
 # Host variables read by compose: HANDBOOK_SRC_DIR, GUIDES_SRC_DIR, REDACT_PAGE_FILES,
 # THREAD_KEY_SECRET (at least 32 characters), GUIDES_BRANCH, GUIDES_WEB_BASE, VIDEO_THUMBNAIL_URL,
-# and for the live profile MERIDIAN_API_KEY, BOT_SA_KEY_FILE, HOST_UID and HOST_GID.
+# for Meridian (profiles live and eval) MERIDIAN_API_KEY and MERIDIAN_OAUTH_TOKEN, and for the
+# live profile BOT_SA_KEY_FILE, HOST_UID and HOST_GID.
 #
-# Profile `live` is Joshua's real Chat bot and Meridian (it replaces docker-compose.dev.yml):
+# Profile `live` is the owner's real Chat bot and Meridian (it replaces docker-compose.dev.yml):
 #   docker compose --profile live up mcp-server meridian chat-bot-live
 # with HANDBOOK_SRC_DIR and GUIDES_SRC_DIR pointing at the real snapshot and Guides checkout
 # (run the sync service once first so the artifacts volume holds an index).
-# - Meridian credentials live in the external named volume `meridian-claude` (03-01 decision,
-#   04-01 token_chain (b)): seed it once as services/chat_bot/README.md describes. They are never
-#   baked into an image and the host ~/.claude is never mounted. The compose Meridian stays
-#   writable so it can refresh its own login.
+# - Meridian logs in with MERIDIAN_OAUTH_TOKEN, a one-year `claude setup-token` token passed as an
+#   oauthToken profile in MERIDIAN_PROFILES (services/chat_bot/README.md describes how to mint it).
+#   The external named volume `meridian-claude` holds only Meridian's SDK session state, no
+#   credentials; create it once. Credentials are never baked into an image and the host ~/.claude
+#   is never mounted.
 # - Meridian is built only from the commit recorded in deploy/meridian.version.
 #
 # Profile `eval` is the evaluation job (05-06): a pinned, loopback-only MLflow server and the eval
@@ -39,7 +41,8 @@
 #   mcp-server-empty, which the eval service starts (second server on the fixture index)
 # Optional host variables: EVAL_LLM_BACKEND, EVAL_LLM_BASE_URL, EVAL_PRIVATE_DIR (default
 # ./docs/internal, mounted at /private), EVAL_GOLDEN_PUBLIC_PATH, EVAL_GOLDEN_PRIVATE_PATH,
-# JUDGE_MODEL, the Meridian Opus tier override, HOST_UID and HOST_GID. Nothing is deployed from this profile.
+# JUDGE_MODEL, MERIDIAN_OPUS_MODEL (the Meridian Opus tier override), HOST_UID and HOST_GID.
+# Nothing is deployed from this profile.
 services:
   firestore:
     image: google/cloud-sdk:592.0.0-emulators
@@ -191,7 +194,7 @@ services:
       firestore:
         condition: service_healthy
 
-  # ---- profile live: Joshua's real Chat bot and Meridian (replaces docker-compose.dev.yml) ----
+  # ---- profile live: the owner's real Chat bot and Meridian (replaces docker-compose.dev.yml) ----
 
   # Built only from the commit in deploy/meridian.version (approved at 03-01; test_compose.py
   # asserts the SHA below equals that file).

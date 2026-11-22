@@ -10,6 +10,8 @@ Everything runs in Docker. Do not run it with the host Python.
 2. **Allowlist.** The sender must be in `ALLOWED_USERS`. Anyone else is dropped silently: no reply, no MCP call, no LLM call, no memory write.
 3. **Placeholder.** The bot posts "Sto cercando nelle fonti…" at once, then updates that same message.
 4. **Answer.** A LangGraph two-step RAG: reformulate the question (with the last turns of the thread as context), search through the MCP tools, answer from the evidence only. Confidence below `CONFIDENCE_THRESHOLD` becomes a refusal ("Non lo so, chiedi a ...") and a gap record.
+   - Retrieval: handbook search returns at most 3 results and Guides search at most 8. On the first attempt the bot also runs a second Guides search with the standalone question, minus Italian function words.
+   - The answer prompts carry a case-scope rule: a statement a source makes about one named system, project or case is reported only for that case, never turned into a general rule.
 5. **Rendering.** Handbook sources are a text citation (`Manuale – <title> (handbook://<page_id>), revisione <date>`). A Guides source with a video adds a card with the thumbnail and a "Guarda" button. Sensitive topics (pay, illness, harassment, ...) get only the general written rule with its source and a referral to the role named in the shared escalation table.
 6. **Canned replies, no LLM:** being added to a space, and the `/aiuto` slash command.
 
@@ -17,14 +19,14 @@ The bot is a client of the MCP server (`MCP_URL`); it contains no search code an
 
 ## Run it locally
 
-`docker-compose.yml` at the repository root runs everything. Its default services are hermetic (both emulators, the sync job, the MCP server, a stub LLM and this bot with the recording Chat adapter), see "Hermetic smoke" below. Its `live` profile is the real stack: Meridian, the MCP server and this bot against the real Chat API and Joshua's Max login. No service publishes a port to the host.
+`docker-compose.yml` at the repository root runs everything. Its default services are hermetic (both emulators, the sync job, the MCP server, a stub LLM and this bot with the recording Chat adapter), see "Hermetic smoke" below. Its `live` profile is the real stack: Meridian, the MCP server and this bot against the real Chat API and the owner's Max login. No service publishes a port to the host.
 
 ### Prerequisites
 
 - A Google Cloud project with the Chat API and the Pub/Sub API enabled, the Chat app configured as described below, and a pull subscription on the Chat topic.
 - A service-account key file for the bot, kept **outside** the repository.
 - The handbook snapshot folder and a checkout of the Guides repository. The `sync` service of the compose file builds the index from them into the `artifacts` volume (see `jobs/sync/README.md` for what it reads).
-- Joshua's Claude subscription (Max or Team), used once a year to mint a token for Meridian.
+- The owner's Claude subscription (Max or Team), used once a year to mint a token for Meridian.
 
 ### Give Meridian its own token (once a year)
 
@@ -41,16 +43,19 @@ The compose file declares the volume `external: true`, so the `live` and `eval` 
 
 ### Start
 
-Put the variables below in `.env` (gitignored), export the host paths, then start the live profile. Name the services: without names, compose would also start the hermetic bot.
+Put the variables below in `.env` (gitignored), export the host paths, then start the live profile. `REDACT_PAGE_FILES` and `THREAD_KEY_SECRET` (at least 32 characters) are required: compose refuses to start without them, so set them in `.env` or export them too. Name the services: without names, compose would also start the hermetic bot.
 
 ```bash
 export BOT_SA_KEY_FILE=/path/outside/the/repo/bot-sa-key.json
 export HANDBOOK_SRC_DIR=/path/to/the/handbook/snapshot
 export GUIDES_SRC_DIR=/path/to/the/Guides/checkout
+# Unless already in .env:
+# export REDACT_PAGE_FILES=<page files kept out of the index>
+# export THREAD_KEY_SECRET="$(openssl rand -hex 32)"
 docker compose --profile live up --build mcp-server meridian chat-bot-live
 ```
 
-`mcp-server` depends on the `sync` one-shot, so compose runs the sync over those two folders first and the server waits for it to finish successfully. Compose reads `MERIDIAN_API_KEY` from `.env`. The default stack must load without the live inputs, so compose cannot require them: `chat-bot-live` exits at once with a message naming `MERIDIAN_API_KEY` or `BOT_SA_KEY_FILE` when either is missing. If that happens, stop the stack (`docker compose --profile live down`) so Meridian does not keep running without its key. Compose-only host variables:
+`mcp-server` depends on the `sync` one-shot, so compose runs the sync over those two folders first and the server waits for it to finish successfully. Compose reads `MERIDIAN_API_KEY` and `MERIDIAN_OAUTH_TOKEN` from `.env`. The default stack must load without the live inputs, so compose cannot require them: `chat-bot-live` exits at once with a message naming `MERIDIAN_API_KEY` or `BOT_SA_KEY_FILE` when either is missing. If that happens, stop the stack (`docker compose --profile live down`) so Meridian does not keep running without its key. Compose-only host variables:
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
@@ -58,6 +63,7 @@ docker compose --profile live up --build mcp-server meridian chat-bot-live
 | `HANDBOOK_SRC_DIR` | none, required | Handbook snapshot folder. Mounted read-only into `sync`. |
 | `GUIDES_SRC_DIR` | none, required | Guides git checkout. Mounted read-only into `sync`; only committed content is indexed. |
 | `REDACT_PAGE_FILES` | none, required | Comma-separated handbook page files kept out of the index. Compose refuses an unset or empty value, so name at least one page file. |
+| `MERIDIAN_OAUTH_TOKEN` | empty | **Secret.** Meridian's own login token from `claude setup-token` (see above). Without it Meridian starts with an empty profile and its login fails. |
 | `HOST_UID`, `HOST_GID` | `1000`, `1000` | User the live bot container runs as. The image's own user (10001) cannot read a key file kept at mode 600, so the live bot uses the host user instead. |
 
 The index lives in the named volume `artifacts`, owned by uid 10001, which the images run as. If you point a container at a host directory for the artifacts instead (for example `docker run -v "$PWD/artifacts:/artifacts" ...`), that directory must be writable by uid 10001, or the container must run with `--user "$(id -u):$(id -g)"`.
@@ -125,7 +131,7 @@ Also read from the environment: `LANGSMITH_TRACING` and `LANGCHAIN_TRACING_V2`. 
 These cannot be set from code. Configure them in Google Cloud Console, Google Chat API, Configuration.
 
 - **Name:** AI Buddy.
-- **Visibility: Joshua only.** Share the app with the one person who may use it, and nobody else. This is part of BOT-03; the allowlist is the second layer, not the first.
+- **Visibility: the owner only.** Share the app with the one person who may use it, and nobody else. This is part of BOT-03; the allowlist is the second layer, not the first.
 - **Connection, development:** Cloud Pub/Sub, with the topic. The bot pulls from a subscription on that topic.
 - **Connection, Cloud Run (Phase 4):** HTTP endpoint URL, with **Authentication Audience = HTTP endpoint URL**. Set `CHAT_JWT_AUDIENCE` to that same URL. Set `CHAT_JWT_ISSUER_EMAIL` to the service account that signs the requests, which depends on the app format: `chat@system.gserviceaccount.com` for the legacy format, the add-on service account `service-<project-number>@gcp-sa-gsuiteaddons.iam.gserviceaccount.com` for the add-on format. Only the endpoint-URL audience mode is supported; the project-number mode is not.
 - **Markup syntax: MARKDOWN** (the default). Chat then renders standard Markdown, where a lone newline is a soft break, so the bot puts a blank line between every Fonte line, the contact line and the referral sentence. Do not switch the app to another syntax without changing `render.py`.
@@ -151,11 +157,11 @@ Chat events do not always carry `user.email`. If yours do not, use the id. To le
 
 ## Meridian
 
-Meridian is a third-party proxy that lets the bot use Joshua's Claude Max login through the Anthropic Messages API (D1a). It is for one person only, and only while Joshua is the sole user.
+Meridian is a third-party proxy that lets the bot use the owner's Claude Max login through the Anthropic Messages API (D1a). It is for one person only, and only while the owner is the sole user.
 
 - It is built only from the source commit approved at 03-01 (pinned in `docker-compose.yml` as a 40-character SHA that equals `deploy/meridian.version`), with the repository's own Dockerfile.
-- It belongs to the `live` profile, publishes no port and is reachable only on the compose network, at `http://meridian:3456`; every API route requires `MERIDIAN_API_KEY`.
-- Its credentials are the `meridian-claude` volume described above, never an image layer and never the host `~/.claude`.
+- It belongs to the `live` and `eval` profiles, publishes no port and is reachable only on the compose network, at `http://meridian:3456`; every API route requires `MERIDIAN_API_KEY`.
+- Its credentials are the `MERIDIAN_OAUTH_TOKEN` token described above, never an image layer and never the host `~/.claude`. The `meridian-claude` volume holds only SDK session state.
 - Auth header: the Anthropic SDK sends the key as `Authorization: Bearer`, and Meridian accepted it at the live check (2026-11-07). No `x-api-key` override is needed.
 - Logging: the compose file sets `MERIDIAN_SILENT=1`, which drops Meridian's routine per-request `[PROXY]` stderr lines. At the pinned commit the `msgs=` field of that line holds only roles and content types (for example `user[string]`), never question text, but the flag keeps a later change from printing prompts unnoticed (BOT-11). Meridian has no other logging option, and `MERIDIAN_DEBUG` must stay unset: it turns on verbose request and session logging.
 - Meridian honours neither sampling controls nor exact output-token caps; structured output is JSON in the prompt.
@@ -193,9 +199,9 @@ These are covered by synthetic fixtures and unit tests only. The first live run 
 
 ## Prima di un secondo utente
 
-Do all of these before anyone other than Joshua uses the bot:
+Do all of these before anyone other than the owner uses the bot:
 
-- [ ] **Switch `LLM_BACKEND`** from `meridian` to `api` (an Anthropic API key) or to Vertex in the EU region (D1a). Meridian runs on one person's Claude Max login and must not serve anyone else. Then remove the Meridian service and its credentials volume.
+- [ ] **Switch `LLM_BACKEND`** from `meridian` to `api` (an Anthropic API key) or to Vertex in the EU region (D1a). Meridian runs on one person's Claude Max login and must not serve anyone else. Then remove the Meridian service, its `meridian-claude` state volume and the `MERIDIAN_OAUTH_TOKEN` line in `.env`.
 - [ ] **Re-check the thread-memory posture (D-11):** HMAC key, last N turns, 24 h TTL, no sender fields. Decide again whether keeping conversation turns is acceptable for the new users, and apply the Firestore TTL policy.
 - [ ] **Move the videos to Google Drive** (D15). GitHub release assets are for development only.
 - [ ] **Worker notice and AI disclosure** before employees use it, as the project's out-of-scope note requires.
@@ -203,7 +209,7 @@ Do all of these before anyone other than Joshua uses the bot:
 
 ## Never commit these
 
-- `.env` and any file holding a secret value (`THREAD_KEY_SECRET`, `MERIDIAN_API_KEY`, `ANTHROPIC_API_KEY`).
+- `.env` and any file holding a secret value (`THREAD_KEY_SECRET`, `MERIDIAN_API_KEY`, `MERIDIAN_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`).
 - The bot service-account key file.
-- The Meridian credentials file or anything copied from `~/.claude`.
+- The Meridian token from `claude setup-token`, or anything copied from `~/.claude`.
 - Real user ids, names or e-mail addresses, in code, tests, fixtures or documentation. Use `example.invalid` addresses.

@@ -28,7 +28,7 @@ The job image is built from the `eval` target. Run every command through compose
 docker compose --profile eval run --rm eval <command>
 ```
 
-The eval profile starts the MCP server, a second MCP server over the empty-context fixture index (`mcp-server-empty`, built by the one-shot `eval-fixture`), the local MLflow server and Meridian. The shell needs the variables compose reads (see `docker-compose.yml`): `HANDBOOK_SRC_DIR`, `GUIDES_SRC_DIR`, `REDACT_PAGE_FILES`, a `THREAD_KEY_SECRET` of at least 32 characters, and `HOST_UID` and `HOST_GID` so the job can write into the private directory. Run the `sync` service once first so the artifacts volume holds an index.
+The eval profile starts the MCP server, a second MCP server over the empty-context fixture index (`mcp-server-empty`, built by the one-shot `eval-fixture`), the local MLflow server and Meridian. The shell needs the variables compose reads (see `docker-compose.yml`): `HANDBOOK_SRC_DIR`, `GUIDES_SRC_DIR`, `REDACT_PAGE_FILES`, a `THREAD_KEY_SECRET` of at least 32 characters, and `HOST_UID` and `HOST_GID` so the job can write into the private directory. Because the profile also starts Meridian, `.env` needs `MERIDIAN_OAUTH_TOKEN` and `MERIDIAN_API_KEY`, and the external volume `meridian-claude` must exist (`docker volume create meridian-claude`, see `services/chat_bot/README.md`). Run the `sync` service once first so the artifacts volume holds an index.
 
 | Command | What it does | Exit code |
 |---------|--------------|-----------|
@@ -80,7 +80,7 @@ Every setting comes from the environment (`EvalSettings`); no env file is read b
 | `docs/internal/eval/cache/` | Collected outcomes, judge verdicts, reformulations and empty-context outcomes, keyed by item, index identity, bot version and models. |
 | `docs/internal/eval/reports/` | `gate-*.json`, `run-*.json`, `recall-*.json`, `empty-context-*.json`. Report file names carry the UTC second, so two runs of the same command in the same second overwrite each other. |
 
-Deleting `docs/internal/eval/cache/` forces a fresh run with new model calls. A change of the index, the bot version, a model or an item changes the cache key by itself, so you rarely need to.
+Deleting `docs/internal/eval/cache/` forces a fresh run with new model calls. A change of the index, the bot version, a model or an item changes the cache key by itself, so you rarely need to. A judge verdict's key also holds a digest of the judged reply, `JUDGE_PROMPT_VERSION` and `SCORING_VERSION`, so a verdict is reused only for the same reply, judge prompt and scoring rules. The cache also keeps a scored marker per trace, versioned by `SCORER_SET_VERSION` (now `"3"`) plus a digest of the verdict: a trace is scored again when the scorer set or its verdict changes, and never twice for the same verdict.
 
 ## Golden set
 
@@ -88,7 +88,7 @@ Two files are merged by id (D-02): the committed Guides file `jobs/eval/golden/g
 
 Each item has: `id` (lowercase letters, digits, `-` and `_`, 3 to 64 characters, for example `gd-01`), `kind` (`handbook`, `guides`, `no_answer`, `sensitive`), `question`, `expected_answer`, `key_facts`, `expected_sources`, `expected_referente_role`, `review` and `review_note`. A handbook item cites the handbook scheme only; a Guides item cites `file#section` prefixes present in the index; a `no_answer` item has neither facts nor sources and names the role it should refer to.
 
-Review flow: Claude drafts items with `review: draft`; Joshua reads each one and sets `approved` or `rejected` (D-07). Only `approved` items are run. Any `draft` makes the gate fail. Run `lint` after every edit.
+Review flow: Claude drafts items with `review: draft`; the owner reads each one and sets `approved` or `rejected` (D-07). Only `approved` items are run. Any `draft` makes the gate fail. Run `lint` after every edit.
 
 After editing `jobs/eval/golden/guides.yaml`, rebuild the eval image, because the file is copied into it:
 
@@ -98,11 +98,11 @@ docker compose --profile eval build eval
 
 ## MLflow UI
 
-The traces are inspectable at `http://127.0.0.1:5000` (loopback only; the only published port of the stack). Each item is one `bot_run` trace with the workflow node spans, the model calls, its expectations and the verdict feedback; the gate output prints a link per item. The MLflow volume holds questions and handbook text, so it stays on the host and is never pushed anywhere (D-21).
+The traces are inspectable at `http://127.0.0.1:5000` (loopback only; the only published port of the stack). Each item is one `bot_run` trace with the workflow node spans, the model calls, its expectations and the verdict feedback; the gate output prints a link per item. Before a trace is scored again, its earlier feedback with a scorer's name is deleted, so the UI shows one current value per name. The MLflow volume holds questions and handbook text, so it stays on the host and is never pushed anywhere (D-21).
 
 ## Max budget behaviour
 
-The judge and the bot use Joshua's Max session through Meridian, so calls are spent with care:
+The judge and the bot use the owner's Max session through Meridian, so calls are spent with care:
 
 - Items run one at a time, in id order, with `ITEM_PAUSE_SECONDS` between fresh items (the MCP server rate limit counts every request).
 - After `MAX_CONSECUTIVE_ERRORS` errors in a row the run stops and prints `stopped after N consecutive errors; re-run the same command to resume`. An errored item is never cached, a completed one is, so running the same command again resumes from the cache.
