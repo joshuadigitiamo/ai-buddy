@@ -21,3 +21,7 @@ Guides Recall@5 misses: gd-05, gd-13. Code-review CR-01 did not affect this run 
 4. Golden edits: narrow key facts for gd-02 and sr-02; add a second expected source for gd-05.
 
 Then re-run the live gate once on the same index; record verdict as is.
+
+## Orchestrator note
+
+05-16 also fixes a harness display issue found in the diagnosis: the MLflow citation assessment rationale copied unrelated failure reasons. This changes only the feedback rationale text, not any gate rule, threshold, verdict or judge prompt. Added by the orchestrator under the code-review-fixes umbrella and flagged to Joshua in chat.
