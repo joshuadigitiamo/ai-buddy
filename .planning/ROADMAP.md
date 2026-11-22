@@ -212,7 +212,7 @@ Plans:
   3. One command runs the golden set through the bot workflow with the configured `LLM_BACKEND` and prints the correctness-with-citation percentage and the count of invented policies; each judged answer has an MLflow trace (retrieval, generation, gate) viewable in a containerized MLflow UI.
   4. The empty-context test passes: with an index holding no matching content, every question gets a refusal and a logged gap, and the test fails if any answer is produced.
   5. The gate command prints PASS only when correctness-with-citation is >= 90%, invented policies are 0 and the empty-context test passes; otherwise it prints FAIL with the failing metric.
-**Plans**: 11/13 plans executed
+**Plans**: 12/13 plans executed
 
 Plans:
 **Wave 1**
@@ -239,7 +239,7 @@ Plans:
 - [x] 05-11-PLAN.md — Golden set drafted from the fresh index (public/private split), Joshua's review checkpoint
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 05-12-PLAN.md — Full gate command, preflight, eval README, smoke asserts the gate exit code
+- [x] 05-12-PLAN.md — Full gate command, preflight, eval README, smoke asserts the gate exit code
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 05-13-PLAN.md — Live checkpoints: Meridian preflight, then recall, run, empty-context and gate run by Joshua; verdict recorded
@@ -255,4 +255,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. MCP Server and Skill | 7/7 | Complete    | 2026-11-06 |
 | 3. Google Chat Bot | 12/12 | Complete    | 2026-11-07 |
 | 4. Infrastructure and CI/CD | 26/26 | Complete    | 2026-11-16 |
-| 5. Evaluation and Milestone Gate | 11/13 | In Progress | - |
+| 5. Evaluation and Milestone Gate | 12/13 | In Progress | - |
