@@ -1,0 +1,15 @@
+# Synthetic private-shaped golden item for scripts/eval-smoke.sh (05-06), over the synthetic
+# fixture handbook page 02-ferie. Not company data.
+schema_version: 1
+items:
+  - id: smoke-handbook-ferie
+    kind: handbook
+    question: Come richiedo le ferie?
+    expected_answer: Si richiedono le ferie secondo la procedura del manuale.
+    key_facts:
+      - richiesta delle ferie
+    expected_sources:
+      - handbook://02-ferie
+    expected_referente_role: null
+    review: approved
+    review_note: synthetic smoke item

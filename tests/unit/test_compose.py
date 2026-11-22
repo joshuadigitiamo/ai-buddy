@@ -382,3 +382,16 @@ def test_smoke_script_is_executable_and_bounded() -> None:
     assert text.count("round trip ok") == 1
     assert "handbook://02-ferie" in text and "Fonte: Manuale" in text
     assert "down -v" in text, "the trap removes the stack and its volume"
+
+
+def test_eval_smoke_script_is_executable_and_bounded() -> None:
+    text = EVAL_SMOKE_SCRIPT.read_text(encoding="utf-8")
+    assert os.access(EVAL_SMOKE_SCRIPT, os.X_OK)
+    assert "set -euo pipefail" in text
+    assert 'EVAL_SMOKE_TIMEOUT_SECONDS="${EVAL_SMOKE_TIMEOUT_SECONDS:-300}"' in text
+    assert "timeout after" in text
+    assert text.count("eval smoke ok") == 1
+    assert "down -v" in text, "the trap removes the stack and its volumes"
+    assert "--no-deps" in text, "the smoke never starts meridian"
+    assert "trace check ok" in text
+    assert "--profile live" not in text

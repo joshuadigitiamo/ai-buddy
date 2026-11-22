@@ -1,0 +1,24 @@
+# Synthetic golden items for scripts/eval-smoke.sh (05-06). They run over the committed fixture
+# Guides repository only; no real company content. Real golden files live elsewhere (D-02).
+schema_version: 1
+items:
+  - id: smoke-guides-chunking
+    kind: guides
+    question: Come funziona il chunking del testo per intestazione?
+    expected_answer: Il testo viene diviso per intestazione, così ogni parte mantiene il suo posto.
+    key_facts:
+      - divisione per intestazione
+    expected_sources:
+      - AI-Engineering/DEMO_GUIDE.md#1-basics/chunking
+    expected_referente_role: null
+    review: approved
+    review_note: synthetic smoke item
+  - id: smoke-no-answer
+    kind: no_answer
+    question: Quanto zucchero filato posso portare alla festa aziendale?
+    expected_answer: ""
+    key_facts: []
+    expected_sources: []
+    expected_referente_role: HR
+    review: approved
+    review_note: synthetic smoke item, no fixture word overlaps
