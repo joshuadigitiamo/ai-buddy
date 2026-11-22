@@ -35,6 +35,8 @@
 # container, which runs the bot workflow in-process against the compose mcp-server:
 #   docker compose --profile eval run --rm eval <command>
 #   scripts/eval-smoke.sh           # hermetic run: stub LLM, real MLflow container, no Meridian
+#   docker compose --profile eval run --rm eval empty-context   # D-16: needs eval-fixture and
+#   mcp-server-empty, which the eval service starts (second server on the fixture index)
 # Optional host variables: EVAL_LLM_BACKEND, EVAL_LLM_BASE_URL, EVAL_PRIVATE_DIR (default
 # ./docs/internal, mounted at /private), EVAL_GOLDEN_PUBLIC_PATH, EVAL_GOLDEN_PRIVATE_PATH,
 # JUDGE_MODEL, the Meridian Opus tier override, HOST_UID and HOST_GID. Nothing is deployed from this profile.
@@ -302,6 +304,58 @@ services:
       timeout: 5s
       retries: 30
 
+  # Empty-context test (05-10, D-16): a second MCP server over an index built from the committed,
+  # unrelated fixture sources. eval-fixture is the sole writer of the volume eval-empty; the
+  # server and the eval container only read it. No env_file and no secrets reach either service.
+  eval-fixture:
+    profiles: [eval]
+    build:
+      context: .
+      target: eval
+    restart: "no"
+    command: ["build-fixture", "--dest", "/eval-empty"]
+    volumes:
+      - eval-empty:/eval-empty
+
+  # The same image and settings as mcp-server, on the fixture index and its own gap collection,
+  # so the empty-context gaps never mix with the real ones. It publishes no port.
+  mcp-server-empty:
+    profiles: [eval]
+    build:
+      context: .
+      target: mcp_server
+    environment:
+      DEPLOY_ENV: local
+      AUTH_MODE: "off"
+      ARTIFACT_STORE: local
+      ARTIFACT_DIR: /artifacts
+      MCP_ALLOWED_HOSTS: mcp-server-empty
+      MCP_HOST: 0.0.0.0
+      PORT: "8000"
+      GUIDES_WEB_BASE: ${GUIDES_WEB_BASE:-https://github.com/example-org/guides}
+      GAP_TTL_DAYS: ${GAP_TTL_DAYS:-90}
+      GAP_COLLECTION: gaps_empty_context
+      RATE_LIMIT_RPS: ${RATE_LIMIT_RPS:-5}
+      RATE_LIMIT_BURST: ${RATE_LIMIT_BURST:-30}
+      FIRESTORE_EMULATOR_HOST: firestore:8080
+      GOOGLE_CLOUD_PROJECT: demo-ai-buddy
+    volumes:
+      - eval-empty:/artifacts:ro
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    depends_on:
+      eval-fixture:
+        condition: service_completed_successfully
+      firestore:
+        condition: service_healthy
+
   # Never deployed. Runs as the host user because it writes its cache and reports into the
   # host-owned private directory. Only the Meridian key arrives, by interpolation.
   eval:
@@ -317,7 +371,10 @@ services:
       MERIDIAN_API_KEY: ${MERIDIAN_API_KEY:-}
       JUDGE_MODEL: ${JUDGE_MODEL:-claude-opus-5-5}
       MCP_URL: http://mcp-server:8000/mcp
+      MCP_EMPTY_URL: http://mcp-server-empty:8000/mcp
       ARTIFACT_DIR: /artifacts
+      FIXTURE_DIR: /eval-empty
+      EMPTY_GAP_COLLECTION: gaps_empty_context
       GOLDEN_PUBLIC_PATH: ${EVAL_GOLDEN_PUBLIC_PATH:-/app/jobs/eval/golden/guides.yaml}
       GOLDEN_PRIVATE_PATH: ${EVAL_GOLDEN_PRIVATE_PATH:-/private/golden-handbook.yaml}
       PRIVATE_DIR: /private
@@ -329,12 +386,15 @@ services:
       GOOGLE_CLOUD_PROJECT: demo-ai-buddy
     volumes:
       - artifacts:/artifacts:ro
+      - eval-empty:/eval-empty:ro
       # Long syntax so a relative path is read as a path, never as a named volume.
       - type: bind
         source: ${EVAL_PRIVATE_DIR:-./docs/internal}
         target: /private
     depends_on:
       mcp-server:
+        condition: service_healthy
+      mcp-server-empty:
         condition: service_healthy
       mlflow:
         condition: service_healthy
@@ -345,6 +405,7 @@ services:
 
 volumes:
   artifacts:
+  eval-empty:
   mlflow-data:
   meridian-claude:
     external: true

@@ -33,7 +33,7 @@ HERMETIC_SERVICES = {
     "chat-bot",
 }
 LIVE_SERVICES = {"meridian", "chat-bot-live"}
-EVAL_SERVICES = {"meridian", "mlflow", "eval"}
+EVAL_SERVICES = {"meridian", "mlflow", "eval", "eval-fixture", "mcp-server-empty"}
 MLFLOW_IMAGE = re.compile(r"ghcr\.io/mlflow/mlflow:v3\.18\.0@sha256:[0-9a-f]{64}")
 HERMETIC_PROJECT = "demo-ai-buddy"
 BOTS = ("chat-bot", "chat-bot-live")
@@ -207,7 +207,7 @@ def test_start_order_is_fixed_by_depends_on_conditions() -> None:
 
 
 def test_one_shot_services_never_restart() -> None:
-    for name in ("sync", "pubsub-init"):
+    for name in ("sync", "pubsub-init", "eval-fixture"):
         assert str(_services()[name]["restart"]) == "no", name
 
 
@@ -218,6 +218,50 @@ def test_mcp_server_artifacts_are_read_only_and_sync_writes_the_same_volume() ->
     written = [v for v in services["sync"]["volumes"] if str(v) == "artifacts:/artifacts"]
     assert len(written) == 1, "the sync one-shot writes the named volume the server reads"
     assert "artifacts" in _load()["volumes"]
+
+
+def test_empty_context_server_reads_only_the_fixture_volume() -> None:
+    services = _services()
+    server = services["mcp-server-empty"]
+    assert server["volumes"] == ["eval-empty:/artifacts:ro"], "T-05-27: never the real artifacts"
+    environment = _environment(server)
+    assert environment["MCP_ALLOWED_HOSTS"] == "mcp-server-empty"
+    assert environment["GAP_COLLECTION"] == "gaps_empty_context"
+    assert environment["GAP_COLLECTION"] != _environment(services["mcp-server"])["GAP_COLLECTION"]
+    assert "ports" not in server
+    assert "env_file" not in server
+    for secret in BOT_ONLY_SECRETS:
+        assert secret not in environment, secret
+    assert server["build"]["target"] == "mcp_server"
+    assert _profiles(server) == ["eval"]
+    deps = _depends_on("mcp-server-empty")
+    assert deps["eval-fixture"] == "service_completed_successfully"
+    assert deps["firestore"] == "service_healthy"
+    health = " ".join(str(part) for part in server["healthcheck"]["test"])
+    assert "http://localhost:8000/health" in health
+
+
+def test_eval_fixture_is_the_only_writer_of_its_volume() -> None:
+    services = _services()
+    fixture = services["eval-fixture"]
+    assert str(fixture["restart"]) == "no"
+    assert fixture["build"]["target"] == "eval"
+    assert fixture["command"] == ["build-fixture", "--dest", "/eval-empty"]
+    assert "env_file" not in fixture and not _environment(fixture), "no secrets reach the builder"
+    assert fixture["volumes"] == ["eval-empty:/eval-empty"]
+    assert _profiles(fixture) == ["eval"]
+    assert "eval-empty" in _load()["volumes"]
+    writers = []
+    for name, service in services.items():
+        for volume in service.get("volumes", []):
+            if isinstance(volume, dict):
+                continue
+            source, _, rest = str(volume).partition(":")
+            if source != "eval-empty":
+                continue
+            if not rest.endswith(":ro"):
+                writers.append(name)
+    assert writers == ["eval-fixture"], "every other mount of eval-empty ends with :ro"
 
 
 def test_sync_reads_its_sources_read_only() -> None:
@@ -340,12 +384,16 @@ def test_eval_service_is_wired_to_local_services_only() -> None:
         assert secret not in environment, f"T-05-16: {secret} stays out of the eval container"
     assert INTERPOLATION.fullmatch(environment["MERIDIAN_API_KEY"])
     mounts = [str(v) for v in evaluation["volumes"] if not isinstance(v, dict)]
-    assert mounts == ["artifacts:/artifacts:ro"]
+    assert mounts == ["artifacts:/artifacts:ro", "eval-empty:/eval-empty:ro"]
+    assert environment["MCP_EMPTY_URL"] == "http://mcp-server-empty:8000/mcp"
+    assert environment["FIXTURE_DIR"] == "/eval-empty"
+    assert environment["EMPTY_GAP_COLLECTION"] == "gaps_empty_context"
     private = [v for v in evaluation["volumes"] if isinstance(v, dict)]
     assert [(v["type"], v["target"]) for v in private] == [("bind", "/private")]
     assert str(private[0]["source"]).startswith("${EVAL_PRIVATE_DIR:-")
     deps = _depends_on("eval")
     assert deps["mcp-server"] == "service_healthy"
+    assert deps["mcp-server-empty"] == "service_healthy"
     assert deps["mlflow"] == "service_healthy"
     assert deps["meridian"] == "service_started"
 
