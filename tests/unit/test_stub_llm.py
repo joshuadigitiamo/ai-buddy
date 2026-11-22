@@ -15,11 +15,14 @@ from buddy_bot.llm import AnthropicMessagesClient, _json_instruction
 from buddy_bot.prompts import format_evidence
 from buddy_bot.schemas import (
     AnswerDraft,
+    BotReply,
     ContactExtraction,
     Evidence,
     Reformulation,
     RetryPlan,
 )
+from buddy_eval.golden import GoldenItem
+from buddy_eval.judge import JudgeVerdict, build_judge_user
 
 pytestmark = pytest.mark.anyio
 
@@ -44,6 +47,21 @@ EVIDENCE = (
         revision_kind="last_updated",
     ),
 )
+
+
+JUDGE_FACTS = ["Si richiedono dieci giorni prima", "Serve il modulo", "Risponde HR"]
+JUDGE_ITEM = GoldenItem(
+    id="item-aa-01",
+    kind="handbook",
+    question=QUESTION,
+    expected_answer="",
+    key_facts=JUDGE_FACTS,
+    expected_sources=[HANDBOOK_ID],
+    expected_referente_role=None,
+    review="approved",
+)
+JUDGE_REPLY = BotReply(kind="answer", answer="Scrivi a HR.", sources=list(EVIDENCE))
+JUDGE_USER = build_judge_user(JUDGE_ITEM, JUDGE_REPLY)
 
 
 @pytest.fixture
@@ -83,6 +101,7 @@ async def _text(http: httpx2.AsyncClient, body: dict[str, Any]) -> str:
         (RetryPlan, f"Domanda: {QUESTION}\nRicerche già provate: handbook_search: ferie"),
         (ContactExtraction, f"Domanda: {QUESTION}\n\n{format_evidence(EVIDENCE)}"),
         (AnswerDraft, f"Domanda: {QUESTION}\n\n{format_evidence(EVIDENCE)}"),
+        (JudgeVerdict, JUDGE_USER),
     ],
 )
 async def test_each_workflow_schema_gets_one_text_block_the_real_class_accepts(
@@ -131,6 +150,48 @@ async def test_answer_without_evidence_has_no_citation(http: httpx2.AsyncClient)
     )
     assert draft.citations == []
     assert draft.answer == stub_llm.FALLBACK_ANSWER
+
+
+async def test_the_judge_gets_one_present_uncontradicted_entry_per_numbered_fact(
+    http: httpx2.AsyncClient,
+) -> None:
+    verdict = JudgeVerdict.model_validate_json(
+        await _text(http, _request(JudgeVerdict, JUDGE_USER))
+    )
+
+    assert [f.fact for f in verdict.facts] == JUDGE_FACTS
+    assert all(f.present and not f.contradicted for f in verdict.facts)
+    assert verdict.invented_claims == []
+    assert verdict.reasoning == "stub judge"
+
+
+async def test_a_judge_request_without_facts_gets_no_fact_entry(http: httpx2.AsyncClient) -> None:
+    verdict = JudgeVerdict.model_validate_json(
+        await _text(http, _request(JudgeVerdict, "<fatti_attesi>\n\n</fatti_attesi>"))
+    )
+
+    assert verdict.facts == []
+    assert (
+        JudgeVerdict.model_validate_json(
+            await _text(http, _request(JudgeVerdict, "no block at all"))
+        ).facts
+        == []
+    )
+
+
+async def test_the_real_client_gets_a_valid_judge_verdict_through_structured(
+    http: httpx2.AsyncClient,
+) -> None:
+    anthropic = AsyncAnthropic(
+        base_url="http://stub-llm:8090", api_key="meridian-local", http_client=http, max_retries=0
+    )
+    client = AnthropicMessagesClient(anthropic)
+
+    verdict = await client.structured(
+        JudgeVerdict, model="claude-test", system="Giudica.", user=JUDGE_USER, max_tokens=100
+    )
+
+    assert len(verdict.facts) == len(JUDGE_FACTS)
 
 
 async def test_an_unknown_schema_title_is_refused_with_400(http: httpx2.AsyncClient) -> None:

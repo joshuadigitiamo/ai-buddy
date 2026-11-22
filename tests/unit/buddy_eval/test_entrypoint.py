@@ -9,7 +9,12 @@ import sys
 
 import pytest
 from fastmcp import FastMCP
-from tests.unit.buddy_eval.conftest import RecordingTraceSink, golden_item, write_golden
+from tests.unit.buddy_eval.conftest import (
+    GOOD_VERDICT,
+    RecordingTraceSink,
+    golden_item,
+    write_golden,
+)
 from tests.unit.chat_bot.conftest import GOOD_DRAFT, REFORMULATION, FakeLlm
 
 from buddy_bot.llm import AnthropicMessagesClient, build_llm_client
@@ -17,6 +22,7 @@ from buddy_bot.mcp_client import FastMcpConnector
 from buddy_bot.schemas import AnswerDraft, Reformulation, RetryPlan
 from buddy_eval import cli
 from buddy_eval.config import EvalSettings
+from buddy_eval.judge import JudgeVerdict
 
 GAP_ID = "item-gap-01"
 LEAVE_ID = "item-leave-01"
@@ -83,6 +89,7 @@ class TestProductionDefaults:
                 Reformulation: [NO_RESULT, REFORMULATION],
                 RetryPlan: [NO_RESULT_RETRY],
                 AnswerDraft: [GOOD_DRAFT],
+                JudgeVerdict: [GOOD_VERDICT],
             }
         )
         built_for: list[EvalSettings] = []
@@ -103,8 +110,10 @@ class TestProductionDefaults:
 
         lines = out.getvalue().splitlines()
         assert code == 0
-        assert lines[0] == f"{GAP_ID} no_answer correct trace=http://ui/#/t/tr-1 (tr-1)"
-        assert lines[1] == f"{LEAVE_ID} handbook unjudged trace=http://ui/#/t/tr-2 (tr-2)"
+        assert [line for line in lines if line.startswith("item-")] == [
+            f"{GAP_ID} no_answer correct trace=http://ui/#/t/tr-1 (tr-1)",
+            f"{LEAVE_ID} handbook correct trace=http://ui/#/t/tr-2 (tr-2)",
+        ]
         assert constructed_sink.built_with == [eval_settings]
         assert built_for and all(settings is eval_settings for settings in built_for)
 
@@ -154,6 +163,7 @@ class TestProductionDefaults:
                 Reformulation: [NO_RESULT, REFORMULATION],
                 RetryPlan: [NO_RESULT_RETRY],
                 AnswerDraft: [GOOD_DRAFT],
+                JudgeVerdict: [GOOD_VERDICT],
             }
         )
 

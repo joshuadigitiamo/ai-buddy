@@ -9,7 +9,12 @@ import io
 
 import pytest
 from fastmcp import FastMCP
-from tests.unit.buddy_eval.conftest import RecordingTraceSink, golden_item, write_golden
+from tests.unit.buddy_eval.conftest import (
+    GOOD_VERDICT,
+    RecordingTraceSink,
+    golden_item,
+    write_golden,
+)
 from tests.unit.chat_bot.conftest import GOOD_DRAFT, REFORMULATION, FakeLlm
 
 from buddy_bot.mcp_client import FastMcpConnector
@@ -18,6 +23,7 @@ from buddy_bot.schemas import AnswerDraft, Reformulation
 from buddy_eval import cli
 from buddy_eval.config import EvalSettings
 from buddy_eval.golden import GoldenItem, load_golden
+from buddy_eval.judge import JudgeVerdict
 from buddy_eval.report import emit
 from buddy_eval.runner import STOP_MESSAGE, RunResult, run_items
 
@@ -94,7 +100,7 @@ def test_emit_prints_the_stop_message_after_the_item_lines(
     lines = out.getvalue().splitlines()
     assert STOP_MESSAGE.format(n=3) == STOP_LINE
     assert lines[-1] == STOP_LINE
-    assert lines[0] == f"{IDS[0]} handbook errored trace=none error=LlmUnavailableError"
+    assert f"{IDS[0]} handbook errored trace=none error=LlmUnavailableError" in lines
     assert not any(IDS[3] in line or IDS[4] in line for line in lines)
 
 
@@ -126,6 +132,7 @@ def test_an_errored_item_between_good_ones_resets_the_counter(
                 LlmUnavailableError("x"),
                 LlmUnavailableError("x"),
             ],
+            JudgeVerdict: [GOOD_VERDICT],
         }
     )
 
@@ -146,12 +153,16 @@ def test_errored_items_are_errored_never_wrong(
     eval_settings: EvalSettings, mcp_server: FastMCP
 ) -> None:
     llm = FakeLlm(
-        {Reformulation: [REFORMULATION] * 2, AnswerDraft: [LlmUnavailableError("x"), GOOD_DRAFT]}
+        {
+            Reformulation: [REFORMULATION] * 2,
+            AnswerDraft: [LlmUnavailableError("x"), GOOD_DRAFT],
+            JudgeVerdict: [GOOD_VERDICT],
+        }
     )
 
     result = _collect(eval_settings, mcp_server, llm, RecordingTraceSink(), IDS[:2])
 
-    assert [v.status for v in result.verdicts] == ["errored", "unjudged"]
+    assert [v.status for v in result.verdicts] == ["errored", "correct"]
     assert "wrong" not in {v.status for v in result.verdicts}
 
 

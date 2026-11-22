@@ -33,6 +33,8 @@ _MAX_SENTENCE_CHARS: Final = 200
 
 _WORD = re.compile(r"[^\W\d_]{4,}")
 _FONTE_ID = re.compile(r'<fonte id="([^"]+)"')
+_FATTI_BLOCK = re.compile(r"<fatti_attesi>(.*?)</fatti_attesi>", re.DOTALL)
+_NUMBERED_FACT = re.compile(r"^\s*\d+\.\s*(.+?)\s*$")
 _FONTE_BODY = re.compile(r'<fonte id="[^"]*" tipo="[^"]*" titolo="[^"]*">(.*?)</fonte>', re.DOTALL)
 
 _LOGGER = logging.getLogger("stub_llm")
@@ -82,6 +84,14 @@ def _citations(user: str) -> list[str]:
     return list(dict.fromkeys(_FONTE_ID.findall(user)))
 
 
+def _judged_facts(user: str) -> list[dict[str, Any]]:
+    """One present, uncontradicted entry per numbered line of the last `fatti_attesi` block."""
+    blocks = _FATTI_BLOCK.findall(user)
+    lines = blocks[-1].splitlines() if blocks else []
+    facts = [match.group(1) for line in lines if (match := _NUMBERED_FACT.match(line))]
+    return [{"fact": fact, "present": True, "contradicted": False} for fact in facts]
+
+
 def _payload(title: str, user: str) -> dict[str, Any] | None:
     if title == "Reformulation":
         words = _keywords(_last_line(user))
@@ -104,6 +114,8 @@ def _payload(title: str, user: str) -> dict[str, Any] | None:
             "grounded": True,
             "confidence": 0.95,
         }
+    if title == "JudgeVerdict":
+        return {"facts": _judged_facts(user), "invented_claims": [], "reasoning": "stub judge"}
     return None
 
 

@@ -12,7 +12,12 @@ from pathlib import Path
 import pytest
 from fastmcp import FastMCP
 from pydantic import ValidationError
-from tests.unit.buddy_eval.conftest import RecordingTraceSink, golden_item, write_golden
+from tests.unit.buddy_eval.conftest import (
+    GOOD_VERDICT,
+    RecordingTraceSink,
+    golden_item,
+    write_golden,
+)
 from tests.unit.chat_bot.conftest import GOOD_DRAFT, REFORMULATION, FakeLlm
 
 from buddy_bot.mcp_client import FastMcpConnector
@@ -22,6 +27,7 @@ from buddy_eval import cli
 from buddy_eval.config import EvalSettings
 from buddy_eval.gate import GateInputs, evaluate, format_verdict
 from buddy_eval.golden import GoldenError, load_golden
+from buddy_eval.judge import JudgeVerdict
 from buddy_eval.report import write_json_report
 from buddy_mcp.gaplog import InMemoryGapLog
 
@@ -59,6 +65,8 @@ def _happy_llm() -> FakeLlm:
             Reformulation: [NO_RESULT, REFORMULATION],
             RetryPlan: [NO_RESULT_RETRY],
             AnswerDraft: [GOOD_DRAFT],
+            # Only the answered handbook item reaches the judge; the refusal costs no call.
+            JudgeVerdict: [GOOD_VERDICT],
         }
     )
 
@@ -107,10 +115,12 @@ def test_run_prints_one_line_per_item_in_id_order(
 
     lines = text.splitlines()
     assert code == 0
-    assert lines[0] == f"{GAP_ID} no_answer correct trace=http://ui/#/t/tr-1 (tr-1)"
-    assert lines[1] == f"{LEAVE_ID} handbook unjudged trace=http://ui/#/t/tr-2 (tr-2)"
-    assert "correctness_with_citation: not measured (1 of 2 items not judged)" in lines
-    assert "invented_policies: not measured" in lines
+    assert [line for line in lines if line.startswith("item-")] == [
+        f"{GAP_ID} no_answer correct trace=http://ui/#/t/tr-1 (tr-1)",
+        f"{LEAVE_ID} handbook correct trace=http://ui/#/t/tr-2 (tr-2)",
+    ]
+    assert "correctness_with_citation: 100.0% (2/2 approved items)" in lines
+    assert "invented_policies: 0" in lines
 
 
 def test_run_gives_the_sink_one_trace_per_item_with_expectations_then_one_score(
@@ -145,7 +155,7 @@ def test_run_gives_the_sink_one_trace_per_item_with_expectations_then_one_score(
     assert score.trace_ids == ("tr-1", "tr-2")
     assert {t: v.status for t, v in score.verdicts.items()} == {
         "tr-1": "correct",
-        "tr-2": "unjudged",
+        "tr-2": "correct",
     }
 
 
@@ -171,7 +181,6 @@ def test_gate_prints_fail_with_one_line_per_failing_metric(
     lines = text.splitlines()
     assert code == 1
     assert lines[lines.index("GATE: FAIL") + 1 :] == [
-        "FAIL correctness_with_citation: 1 answered items not judged",
         "FAIL invented_policies: not measured",
         "FAIL empty_context: not run",
     ]
@@ -285,7 +294,11 @@ def test_a_wrong_kind_of_reply_is_a_wrong_verdict_not_an_error(
 ) -> None:
     # The no_answer item gets an answer: the bot invented one, which is wrong.
     _public(eval_settings, golden_item(GAP_ID, "no_answer"))
-    llm = FakeLlm({Reformulation: [REFORMULATION], AnswerDraft: [GOOD_DRAFT]})
+    # The wrongly answered item is still judged for invented claims (D-10).
+    no_facts = JudgeVerdict(facts=[], invented_claims=[], reasoning="synthetic reasoning")
+    llm = FakeLlm(
+        {Reformulation: [REFORMULATION], AnswerDraft: [GOOD_DRAFT], JudgeVerdict: [no_facts]}
+    )
     harness = harness_factory(llm)
 
     code, text = harness.main("run")
@@ -313,14 +326,16 @@ def test_run_item_selects_only_that_approved_item(
     eval_settings: EvalSettings, harness_factory: Callable[[FakeLlm], Harness]
 ) -> None:
     _both_items(eval_settings)
-    llm = FakeLlm({Reformulation: [REFORMULATION], AnswerDraft: [GOOD_DRAFT]})
+    llm = FakeLlm(
+        {Reformulation: [REFORMULATION], AnswerDraft: [GOOD_DRAFT], JudgeVerdict: [GOOD_VERDICT]}
+    )
     harness = harness_factory(llm)
 
     code, text = harness.main("run", "--item", LEAVE_ID)
 
     assert code == 0
     assert [c.tags["item_id"] for c in harness.sink.traced_calls] == [LEAVE_ID]
-    assert text.startswith(f"{LEAVE_ID} handbook unjudged")
+    assert f"{LEAVE_ID} handbook correct" in text
 
 
 def test_run_item_with_an_unknown_id_is_an_error(
