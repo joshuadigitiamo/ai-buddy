@@ -3,10 +3,14 @@
 import logging
 import re
 from pathlib import Path
+from typing import Any
 
 import pytest
+from fastmcp import Client, FastMCP
 from tests.unit.chat_bot.conftest import FakeLlm, RecordingConnector
+from tests.unit.mcp_server.conftest import PLAIN, SHA, WEB_BASE
 
+from buddy_bot.mcp_client import FastMcpConnector
 from buddy_bot.ports import LlmOutputError, LlmUnavailableError, Turn
 from buddy_bot.prompts import KEYWORD_BRIDGE
 from buddy_bot.schemas import (
@@ -16,22 +20,27 @@ from buddy_bot.schemas import (
     Reformulation,
     RetryPlan,
 )
-from buddy_bot.workflow import WorkflowConfig, WorkflowDeps, run_workflow
+from buddy_bot.workflow import WorkflowConfig, WorkflowDeps, guides_question_query, run_workflow
 from buddy_mcp.gaplog import InMemoryGapLog
+from buddy_mcp.guides_tools import guides_permalink
 
 pytestmark = pytest.mark.anyio
 
 SKILL = Path(__file__).resolve().parents[3] / "skills" / "digitiamo-buddy" / "SKILL.md"
+# "gateway" appears only in the PLAIN Guides chunk of the test index.
+GATEWAY_QUESTION = "Come configuro il gateway?"
+GATEWAY_URL = guides_permalink(WEB_BASE, SHA, PLAIN)
 
 
 def _reformulation(
     keywords_it: list[str] | None = None,
     keywords_en: list[str] | None = None,
     intent: str = "question",
+    standalone_question: str = "Come richiedo le ferie?",
 ) -> Reformulation:
     return Reformulation.model_validate(
         {
-            "standalone_question": "Come richiedo le ferie?",
+            "standalone_question": standalone_question,
             "keywords_it": keywords_it or ["ferie"],
             "keywords_en": keywords_en or ["chunking"],
             "intent": intent,
@@ -265,6 +274,179 @@ async def test_contact_lookup_failure_never_breaks_the_refusal(
     assert reply.kind == "refusal"
     assert reply.referente is not None
     assert reply.referente.contact is None
+
+
+def _answer_prompts(llm: FakeLlm) -> list[str]:
+    return [c.user for c in llm.calls if c.schema is AnswerDraft]
+
+
+_UNGROUNDED = AnswerDraft(answer="Non lo so.", citations=[], grounded=False, confidence=0.9)
+
+
+async def test_question_text_reaches_a_second_guides_search_and_the_answer_prompt(
+    connector: RecordingConnector, workflow_config: WorkflowConfig
+) -> None:
+    llm = FakeLlm(
+        {
+            Reformulation: [
+                _reformulation(["zzzz"], ["zzzz"], standalone_question=GATEWAY_QUESTION)
+            ],
+            AnswerDraft: [_draft(GATEWAY_URL)],
+        }
+    )
+
+    reply = await _run(llm, connector, workflow_config)
+
+    assert connector.calls == ["handbook_search", "guides_search", "guides_search"]
+    assert f'<fonte id="{GATEWAY_URL}"' in _answer_prompts(llm)[0]
+    assert reply.kind == "answer"
+    assert [s.source_url for s in reply.sources] == [GATEWAY_URL]
+
+
+async def test_question_only_evidence_never_bypasses_the_gate(
+    connector: RecordingConnector, workflow_config: WorkflowConfig, gaplog: InMemoryGapLog
+) -> None:
+    llm = FakeLlm(
+        {
+            Reformulation: [
+                _reformulation(["zzzz"], ["zzzz"], standalone_question=GATEWAY_QUESTION)
+            ],
+            AnswerDraft: [_UNGROUNDED, _UNGROUNDED],
+            RetryPlan: [RetryPlan(keywords_it=["malattia"], keywords_en=["zzzz"])],
+        }
+    )
+
+    reply = await _run(llm, connector, workflow_config)
+
+    assert _count(llm, AnswerDraft) == 2
+    assert reply.kind == "refusal"
+    assert reply.gate_reason == "no_citation"  # the gate checks citations before grounded
+    assert reply.answer == ""
+    assert reply.sources == []
+    assert len(gaplog.records) == 1
+
+
+async def test_a_chunk_found_by_both_guides_searches_enters_the_prompt_once(
+    connector: RecordingConnector, workflow_config: WorkflowConfig
+) -> None:
+    llm = FakeLlm(
+        {
+            Reformulation: [
+                _reformulation(["zzzz"], ["gateway"], standalone_question=GATEWAY_QUESTION)
+            ],
+            AnswerDraft: [_draft(GATEWAY_URL)],
+        }
+    )
+
+    reply = await _run(llm, connector, workflow_config)
+
+    assert reply.kind == "answer"
+    assert connector.calls == ["handbook_search", "guides_search", "guides_search"]
+    assert _answer_prompts(llm)[0].count(f'<fonte id="{GATEWAY_URL}"') == 1
+
+
+async def test_retry_runs_only_keyword_searches_and_keeps_question_evidence(
+    connector: RecordingConnector, workflow_config: WorkflowConfig
+) -> None:
+    llm = FakeLlm(
+        {
+            Reformulation: [
+                _reformulation(["zzzz"], ["zzzz"], standalone_question=GATEWAY_QUESTION)
+            ],
+            AnswerDraft: [_draft(GATEWAY_URL, 0.2), _draft("handbook://02-ferie")],
+            RetryPlan: [RetryPlan(keywords_it=["ferie"], keywords_en=["zzzz"])],
+        }
+    )
+
+    reply = await _run(llm, connector, workflow_config)
+
+    assert reply.kind == "answer"
+    assert connector.calls == [
+        "handbook_search",
+        "guides_search",
+        "guides_search",
+        "handbook_search",
+        "guides_search",
+    ]
+    assert connector.calls.count("guides_search") == 3
+    second_prompt = _answer_prompts(llm)[1]
+    assert f'<fonte id="{GATEWAY_URL}"' in second_prompt
+    assert '<fonte id="handbook://02-ferie"' in second_prompt
+
+
+async def test_first_attempt_tried_lists_the_question_search_after_the_keyword_searches(
+    connector: RecordingConnector, workflow_config: WorkflowConfig, gaplog: InMemoryGapLog
+) -> None:
+    llm = FakeLlm(
+        {
+            Reformulation: [
+                _reformulation(["zzzz"], ["zzzz"], standalone_question=GATEWAY_QUESTION)
+            ],
+            AnswerDraft: [_UNGROUNDED],
+            RetryPlan: [LlmOutputError("bad json")],
+        }
+    )
+
+    reply = await _run(llm, connector, workflow_config)
+
+    assert reply.kind == "refusal"
+    assert len(gaplog.records) == 1
+    assert list(gaplog.records[0].tried) == [
+        "handbook_search: zzzz",
+        "guides_search: zzzz",
+        "guides_search: configuro gateway?",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("question", "expected"),
+    [
+        (
+            "Come si sceglie tra stdio e Streamable HTTP in un server MCP?",
+            "sceglie stdio Streamable HTTP server MCP?",
+        ),
+        ("Perché il deploy NON va?", "deploy"),
+        ("Come e perché?", ""),
+        ("", ""),
+    ],
+)
+def test_guides_question_query_drops_italian_function_words(question: str, expected: str) -> None:
+    assert guides_question_query(question) == expected
+
+
+async def test_a_question_of_only_function_words_makes_no_question_search(
+    connector: RecordingConnector, workflow_config: WorkflowConfig
+) -> None:
+    llm = FakeLlm(
+        {
+            Reformulation: [_reformulation(standalone_question="Come e perché?")],
+            AnswerDraft: [_draft("handbook://02-ferie")],
+        }
+    )
+
+    reply = await _run(llm, connector, workflow_config)
+
+    assert reply.kind == "answer"
+    assert connector.calls == ["handbook_search", "guides_search"]
+
+
+async def test_default_connector_sends_guides_limit_8_and_handbook_limit_3(
+    mcp_server: FastMCP, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[tuple[str, Any]] = []
+    original = Client.call_tool
+
+    async def recording(self: Client[Any], name: str, arguments: Any = None, **kw: Any) -> Any:
+        sent.append((name, (arguments or {}).get("limit")))
+        return await original(self, name, arguments, **kw)
+
+    monkeypatch.setattr(Client, "call_tool", recording)
+
+    async with FastMcpConnector(mcp_server).session() as tools:
+        await tools.guides_search("chunking")
+        await tools.handbook_search("ferie")
+
+    assert sent == [("guides_search", 8), ("handbook_search", 3)]
 
 
 def _skill_bridge_rows() -> tuple[tuple[str, str], ...]:

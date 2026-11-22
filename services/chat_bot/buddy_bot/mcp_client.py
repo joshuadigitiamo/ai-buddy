@@ -9,7 +9,7 @@ import threading
 import time
 from collections.abc import AsyncGenerator, AsyncIterator, Callable, Generator, Mapping, Sequence
 from contextlib import asynccontextmanager
-from typing import Any, TypeVar
+from typing import Any, Final, TypeVar
 
 import httpx2
 from fastmcp import Client, FastMCP
@@ -21,6 +21,11 @@ from buddy_bot.schemas import Evidence
 from buddy_mcp.models import GapReportOutput, GuidesSearchOutput, HandbookSearchOutput
 
 T = TypeVar("T", bound=BaseModel)
+
+DEFAULT_HANDBOOK_LIMIT: Final = 3
+DEFAULT_GUIDES_LIMIT: Final = 8
+"""Guides results per search. The MCP server clamps to its MAX_LIMIT of 10, so 8 is served as
+asked (05-GAP-DECISION item 1)."""
 
 
 class McpToolError(Exception):
@@ -83,9 +88,13 @@ class GoogleIdTokenAuth(httpx2.Auth):
 
 
 def evidence_from(
-    handbook: HandbookSearchOutput, guides: GuidesSearchOutput
+    handbook: HandbookSearchOutput, *guides: GuidesSearchOutput
 ) -> dict[str, Evidence]:
-    """Map tool results to Evidence keyed by source_url."""
+    """Map tool results to Evidence keyed by source_url.
+
+    Guides outputs are read in argument order; a source_url already present keeps its first
+    position and value, so earlier searches rank first and each chunk appears once.
+    """
     found: dict[str, Evidence] = {}
     for page in handbook.results:
         found[page.source_url] = Evidence(
@@ -96,16 +105,19 @@ def evidence_from(
             revision_date=page.revision_date,
             revision_kind=page.revision_kind,
         )
-    for section in guides.results:
-        found[section.source_url] = Evidence(
-            source_url=section.source_url,
-            kind="guides",
-            title=section.heading,
-            text=section.text,
-            revision_date=section.revision_date,
-            revision_kind=section.revision_kind,
-            video_url=section.video_url,
-        )
+    for output in guides:
+        for section in output.results:
+            if section.source_url in found:
+                continue
+            found[section.source_url] = Evidence(
+                source_url=section.source_url,
+                kind="guides",
+                title=section.heading,
+                text=section.text,
+                revision_date=section.revision_date,
+                revision_kind=section.revision_kind,
+                video_url=section.video_url,
+            )
     return found
 
 
@@ -155,8 +167,8 @@ class FastMcpConnector:
         target: str | FastMCP,
         *,
         auth: httpx2.Auth | None = None,
-        handbook_limit: int = 3,
-        guides_limit: int = 4,
+        handbook_limit: int = DEFAULT_HANDBOOK_LIMIT,
+        guides_limit: int = DEFAULT_GUIDES_LIMIT,
     ) -> None:
         self._target = target
         self._auth = auth

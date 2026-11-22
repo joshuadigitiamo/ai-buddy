@@ -8,6 +8,7 @@ persistence layer: thread memory is a port (D-10).
 """
 
 import logging
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import cache
@@ -45,6 +46,19 @@ RETRY_MAX_TOKENS: Final = 300
 _LOGGER = logging.getLogger("buddy_bot")
 
 _NO_DRAFT: Final = AnswerDraft(answer="", citations=[], grounded=False, confidence=0.0)
+
+# Italian function words dropped from the question before it is sent to guides_search: as FTS
+# tokens they match almost every English chunk (05-14, A-14-2).
+_QUESTION_STOPWORDS: Final[frozenset[str]] = frozenset(
+    {
+        "a", "ad", "al", "allo", "alla", "ai", "agli", "alle", "come", "con", "cosa", "che",
+        "chi", "da", "dal", "dalla", "dei", "del", "della", "delle", "di", "e", "ed", "è",
+        "gli", "i", "il", "in", "la", "le", "lo", "nel", "nella", "non", "o", "per", "perché",
+        "qual", "quale", "quali", "quando", "si", "su", "tra", "fra", "un", "una", "uno",
+        "conviene", "devo", "posso", "va",
+    }
+)  # fmt: skip
+_NON_WORD: Final = re.compile(r"\W+")
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,22 +135,43 @@ async def smalltalk(state: State, runtime: Runtime[RunContext]) -> dict[str, Any
     return {"reply": BotReply(kind="smalltalk")}
 
 
+def guides_question_query(question: str) -> str:
+    """The standalone question without Italian function words, for a second Guides search.
+
+    Kept tokens are returned as written (punctuation included); a token is dropped when its
+    casefolded word characters are a function word or shorter than 2 characters.
+    """
+    kept: list[str] = []
+    for token in question.split():
+        word = _NON_WORD.sub("", token).casefold()
+        if len(word) >= 2 and word not in _QUESTION_STOPWORDS:
+            kept.append(token)
+    return " ".join(kept)
+
+
 async def retrieve(state: State, runtime: Runtime[RunContext]) -> dict[str, Any]:
+    """Search both sources; the first attempt also searches Guides with the question text.
+
+    The retry keeps only the keyword searches: evidence the first attempt found stays in state.
+    """
     tools = runtime.context.tools
     plan = state.get("retry")
     reformulation = state["reformulation"]
     handbook_query = " ".join((plan or reformulation).keywords_it)
     guides_query = " ".join((plan or reformulation).keywords_en)
     handbook = await tools.handbook_search(handbook_query)
-    guides = await tools.guides_search(guides_query)
-    found = evidence_from(handbook, guides)
+    guides = [await tools.guides_search(guides_query)]
+    tried = [f"handbook_search: {handbook_query}", f"guides_search: {guides_query}"]
+    question_query = (
+        guides_question_query(reformulation.standalone_question) if plan is None else ""
+    )
+    if question_query:
+        guides.append(await tools.guides_search(question_query))
+        tried.append(f"guides_search: {question_query}")
+    found = evidence_from(handbook, *guides)
     update: dict[str, Any] = {
         "evidence": {**state.get("evidence", {}), **found},
-        "tried": [
-            *state.get("tried", []),
-            f"handbook_search: {handbook_query}",
-            f"guides_search: {guides_query}",
-        ],
+        "tried": [*state.get("tried", []), *tried],
         "found": bool(found),
     }
     if not found:
