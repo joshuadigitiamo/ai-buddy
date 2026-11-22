@@ -189,6 +189,14 @@ class TestCollect:
             {"trace_id": "tr-1", "name": "key_facts", "value": ["b"]},
         ]
 
+    def test_log_expectations_skips_a_none_value(self, fake: FakeMlflow) -> None:
+        sink = MlflowTraceSink(_settings())
+
+        sink.log_expectations("tr-1", {"expected_sources": ["a"], "expected_referente_role": None})
+
+        logged = [kw for name, kw in fake.calls if name == "log_expectation"]
+        assert logged == [{"trace_id": "tr-1", "name": "expected_sources", "value": ["a"]}]
+
     def test_run_wraps_start_run_and_yields_the_run_id(self, fake: FakeMlflow) -> None:
         sink = MlflowTraceSink(_settings())
 

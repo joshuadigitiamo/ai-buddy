@@ -100,6 +100,10 @@ class MlflowTraceSink:
 
     def log_expectations(self, trace_id: str, expectations: Mapping[str, object]) -> None:
         for key, value in expectations.items():
+            if value is None:
+                # MLflow rejects an Expectation without a value (found by the 05-06 smoke); an
+                # absent expectation, such as no referente role, is simply not recorded.
+                continue
             mlflow.log_expectation(trace_id=trace_id, name=key, value=value)
 
     def score(self, trace_ids: Sequence[str], verdicts: Mapping[str, ItemVerdict]) -> None:
