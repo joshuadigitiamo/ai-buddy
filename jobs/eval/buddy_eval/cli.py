@@ -1,5 +1,5 @@
-"""Command line of the evaluation job: ``run``, ``gate``, ``lint``, ``recall``, ``build-fixture``
-and ``empty-context``.
+"""Command line of the evaluation job: ``run``, ``gate``, ``preflight``, ``lint``, ``recall``,
+``build-fixture`` and ``empty-context``.
 
 Collaborators that talk to the outside world (the model client, the MCP connector, the trace
 sink) are injected, so the same entry point runs in-process in tests and, from 05-04, with the
@@ -45,6 +45,7 @@ from buddy_eval.golden import (
     lint_golden,
     load_golden,
 )
+from buddy_eval.preflight import run_preflight
 from buddy_eval.recall import (
     RecallResult,
     default_connector_factory,
@@ -80,6 +81,9 @@ def _build_parser() -> argparse.ArgumentParser:
     run = sub.add_parser("run", help="run approved golden items through the bot and score them")
     run.add_argument("--item", action="append", default=[], metavar="ID", help="only this item")
     sub.add_parser("gate", help="run every approved item and print the milestone gate verdict")
+    sub.add_parser(
+        "preflight", help="check the three models, the MCP server and MLflow before a live run"
+    )
     sub.add_parser("lint", help="check the golden set against the schema, the index and privacy")
     recall = sub.add_parser("recall", help="measure Recall@5 of handbook and Guides search")
     recall.add_argument("--item", action="append", default=[], metavar="ID", help="only this item")
@@ -535,6 +539,16 @@ def _execute(
             out=out,
         )
     run_connector = connector_factory or FastMcpConnector
+    if args.command == "preflight":
+        checks = run_preflight(
+            settings=settings,
+            llm_factory=llm_factory,
+            connector_factory=run_connector,
+            sink_factory=sink_factory,
+        )
+        for check in checks:
+            print(check.render(), file=out)
+        return 0 if all(check.ok for check in checks) else 1
     if args.command == "empty-context":
         return _empty_context(
             args,

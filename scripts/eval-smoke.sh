@@ -6,8 +6,11 @@
 # `eval run` over three synthetic golden items, then reads the traces back through the MLflow
 # client and checks that every item produced exactly one trace with a bot_run root, LLM-call
 # spans, its expectations and a correctness feedback, and that the answered handbook item shows
-# the workflow node spans. No real service or key is touched; no secret value and no golden
-# question text is printed.
+# the workflow node spans. Then it starts mcp-server-empty and runs `eval gate`, asserting one
+# `GATE: ` line, the recall and empty_context lines, and that the container exit code is 0 exactly
+# when the line is `GATE: PASS` (RESEARCH A5). The verdict itself is not asserted: with the stub
+# LLM the empty-context outcome depends on stub keyword overlap with the fixture (Pitfall 10).
+# No real service or key is touched; no secret value and no golden question text is printed.
 #
 # Usage:
 #   scripts/eval-smoke.sh
@@ -36,7 +39,7 @@ trap cleanup EXIT
 
 show_logs() {
   log "Recent logs (counts and modes only by design):"
-  for service in mcp-server mlflow stub-llm; do
+  for service in mcp-server mcp-server-empty mlflow stub-llm; do
     log "--- ${service}"
     "${compose[@]}" logs --no-color --tail 30 "${service}" || true
   done
@@ -110,7 +113,7 @@ if [[ -z "${THREAD_KEY_SECRET:-}" ]]; then
 fi
 
 log "Building the eval and service images ..."
-step "image build" "${compose[@]}" build eval mcp-server stub-llm sync
+step "image build" "${compose[@]}" build eval mcp-server mcp-server-empty stub-llm sync
 
 log "Starting mcp-server, mlflow and the stub LLM (wait until healthy) ..."
 step "compose up" "${compose[@]}" up -d --wait mcp-server mlflow stub-llm
@@ -194,5 +197,30 @@ if ((status == 124)); then
 elif ((status != 0)); then
   fail "trace check failed (exit ${status})"
 fi
+
+log "Starting mcp-server-empty for the gate's empty-context test ..."
+step "mcp-server-empty up" "${compose[@]}" up -d --wait mcp-server-empty
+
+log "Running the gate (recall, scoring, empty-context, verdict) ..."
+GATE_OUTPUT="${WORK_DIR}/eval-gate.out"
+status=0
+bounded "${compose[@]}" run --rm --no-deps eval gate >"${GATE_OUTPUT}" 2>&1 || status=$?
+if ((status == 124)); then
+  timed_out "the gate did not finish"
+fi
+# Item ids, numbers and trace links only; the eval job never prints question or answer text.
+cat "${GATE_OUTPUT}"
+gate_lines="$(grep -c '^GATE: ' "${GATE_OUTPUT}" || true)"
+[[ "${gate_lines}" == "1" ]] || fail "expected exactly one 'GATE: ' line, found ${gate_lines} (exit ${status})"
+grep -q '^recall@5 guides:' "${GATE_OUTPUT}" || fail "no 'recall@5 guides:' line in the gate output"
+grep -q '^empty_context:' "${GATE_OUTPUT}" || fail "no 'empty_context:' line in the gate output"
+gate_verdict="$(grep '^GATE: ' "${GATE_OUTPUT}")"
+if [[ "${gate_verdict}" == "GATE: PASS" ]]; then
+  expected_status=0
+else
+  expected_status=1
+fi
+((status == expected_status)) || fail "gate exit code ${status} does not match '${gate_verdict}' (expected ${expected_status})"
+log "gate exit code consistent (${status})"
 
 log "eval smoke ok"

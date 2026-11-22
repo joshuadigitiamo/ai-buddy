@@ -442,4 +442,8 @@ def test_eval_smoke_script_is_executable_and_bounded() -> None:
     assert "down -v" in text, "the trap removes the stack and its volumes"
     assert "--no-deps" in text, "the smoke never starts meridian"
     assert "trace check ok" in text
+    assert "eval gate" in text
+    assert "GATE: " in text
+    assert "gate exit code consistent" in text
+    assert text.index("trace check ok") < text.index("--no-deps eval gate"), "gate after traces"
     assert "--profile live" not in text
