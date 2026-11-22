@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: MCP Server and Skill** - Five cited MCP tools over stateless HTTP with Firestore gap log, Google-domain auth, and the `digitiamo-buddy` Skill (completed 2026-11-06)
 - [x] **Phase 3: Google Chat Bot** - Guarded Google Chat bot with LangGraph 2-step RAG, citation and confidence gates, pluggable LLM client, and video cards (completed 2026-11-07)
 - [x] **Phase 4: Infrastructure and CI/CD** - Service images, docker compose, kind manifests, Cloud Run YAMLs and path-filtered GitHub Actions with Workload Identity Federation (completed 2026-11-16)
-- [ ] **Phase 5: Evaluation and Milestone Gate** - Golden set, Recall@5, correctness and citation scoring, MLflow tracing, empty-context test and the gate verdict
+- [x] **Phase 5: Evaluation and Milestone Gate** - Golden set, Recall@5, correctness and citation scoring, MLflow tracing, empty-context test and the gate verdict (completed 2026-11-22)
 
 ## Phase Details
 
@@ -212,7 +212,7 @@ Plans:
   3. One command runs the golden set through the bot workflow with the configured `LLM_BACKEND` and prints the correctness-with-citation percentage and the count of invented policies; each judged answer has an MLflow trace (retrieval, generation, gate) viewable in a containerized MLflow UI.
   4. The empty-context test passes: with an index holding no matching content, every question gets a refusal and a logged gap, and the test fails if any answer is produced.
   5. The gate command prints PASS only when correctness-with-citation is >= 90%, invented policies are 0 and the empty-context test passes; otherwise it prints FAIL with the failing metric.
-**Plans**: 17/17 plans executed (13 original plans; 4 gap-closure plans added 2026-11-22 per 05-GAP-DECISION.md)
+**Plans**: 17/17 plans complete (13 original plans; 4 gap-closure plans added 2026-11-22 per 05-GAP-DECISION.md)
 
 Plans:
 **Wave 1**
@@ -265,4 +265,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. MCP Server and Skill | 7/7 | Complete    | 2026-11-06 |
 | 3. Google Chat Bot | 12/12 | Complete    | 2026-11-07 |
 | 4. Infrastructure and CI/CD | 26/26 | Complete    | 2026-11-16 |
-| 5. Evaluation and Milestone Gate | 17/17 | In Progress | - |
+| 5. Evaluation and Milestone Gate | 17/17 | Complete    | 2026-11-22 |

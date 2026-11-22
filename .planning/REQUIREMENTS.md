@@ -59,12 +59,12 @@ Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requireme
 
 ### Evaluation and Gate
 
-- [ ] **EVAL-01**: Golden set of 30-50 Q&A pairs drafted by Claude from the test doc [ClickUp doc ID removed] and the Guides, with expected answer and expected source page, covering answerable, no-answer and sensitive-escalation cases; each item records Joshua's review status; no item points at the official [ClickUp doc ID removed].
-- [ ] **EVAL-02**: One command measures Recall@5 of retrieval (handbook search and Guides search) over the golden set and reports it; a Guides Recall@5 < 0.8 is flagged as the D5 hybrid-upgrade trigger.
-- [ ] **EVAL-03**: One command scores the golden set end to end against Claude (via the bot workflow and the configured `LLM_BACKEND`) for correctness and correct citation, and counts invented policies (an answer asserting a rule absent from its cited source).
-- [ ] **EVAL-04**: "Empty context" test: with an index that holds no matching content, every answer is a refusal and a gap is logged; the test fails if any answer is produced.
-- [ ] **EVAL-05**: MLflow tracing (self-hosted, containerized) records eval runs and bot workflow steps (retrieval, generation, gate) so each judged answer can be inspected (MLFLOW_GENAI_GUIDE).
-- [ ] **EVAL-06**: A gate command reports PASS/FAIL against: correctness-with-citation >= 90%, invented policies = 0, empty-context test passes.
+- [x] **EVAL-01**: Golden set of 30-50 Q&A pairs drafted by Claude from the test doc [ClickUp doc ID removed] and the Guides, with expected answer and expected source page, covering answerable, no-answer and sensitive-escalation cases; each item records Joshua's review status; no item points at the official [ClickUp doc ID removed].
+- [x] **EVAL-02**: One command measures Recall@5 of retrieval (handbook search and Guides search) over the golden set and reports it; a Guides Recall@5 < 0.8 is flagged as the D5 hybrid-upgrade trigger.
+- [x] **EVAL-03**: One command scores the golden set end to end against Claude (via the bot workflow and the configured `LLM_BACKEND`) for correctness and correct citation, and counts invented policies (an answer asserting a rule absent from its cited source).
+- [x] **EVAL-04**: "Empty context" test: with an index that holds no matching content, every answer is a refusal and a gap is logged; the test fails if any answer is produced.
+- [x] **EVAL-05**: MLflow tracing (self-hosted, containerized) records eval runs and bot workflow steps (retrieval, generation, gate) so each judged answer can be inspected (MLFLOW_GENAI_GUIDE).
+- [x] **EVAL-06**: A gate command reports PASS/FAIL against: correctness-with-citation >= 90%, invented policies = 0, empty-context test passes.
 
 ## v2 Requirements
 
@@ -145,12 +145,12 @@ Each requirement maps to exactly one phase. Updated during roadmap creation.
 | INFRA-04 | Phase 4 | Complete |
 | INFRA-05 | Phase 4 | Complete |
 | INFRA-06 | Phase 4 | Complete |
-| EVAL-01 | Phase 5 | Pending |
-| EVAL-02 | Phase 5 | Pending |
-| EVAL-03 | Phase 5 | Pending |
-| EVAL-04 | Phase 5 | Pending |
-| EVAL-05 | Phase 5 | Pending |
-| EVAL-06 | Phase 5 | Pending |
+| EVAL-01 | Phase 5 | Complete |
+| EVAL-02 | Phase 5 | Complete |
+| EVAL-03 | Phase 5 | Complete |
+| EVAL-04 | Phase 5 | Complete |
+| EVAL-05 | Phase 5 | Complete |
+| EVAL-06 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 41 total
