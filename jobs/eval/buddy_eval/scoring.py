@@ -1,8 +1,8 @@
-"""Deterministic per-kind checks (D-09). Pure: no mlflow, no I/O.
+"""Per-kind checks (D-09) and the invented-policy flag (D-10). Pure: no mlflow, no I/O.
 
-A reason is a short check name, never reply text. `facts` stays None until the judge (05-08)
-decides the key facts, so an answerable item that passes every other check is `unjudged`, never
-`correct`.
+A reason is a short check name, never reply text. The deterministic checks come from the reply;
+the key facts and the invented claims come from the judge's verdict. Without a verdict an
+answerable item that passes every other check is `unjudged`, never `correct`.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, Literal
 
 from buddy_eval.golden import HANDBOOK_SCHEME, GoldenItem
+from buddy_eval.judge import JudgeVerdict
 from buddy_eval.sources import matches
 
 if TYPE_CHECKING:
@@ -21,6 +22,9 @@ Status = Literal["correct", "wrong", "unjudged", "errored"]
 SourceResolver = Callable[[str], str | None]
 
 _SMALLTALK: Final = "classified as smalltalk"
+# Part of every verdict cache key: bump when the per-kind rules or the use of a judge verdict
+# change, so verdicts cached under the older rules stop matching.
+SCORING_VERSION: Final = "1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,17 +38,18 @@ class ItemVerdict:
     reasons: tuple[str, ...]
     invented: bool | None
     trace_id: str | None
+    judge: JudgeVerdict | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class Headline:
-    """Counts the report and the gate read; `invented` is None while it is not measured."""
+    """Counts the report and the gate read; `invented` counts items with an unsupported claim."""
 
     correct: int
     total: int
     unjudged: int
     errored: int
-    invented: int | None
+    invented: int
 
 
 def handbook_only(source_url: str) -> str | None:
@@ -69,8 +74,33 @@ def _verdict(
     status: Status,
     checks: Mapping[str, bool | None],
     reasons: tuple[str, ...],
+    *,
+    judge: JudgeVerdict | None = None,
 ) -> ItemVerdict:
-    return ItemVerdict(item.id, item.kind, status, checks, reasons, None, outcome.trace_id)
+    """Build a verdict; `invented` is decided by the judge for an answered reply (D-10)."""
+    reply = outcome.reply
+    invented: bool | None = None
+    if reply is not None and reply.kind != "answer":
+        invented = False
+    elif judge is not None:
+        invented = bool(judge.invented_claims)
+    return ItemVerdict(
+        item.id, item.kind, status, checks, reasons, invented, outcome.trace_id, judge
+    )
+
+
+def _facts_present(item: GoldenItem, judge: JudgeVerdict) -> bool:
+    """Every key fact present and none contradicted; matched by position (A-08-1).
+
+    A missing judge entry counts as an absent fact and an extra entry is ignored.
+    """
+    for position in range(len(item.key_facts)):
+        if position >= len(judge.facts):
+            return False
+        entry = judge.facts[position]
+        if not entry.present or entry.contradicted:
+            return False
+    return True
 
 
 def _checks(item: GoldenItem, outcome: ItemOutcome, resolve: SourceResolver) -> dict[str, bool]:
@@ -104,7 +134,11 @@ def _checks(item: GoldenItem, outcome: ItemOutcome, resolve: SourceResolver) -> 
 
 
 def score_item(
-    item: GoldenItem, outcome: ItemOutcome, *, resolve: SourceResolver = handbook_only
+    item: GoldenItem,
+    outcome: ItemOutcome,
+    *,
+    resolve: SourceResolver = handbook_only,
+    judge: JudgeVerdict | None = None,
 ) -> ItemVerdict:
     """Apply the D-09 table for the item's kind to one collected outcome."""
     if outcome.status == "errored" or outcome.reply is None:
@@ -115,22 +149,25 @@ def score_item(
         # A-03-1: the bot neither answered nor refused, so it is a wrong answer, not an error.
         checks = {name: False for name in checks}
         return _verdict(item, outcome, "wrong", checks, (_SMALLTALK,))
+    needs_facts = _needs_facts(item)
+    if needs_facts and judge is not None:
+        checks["facts"] = _facts_present(item, judge)
     failed = tuple(f"{name}: failed" for name, ok in checks.items() if ok is False)
     if failed:
-        return _verdict(item, outcome, "wrong", checks, failed)
-    if _needs_facts(item):
+        return _verdict(item, outcome, "wrong", checks, failed, judge=judge)
+    if needs_facts and judge is None:
         checks["facts"] = None
         return _verdict(item, outcome, "unjudged", checks, ("facts: not judged yet",))
-    return _verdict(item, outcome, "correct", checks, ())
+    return _verdict(item, outcome, "correct", checks, (), judge=judge)
 
 
 def headline(verdicts: Iterable[ItemVerdict]) -> Headline:
-    """Count verdicts by status; the invented-policy count is None until the judge exists."""
+    """Count verdicts by status and the items flagged with an invented policy (D-10)."""
     items = list(verdicts)
     return Headline(
         correct=sum(1 for v in items if v.status == "correct"),
         total=len(items),
         unjudged=sum(1 for v in items if v.status == "unjudged"),
         errored=sum(1 for v in items if v.status == "errored"),
-        invented=None,
+        invented=sum(1 for v in items if v.invented is True),
     )

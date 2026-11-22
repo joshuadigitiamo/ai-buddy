@@ -1,4 +1,4 @@
-"""Collect phase over the real bot workflow, then the score hand-off (amended D-20).
+"""Collect phase over the real bot workflow, the judge phase, then the score hand-off (D-20).
 
 The bot is reused through its ports (D-13): `run_workflow` over a real MCP connector, with an
 empty history (D-06). The LLM client and the connector are built inside the coroutine, once per
@@ -22,7 +22,8 @@ from buddy_bot.workflow import WorkflowConfig, WorkflowDeps, run_workflow
 from buddy_eval.cache import ResultCache, bot_version, key_for
 from buddy_eval.config import EvalSettings
 from buddy_eval.golden import GoldenItem
-from buddy_eval.scoring import ItemVerdict, score_item
+from buddy_eval.judge import JUDGE_PROMPT_VERSION, JudgeVerdict, judge_reply
+from buddy_eval.scoring import SCORING_VERSION, ItemVerdict, score_item
 from buddy_eval.sources import IndexIdentity, SourceIndex
 from buddy_eval.tracing import SCORER_SET_VERSION, TraceSink
 
@@ -139,6 +140,55 @@ def _cached_outcome(
     return outcome
 
 
+def _cached_verdict(cache: ResultCache, key: str) -> JudgeVerdict | None:
+    """A cached judge verdict, or None for a missing or unusable file."""
+    payload = cache.get("verdict", key)
+    if payload is None:
+        return None
+    try:
+        return JudgeVerdict.model_validate(payload)
+    except ValidationError:
+        return None
+
+
+async def _judge_item(
+    item: GoldenItem,
+    outcome: ItemOutcome,
+    *,
+    outcome_key: str,
+    settings: EvalSettings,
+    llm_factory: LlmFactory,
+    cache: ResultCache,
+    sink: TraceSink,
+) -> tuple[ItemOutcome, JudgeVerdict | None]:
+    """The judge's verdict for one answered outcome, cached; a judge LlmError errors the item.
+
+    A refusal, a referral or an error is never judged. A failed call is never cached, so a rerun
+    asks the judge again while the cached outcome keeps its trace.
+    """
+    reply = outcome.reply
+    if outcome.status != "completed" or reply is None or reply.kind != "answer":
+        return outcome, None
+    key = key_for(
+        outcome_key=outcome_key,
+        judge_model=settings.judge_model,
+        judge_prompt_version=JUDGE_PROMPT_VERSION,
+        scoring_version=SCORING_VERSION,
+    )
+    verdict = _cached_verdict(cache, key)
+    if verdict is not None:
+        return outcome, verdict
+    try:
+        # The judge reads source text: its calls must not become traces (RESEARCH Pitfall 4).
+        with sink.untraced():
+            verdict = await judge_reply(llm_factory(), item, reply, model=settings.judge_model)
+    except LlmError as exc:
+        LOGGER.warning("item %s judge failed: %s", item.id, type(exc).__name__)
+        return _errored(item, f"judge:{type(exc).__name__}", outcome.trace_id), None
+    cache.put("verdict", key, verdict.model_dump(mode="json"))
+    return outcome, verdict
+
+
 async def run_items(
     items: Sequence[GoldenItem],
     *,
@@ -173,6 +223,7 @@ async def run_items(
     }
     ordered = sorted(items, key=lambda item: item.id)
     outcomes: list[ItemOutcome] = []
+    outcome_keys: list[str] = []
     consecutive_errors = 0
     aborted = False
     collected_any = False
@@ -208,15 +259,30 @@ async def run_items(
             else:
                 LOGGER.info("item %s %s (cached)", item.id, outcome.status)
             outcomes.append(outcome)
+            outcome_keys.append(key)
             # A completed item resets the run of errors; an errored one is never retried (D-14).
             consecutive_errors = consecutive_errors + 1 if outcome.status == "errored" else 0
             if consecutive_errors >= settings.max_consecutive_errors:
                 LOGGER.warning("run stopped after %d consecutive errors", consecutive_errors)
                 aborted = True
                 break
-        # Items after an abort were never collected: they get no outcome and no verdict.
+        # Judge phase: one verdict per answered item, whatever its kind (D-10). Items after an
+        # abort were never collected: they get no outcome and no verdict.
+        judges: dict[str, JudgeVerdict] = {}
+        for position, (item, key) in enumerate(zip(ordered, outcome_keys, strict=False)):
+            outcomes[position], verdict = await _judge_item(
+                item,
+                outcomes[position],
+                outcome_key=key,
+                settings=settings,
+                llm_factory=llm_factory,
+                cache=cache,
+                sink=sink,
+            )
+            if verdict is not None:
+                judges[item.id] = verdict
         verdicts = tuple(
-            score_item(item, outcome, resolve=index.resolve)
+            score_item(item, outcome, resolve=index.resolve, judge=judges.get(item.id))
             for item, outcome in zip(ordered, outcomes, strict=False)
         )
         scored = {

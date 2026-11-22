@@ -12,7 +12,12 @@ from pathlib import Path
 
 import pytest
 from fastmcp import FastMCP
-from tests.unit.buddy_eval.conftest import RecordingTraceSink, golden_item, write_golden
+from tests.unit.buddy_eval.conftest import (
+    GOOD_VERDICT,
+    RecordingTraceSink,
+    golden_item,
+    write_golden,
+)
 from tests.unit.chat_bot.conftest import GOOD_DRAFT, REFORMULATION, FakeLlm
 from tests.unit.mcp_server.conftest import MAPPED, PLAIN, make_content, write_index
 
@@ -23,8 +28,10 @@ from buddy_eval import cache as cache_module
 from buddy_eval.cache import bot_version
 from buddy_eval.config import EvalSettings
 from buddy_eval.golden import GoldenItem, load_golden
+from buddy_eval.judge import JudgeVerdict
 from buddy_eval.runner import RunResult, run_items
 from buddy_eval.sources import SourceIndex
+from buddy_eval.tracing import SCORER_SET_VERSION
 
 A, B = "item-aa-01", "item-bb-01"
 
@@ -42,8 +49,13 @@ def _items(
 
 
 def _llm(draft_items: Sequence[AnswerDraft | Exception]) -> FakeLlm:
+    answered = sum(1 for draft in draft_items if isinstance(draft, AnswerDraft))
     return FakeLlm(
-        {Reformulation: [REFORMULATION] * len(draft_items), AnswerDraft: list(draft_items)}
+        {
+            Reformulation: [REFORMULATION] * len(draft_items),
+            AnswerDraft: list(draft_items),
+            JudgeVerdict: [GOOD_VERDICT] * answered,
+        }
     )
 
 
@@ -339,13 +351,13 @@ def test_scoring_feedback_is_attached_once_per_trace_and_scorer_set_version(
     items = _items(eval_settings, [A])
     _run(eval_settings, mcp_server, _llm([GOOD_DRAFT]), sink, items)
     scored_dir = eval_settings.private_dir / "eval" / "cache" / "scored"
-    assert [p.name for p in scored_dir.glob("*.json")] == ["tr-1-1.json"]
+    assert [p.name for p in scored_dir.glob("*.json")] == [f"tr-1-{SCORER_SET_VERSION}.json"]
 
     _run(eval_settings, mcp_server, FakeLlm({}), sink, items)
     assert [c.trace_ids for c in sink.score_calls] == [("tr-1",), ()]
 
     # A new scorer set re-scores the same trace once (A-07-3).
-    monkeypatch.setattr("buddy_eval.runner.SCORER_SET_VERSION", "2")
+    monkeypatch.setattr("buddy_eval.runner.SCORER_SET_VERSION", f"{SCORER_SET_VERSION}-next")
     _run(eval_settings, mcp_server, FakeLlm({}), sink, items)
     _run(eval_settings, mcp_server, FakeLlm({}), sink, items)
 

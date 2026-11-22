@@ -14,6 +14,7 @@ from tests.unit.mcp_server.conftest import NOW, WEB_BASE, make_content, write_in
 
 from buddy_bot.workflow import WorkflowConfig
 from buddy_eval.config import EvalSettings
+from buddy_eval.judge import FactCheck, JudgeVerdict
 from buddy_eval.scoring import ItemVerdict
 from buddy_mcp.config import McpSettings
 from buddy_mcp.gaplog import InMemoryGapLog
@@ -84,6 +85,15 @@ def workflow_config() -> WorkflowConfig:
     )
 
 
+# What the judge says about the synthetic handbook item: its one key fact is stated, nothing is
+# invented.
+GOOD_VERDICT = JudgeVerdict(
+    facts=[FactCheck(fact="synthetic fact", present=True, contradicted=False)],
+    invented_claims=[],
+    reasoning="synthetic reasoning",
+)
+
+
 @dataclass(frozen=True, slots=True)
 class TracedCall:
     name: str
@@ -107,6 +117,8 @@ class RecordingTraceSink:
     expectations: dict[str, Mapping[str, object]] = field(default_factory=dict)
     score_calls: list[ScoreCall] = field(default_factory=list)
     forgotten: set[str] = field(default_factory=set)
+    untraced_entries: int = 0
+    untraced_depth: int = 0
 
     def run(self, name: str, tags: Mapping[str, str]) -> AbstractContextManager[str | None]:
         return self._run(name, tags)
@@ -139,6 +151,18 @@ class RecordingTraceSink:
         return trace_id not in self.forgotten and any(
             call.trace_id == trace_id for call in self.traced_calls
         )
+
+    def untraced(self) -> AbstractContextManager[None]:
+        return self._untraced()
+
+    @contextmanager
+    def _untraced(self) -> Iterator[None]:
+        self.untraced_entries += 1
+        self.untraced_depth += 1
+        try:
+            yield
+        finally:
+            self.untraced_depth -= 1
 
     def forget(self, trace_id: str) -> None:
         """Simulate a tracking server that lost the trace (for example a removed volume)."""

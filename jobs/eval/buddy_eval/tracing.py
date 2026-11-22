@@ -25,9 +25,10 @@ if TYPE_CHECKING:
     from buddy_eval.scoring import ItemVerdict
 
 CITATION_CHECK: Final = "citation"
-# Bump when the set of scorers changes (05-08 adds invented_policy): traces scored by an older
+# Bump when the set of scorers changes (05-08 added invented_policy): traces scored by an older
 # set are scored again, and keep their earlier feedback next to the new one (A-07-3).
-SCORER_SET_VERSION: Final = "1"
+SCORER_SET_VERSION: Final = "2"
+NO_INVENTED_CLAIM: Final = "no unsupported normative claim"
 
 
 class TracingError(RuntimeError):
@@ -60,6 +61,10 @@ class TraceSink(Protocol):
 
     def trace_exists(self, trace_id: str) -> bool:
         """True while the backend still holds the trace (a cached outcome links to it)."""
+        ...
+
+    def untraced(self) -> AbstractContextManager[None]:
+        """Inside the block LLM calls create no traces (judge calls, RESEARCH Pitfall 4)."""
         ...
 
     def trace_url(self, trace_id: str) -> str:
@@ -126,11 +131,14 @@ class MlflowTraceSink:
         @scorer
         def correctness(trace: Any) -> Feedback:
             verdict = verdicts[trace.info.trace_id]
-            return Feedback(
-                name="correctness",
-                value=verdict.status == "correct",
-                rationale="; ".join(verdict.reasons),
-            )
+            rationale = "; ".join(verdict.reasons)
+            if verdict.judge is not None:
+                rationale = "; ".join(
+                    filter(None, (rationale, f"judge: {verdict.judge.reasoning}"))
+                )
+            # An item the judge never decided has no correctness value, not a false one.
+            value = None if verdict.status == "unjudged" else verdict.status == "correct"
+            return Feedback(name="correctness", value=value, rationale=rationale)
 
         @scorer
         def citation(trace: Any) -> Feedback:
@@ -141,13 +149,33 @@ class MlflowTraceSink:
                 rationale="; ".join(verdict.reasons),
             )
 
+        @scorer
+        def invented_policy(trace: Any) -> Feedback:
+            verdict = verdicts[trace.info.trace_id]
+            claims = verdict.judge.invented_claims if verdict.judge is not None else []
+            return Feedback(
+                name="invented_policy",
+                value=None if verdict.invented is None else not verdict.invented,
+                rationale="; ".join(claims) or NO_INVENTED_CLAIM,
+            )
+
         traces = [mlflow.get_trace(trace_id) for trace_id in trace_ids]
         # Scoring must not write stray LLM traces holding source text (T-05-39).
         mlflow.anthropic.autolog(disable=True)
         try:
-            mlflow.genai.evaluate(data=traces, scorers=[correctness, citation])
+            mlflow.genai.evaluate(data=traces, scorers=[correctness, citation, invented_policy])
         finally:
             mlflow.anthropic.autolog()
+
+    @contextmanager
+    def untraced(self) -> Iterator[None]:
+        mlflow.anthropic.autolog(disable=True)
+        mlflow.langchain.autolog(disable=True)
+        try:
+            yield
+        finally:
+            mlflow.anthropic.autolog()
+            mlflow.langchain.autolog()
 
     def trace_exists(self, trace_id: str) -> bool:
         try:

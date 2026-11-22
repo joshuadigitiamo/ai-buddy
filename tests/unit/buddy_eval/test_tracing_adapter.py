@@ -20,6 +20,7 @@ from pydantic import ValidationError
 
 from buddy_eval import tracing
 from buddy_eval.config import EvalSettings
+from buddy_eval.judge import FactCheck, JudgeVerdict
 from buddy_eval.scoring import ItemVerdict
 from buddy_eval.tracing import MlflowTraceSink, TracingError
 
@@ -125,15 +126,23 @@ def _settings(**overrides: Any) -> EvalSettings:
     return EvalSettings(**values)
 
 
-def _verdict(trace_id: str, status: str, citation: bool | None, *reasons: str) -> ItemVerdict:
+def _verdict(
+    trace_id: str,
+    status: str,
+    citation: bool | None,
+    *reasons: str,
+    invented: bool | None = None,
+    judge: JudgeVerdict | None = None,
+) -> ItemVerdict:
     return ItemVerdict(
         item_id=f"item-{trace_id}",
         kind="handbook",
         status=status,  # type: ignore[arg-type]
         checks={"citation": citation},
         reasons=tuple(reasons),
-        invented=None,
+        invented=invented,
         trace_id=trace_id,
+        judge=judge,
     )
 
 
@@ -272,7 +281,11 @@ class TestScore:
 
         assert set(fake.evaluate_kwargs) == {"data", "scorers"}
         assert [t.info.trace_id for t in fake.evaluate_kwargs["data"]] == ["tr-1", "tr-2"]
-        assert [s.name for s in fake.evaluate_kwargs["scorers"]] == ["correctness", "citation"]
+        assert [s.name for s in fake.evaluate_kwargs["scorers"]] == [
+            "correctness",
+            "citation",
+            "invented_policy",
+        ]
 
     def test_scorers_read_the_precomputed_verdict_for_the_trace(self, fake: FakeMlflow) -> None:
         sink = MlflowTraceSink(_settings())
@@ -282,7 +295,7 @@ class TestScore:
             "tr-3": _verdict("tr-3", "unjudged", None),
         }
         sink.score(["tr-1", "tr-2", "tr-3"], verdicts)
-        correctness, citation = fake.evaluate_kwargs["scorers"]
+        correctness, citation, _invented = fake.evaluate_kwargs["scorers"]
         traces = {t.info.trace_id: t for t in fake.evaluate_kwargs["data"]}
 
         good, bad, unjudged = (correctness(trace=traces[t]) for t in ("tr-1", "tr-2", "tr-3"))
@@ -291,8 +304,38 @@ class TestScore:
         assert good.feedback.value is True
         assert bad.feedback.value is False
         assert bad.rationale == "citation: failed; gap not reported"
-        assert unjudged.feedback.value is False
+        # An item the judge never decided has no correctness value (not a false one).
+        assert unjudged.feedback.value is None
         assert [c.feedback.value for c in cited] == [True, False, None]
+
+    def test_correctness_and_invented_policy_carry_the_judge_findings(
+        self, fake: FakeMlflow
+    ) -> None:
+        sink = MlflowTraceSink(_settings())
+        judged = JudgeVerdict(
+            facts=[FactCheck(fact="f", present=True, contradicted=False)],
+            invented_claims=["a 30 day notice (no source states it)", "a bonus"],
+            reasoning="synthetic reasoning",
+        )
+        clean = JudgeVerdict(facts=[], invented_claims=[], reasoning="fine")
+        verdicts = {
+            "tr-1": _verdict("tr-1", "correct", True, invented=True, judge=judged),
+            "tr-2": _verdict("tr-2", "correct", True, invented=False, judge=clean),
+            "tr-3": _verdict("tr-3", "unjudged", None, "facts: not judged yet"),
+        }
+        sink.score(["tr-1", "tr-2", "tr-3"], verdicts)
+        correctness, _citation, invented = fake.evaluate_kwargs["scorers"]
+        traces = {t.info.trace_id: t for t in fake.evaluate_kwargs["data"]}
+
+        flagged, unflagged, unknown = (invented(trace=traces[t]) for t in ("tr-1", "tr-2", "tr-3"))
+        reasoned = correctness(trace=traces["tr-1"])
+
+        assert flagged.feedback.value is False
+        assert flagged.rationale == "a 30 day notice (no source states it); a bonus"
+        assert unflagged.feedback.value is True
+        assert unflagged.rationale == "no unsupported normative claim"
+        assert unknown.feedback.value is None
+        assert reasoned.rationale == "judge: synthetic reasoning"
 
     def test_anthropic_autolog_is_suspended_during_evaluate_and_re_enabled_after(
         self, fake: FakeMlflow
@@ -361,3 +404,29 @@ class TestTrackingUriLocality:
 
     def test_unset_is_accepted(self) -> None:
         assert EvalSettings().mlflow_tracking_uri is None
+
+
+class TestUntraced:
+    def test_both_autologs_are_suspended_inside_the_block_and_re_enabled_after(
+        self, fake: FakeMlflow
+    ) -> None:
+        sink = MlflowTraceSink(_settings())
+        fake.calls.clear()
+
+        with sink.untraced():
+            inside = list(fake.calls)
+
+        assert inside == [
+            ("anthropic.autolog", {"disable": True}),
+            ("langchain.autolog", {"disable": True}),
+        ]
+        assert fake.calls[2:] == [("anthropic.autolog", {}), ("langchain.autolog", {})]
+
+    def test_autologs_are_re_enabled_when_the_block_raises(self, fake: FakeMlflow) -> None:
+        sink = MlflowTraceSink(_settings())
+        fake.calls.clear()
+
+        with pytest.raises(RuntimeError, match="boom"), sink.untraced():
+            raise RuntimeError("boom")
+
+        assert fake.calls[2:] == [("anthropic.autolog", {}), ("langchain.autolog", {})]
