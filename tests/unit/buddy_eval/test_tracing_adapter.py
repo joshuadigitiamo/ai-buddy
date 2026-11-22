@@ -20,6 +20,7 @@ from pydantic import ValidationError
 
 from buddy_eval import tracing
 from buddy_eval.config import EvalSettings
+from buddy_eval.empty_context import EmptyContextItem
 from buddy_eval.judge import FactCheck, JudgeVerdict
 from buddy_eval.scoring import ItemVerdict
 from buddy_eval.tracing import MlflowTraceSink, TracingError
@@ -336,6 +337,43 @@ class TestScore:
         assert unflagged.rationale == "no unsupported normative claim"
         assert unknown.feedback.value is None
         assert reasoned.rationale == "judge: synthetic reasoning"
+
+    def test_the_empty_context_set_attaches_only_the_refused_feedback(
+        self, fake: FakeMlflow
+    ) -> None:
+        sink = MlflowTraceSink(_settings())
+        items = {
+            "tr-1": EmptyContextItem("a", "refused", "refusal", True, 0, "tr-1"),
+            "tr-2": EmptyContextItem("b", "answered", "answer", False, 2, "tr-2"),
+        }
+
+        sink.score(["tr-1", "tr-2"], items, scorers="empty_context")
+
+        assert set(fake.evaluate_kwargs) == {"data", "scorers"}
+        (refused,) = fake.evaluate_kwargs["scorers"]
+        traces = {t.info.trace_id: t for t in fake.evaluate_kwargs["data"]}
+        good, bad = (refused(trace=traces[t]) for t in ("tr-1", "tr-2"))
+        assert refused.name == "refused"
+        assert (good.feedback.value, good.rationale) == (True, "refused")
+        assert (bad.feedback.value, bad.rationale) == (False, "answered")
+
+    def test_the_empty_context_set_keeps_the_autolog_guard_and_the_missing_verdict_check(
+        self, fake: FakeMlflow
+    ) -> None:
+        sink = MlflowTraceSink(_settings())
+        fake.calls.clear()
+
+        with pytest.raises(TracingError, match="no verdict"):
+            sink.score(["tr-1"], {}, scorers="empty_context")
+        assert fake.calls == []
+
+        sink.score(
+            ["tr-1"],
+            {"tr-1": EmptyContextItem("a", "refused", "refusal", True, 0, "tr-1")},
+            scorers="empty_context",
+        )
+        autologs = [kw for name, kw in fake.calls if name == "anthropic.autolog"]
+        assert autologs == [{"disable": True}, {}]
 
     def test_anthropic_autolog_is_suspended_during_evaluate_and_re_enabled_after(
         self, fake: FakeMlflow

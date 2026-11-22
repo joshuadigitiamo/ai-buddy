@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
 from contextlib import AbstractContextManager, contextmanager
-from typing import TYPE_CHECKING, Any, Final, Protocol
+from typing import TYPE_CHECKING, Any, Final, Literal, Protocol, cast
 
 import mlflow
 import mlflow.anthropic
@@ -22,6 +22,7 @@ from mlflow.genai.scorers import scorer
 
 if TYPE_CHECKING:
     from buddy_eval.config import EvalSettings
+    from buddy_eval.empty_context import EmptyContextItem
     from buddy_eval.scoring import ItemVerdict
 
 CITATION_CHECK: Final = "citation"
@@ -29,6 +30,10 @@ CITATION_CHECK: Final = "citation"
 # set are scored again, and keep their earlier feedback next to the new one (A-07-3).
 SCORER_SET_VERSION: Final = "2"
 NO_INVENTED_CLAIM: Final = "no unsupported normative claim"
+# The empty-context run has its own, single-scorer set (`refused`) and its own version.
+EMPTY_SCORER_SET_VERSION: Final = "empty-1"
+
+ScorerSet = Literal["run", "empty_context"]
 
 
 class TracingError(RuntimeError):
@@ -55,8 +60,18 @@ class TraceSink(Protocol):
         """Attach an item's expectations to its own trace."""
         ...
 
-    def score(self, trace_ids: Sequence[str], verdicts: Mapping[str, ItemVerdict]) -> None:
-        """Attach precomputed verdicts (keyed by trace id) to the traces collected earlier."""
+    def score(
+        self,
+        trace_ids: Sequence[str],
+        verdicts: Mapping[str, ItemVerdict | EmptyContextItem],
+        *,
+        scorers: ScorerSet = "run",
+    ) -> None:
+        """Attach precomputed verdicts (keyed by trace id) to the traces collected earlier.
+
+        `scorers` picks the feedback set: "run" for the eval run, "empty_context" for the
+        empty-context test (feedback `refused` only).
+        """
         ...
 
     def trace_exists(self, trace_id: str) -> bool:
@@ -119,7 +134,13 @@ class MlflowTraceSink:
                 continue
             mlflow.log_expectation(trace_id=trace_id, name=key, value=value)
 
-    def score(self, trace_ids: Sequence[str], verdicts: Mapping[str, ItemVerdict]) -> None:
+    def score(
+        self,
+        trace_ids: Sequence[str],
+        verdicts: Mapping[str, ItemVerdict | EmptyContextItem],
+        *,
+        scorers: ScorerSet = "run",
+    ) -> None:
         missing = [trace_id for trace_id in trace_ids if trace_id not in verdicts]
         if missing:
             raise TracingError(f"no verdict for {len(missing)} collected trace(s)")
@@ -128,6 +149,31 @@ class MlflowTraceSink:
             # A rerun whose traces were all scored already: nothing to attach, no evaluate run.
             return
 
+        if scorers == "empty_context":
+            self._score_empty_context(trace_ids, cast("Mapping[str, EmptyContextItem]", verdicts))
+            return
+        self._score_run(trace_ids, cast("Mapping[str, ItemVerdict]", verdicts))
+
+    def _score_empty_context(
+        self, trace_ids: Sequence[str], items: Mapping[str, EmptyContextItem]
+    ) -> None:
+        @scorer
+        def refused(trace: Any) -> Feedback:
+            item = items[trace.info.trace_id]
+            return Feedback(name="refused", value=item.status == "refused", rationale=item.status)
+
+        self._evaluate(trace_ids, [refused])
+
+    def _evaluate(self, trace_ids: Sequence[str], scorers: list[Any]) -> None:
+        traces = [mlflow.get_trace(trace_id) for trace_id in trace_ids]
+        # Scoring must not write stray LLM traces holding source text (T-05-39).
+        mlflow.anthropic.autolog(disable=True)
+        try:
+            mlflow.genai.evaluate(data=traces, scorers=scorers)
+        finally:
+            mlflow.anthropic.autolog()
+
+    def _score_run(self, trace_ids: Sequence[str], verdicts: Mapping[str, ItemVerdict]) -> None:
         @scorer
         def correctness(trace: Any) -> Feedback:
             verdict = verdicts[trace.info.trace_id]
@@ -159,13 +205,7 @@ class MlflowTraceSink:
                 rationale="; ".join(claims) or NO_INVENTED_CLAIM,
             )
 
-        traces = [mlflow.get_trace(trace_id) for trace_id in trace_ids]
-        # Scoring must not write stray LLM traces holding source text (T-05-39).
-        mlflow.anthropic.autolog(disable=True)
-        try:
-            mlflow.genai.evaluate(data=traces, scorers=[correctness, citation, invented_policy])
-        finally:
-            mlflow.anthropic.autolog()
+        self._evaluate(trace_ids, [correctness, citation, invented_policy])
 
     @contextmanager
     def untraced(self) -> Iterator[None]:

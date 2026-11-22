@@ -22,8 +22,18 @@ from pydantic import ValidationError
 from buddy_bot.llm import build_llm_client
 from buddy_bot.mcp_client import FastMcpConnector
 from buddy_bot.ports import LlmClient, McpConnector
-from buddy_eval.cache import ResultCache
+from buddy_eval.cache import ResultCache, bot_version
 from buddy_eval.config import EvalSettings
+from buddy_eval.empty_context import (
+    RUN_NAME as EMPTY_RUN_NAME,
+)
+from buddy_eval.empty_context import (
+    EmptyContextResult,
+    format_empty_context,
+    run_empty_context,
+    unscored,
+)
+from buddy_eval.empty_context import payload as empty_payload
 from buddy_eval.fixture import FixtureError, build_fixture
 from buddy_eval.gate import GateInputs, evaluate, format_verdict
 from buddy_eval.golden import (
@@ -40,7 +50,7 @@ from buddy_eval.report import emit, write_json_report
 from buddy_eval.runner import RunResult, run_items
 from buddy_eval.scoring import headline
 from buddy_eval.sources import SourceIndex
-from buddy_eval.tracing import MlflowTraceSink, TraceSink, TracingError
+from buddy_eval.tracing import EMPTY_SCORER_SET_VERSION, MlflowTraceSink, TraceSink, TracingError
 
 LOGGER_NAME: Final = "buddy_eval"
 LOG_FORMAT: Final = "%(levelname)s %(name)s %(message)s"
@@ -63,6 +73,10 @@ def _build_parser() -> argparse.ArgumentParser:
     sub.add_parser("lint", help="check the golden set against the schema, the index and privacy")
     recall = sub.add_parser("recall", help="measure Recall@5 of handbook and Guides search")
     recall.add_argument("--item", action="append", default=[], metavar="ID", help="only this item")
+    empty = sub.add_parser(
+        "empty-context", help="every approved answerable item must be refused over a fixture index"
+    )
+    empty.add_argument("--item", action="append", default=[], metavar="ID", help="only this item")
     fixture = sub.add_parser(
         "build-fixture", help="build the empty-context fixture index from its committed sources"
     )
@@ -187,6 +201,67 @@ def _recall(
     return 1 if result.errored_ids else 0
 
 
+def _empty_context(
+    args: argparse.Namespace,
+    *,
+    settings: EvalSettings,
+    llm_factory: LlmFactory,
+    connector_factory: ConnectorFactory,
+    sink_factory: SinkFactory,
+    out: TextIO,
+) -> int:
+    """Real bot over the fixture server; PASS only when every item is refused with a gap."""
+    golden = load_golden(settings.golden_public_path, settings.golden_private_path)
+    selected = _recall_items(golden, args.item)
+    if isinstance(selected, str):
+        print(f"ERROR: item {selected} is not an approved handbook or guides item", file=out)
+        return 1
+    if not selected:
+        # Nothing to test is a failure, never a pass; no index or MLflow run is opened.
+        for line in format_empty_context(EmptyContextResult((), False, "")):
+            print(line, file=out)
+        return 1
+    try:
+        identity = SourceIndex.open(settings.fixture_dir).identity
+    except FileNotFoundError:
+        print(
+            f"ERROR: fixture index not found under FIXTURE_DIR ({settings.fixture_dir})", file=out
+        )
+        return 1
+    cache = ResultCache(settings.private_dir / "eval" / "cache")
+    sink = sink_factory(settings)
+    tags = {
+        "items": str(len(selected)),
+        "fixture_content_hash": identity.content_hash,
+        "fixture_build_id": identity.build_id,
+        "bot_version": bot_version(),
+        "reformulate_model": settings.reformulate_model,
+        "answer_model": settings.answer_model,
+    }
+    with sink.run(EMPTY_RUN_NAME, tags):
+        result = asyncio.run(
+            run_empty_context(
+                selected,
+                settings=settings,
+                llm_factory=llm_factory,
+                connector_factory=connector_factory,
+                sink=sink,
+                cache=cache,
+            )
+        )
+        fresh = unscored(result, cache)
+        sink.score(list(fresh), fresh, scorers="empty_context")
+        for trace_id in fresh:
+            cache.mark_scored(trace_id, EMPTY_SCORER_SET_VERSION)
+    for line in format_empty_context(result, trace_url=sink.trace_url):
+        print(line, file=out)
+    path = write_json_report(
+        settings.private_dir / "eval" / "reports", EMPTY_RUN_NAME, empty_payload(result)
+    )
+    print(f"report: {path}", file=out)
+    return 0 if result.passed else 1
+
+
 def _gate_inputs(result: RunResult, golden: GoldenSet) -> GateInputs:
     summary = headline(result.verdicts)
     return GateInputs(
@@ -222,6 +297,15 @@ def _execute(
             out=out,
         )
     run_connector = connector_factory or FastMcpConnector
+    if args.command == "empty-context":
+        return _empty_context(
+            args,
+            settings=settings,
+            llm_factory=llm_factory,
+            connector_factory=run_connector,
+            sink_factory=sink_factory,
+            out=out,
+        )
     golden = load_golden(settings.golden_public_path, settings.golden_private_path)
     gate = args.command == "gate"
     selected = _select(golden, [] if gate else args.item)

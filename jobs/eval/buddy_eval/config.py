@@ -39,10 +39,15 @@ class EvalSettings(BaseSettings):
     judge_model: str = "claude-opus-5-5"
     confidence_threshold: float = Field(default=0.7, ge=0, le=1)
     mcp_url: str = "http://mcp-server:8000/mcp"
+    mcp_empty_url: str = "http://mcp-server-empty:8000/mcp"
     golden_public_path: Path = Path("/app/jobs/eval/golden/guides.yaml")
     golden_private_path: Path = Path("/private/golden-handbook.yaml")
     private_dir: Path = Path("/private")
     artifact_dir: Path = Path("/artifacts")
+    fixture_dir: Path = Path("/eval-empty")
+    empty_gap_collection: str = "gaps_empty_context"
+    firestore_emulator_host: str | None = None
+    google_cloud_project: str = "demo-ai-buddy"
     mlflow_tracking_uri: str | None = None
     mlflow_experiment: str = "ai-buddy-eval"
     mlflow_ui_base_url: str = "http://127.0.0.1:5000"

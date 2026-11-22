@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 import yaml
@@ -14,6 +14,7 @@ from tests.unit.mcp_server.conftest import NOW, WEB_BASE, make_content, write_in
 
 from buddy_bot.workflow import WorkflowConfig
 from buddy_eval.config import EvalSettings
+from buddy_eval.empty_context import EmptyContextItem
 from buddy_eval.judge import FactCheck, JudgeVerdict
 from buddy_eval.scoring import ItemVerdict
 from buddy_mcp.config import McpSettings
@@ -33,6 +34,11 @@ _SETTINGS_VARIABLES = (
     "JUDGE_MODEL",
     "CONFIDENCE_THRESHOLD",
     "MCP_URL",
+    "MCP_EMPTY_URL",
+    "FIXTURE_DIR",
+    "EMPTY_GAP_COLLECTION",
+    "FIRESTORE_EMULATOR_HOST",
+    "GOOGLE_CLOUD_PROJECT",
     "GOLDEN_PUBLIC_PATH",
     "GOLDEN_PRIVATE_PATH",
     "PRIVATE_DIR",
@@ -104,8 +110,9 @@ class TracedCall:
 @dataclass(frozen=True, slots=True)
 class ScoreCall:
     trace_ids: tuple[str, ...]
-    verdicts: Mapping[str, ItemVerdict]
+    verdicts: Mapping[str, Any]
     traced_before: int
+    scorers: str = "run"
 
 
 @dataclass
@@ -142,9 +149,20 @@ class RecordingTraceSink:
     def log_expectations(self, trace_id: str, expectations: Mapping[str, object]) -> None:
         self.expectations[trace_id] = dict(expectations)
 
-    def score(self, trace_ids: Sequence[str], verdicts: Mapping[str, ItemVerdict]) -> None:
+    def score(
+        self,
+        trace_ids: Sequence[str],
+        verdicts: Mapping[str, ItemVerdict | EmptyContextItem],
+        *,
+        scorers: Literal["run", "empty_context"] = "run",
+    ) -> None:
         self.score_calls.append(
-            ScoreCall(tuple(trace_ids), dict(verdicts), traced_before=len(self.traced_calls))
+            ScoreCall(
+                tuple(trace_ids),
+                dict(verdicts),
+                traced_before=len(self.traced_calls),
+                scorers=scorers,
+            )
         )
 
     def trace_exists(self, trace_id: str) -> bool:
