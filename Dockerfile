@@ -1,4 +1,4 @@
-FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS base
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS base
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -18,7 +18,7 @@ RUN pip install --require-hashes -r requirements-dev.lock
 
 # Runtime image for the MCP server: only buddy_core and buddy_mcp code, non-root. The index is
 # not baked in; ARTIFACT_DIR points at a mounted directory (handoff decided in Phase 4).
-FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS mcp_server
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS mcp_server
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -40,7 +40,7 @@ CMD ["python", "-m", "buddy_mcp"]
 # Runtime image for the chat bot: buddy_core, buddy_bot and only the MCP output models
 # (buddy_mcp/__init__.py and models.py); no server code. Non-root. Tracing export stays off:
 # prompts carry employee questions and may only reach the LLM backend and the MCP server.
-FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS chat_bot
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS chat_bot
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -67,7 +67,7 @@ CMD ["python", "-m", "buddy_bot"]
 # clone the Guides mount; the mount belongs to the host user, so the clone would trip git's
 # ownership check as uid 10001, so /guides-src and its .git (git names the .git path) are marked
 # safe: the documented mount path only.
-FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS sync
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS sync
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -93,7 +93,7 @@ CMD ["run"]
 # telemetry exporters stay off, MLflow evaluates serially (RESEARCH pitfalls 1-2), and git is not
 # installed. /eval-empty is the mount point of the empty-context fixture volume, owned by the
 # runtime user so a fresh named volume inherits that owner.
-FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS eval
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS eval
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
