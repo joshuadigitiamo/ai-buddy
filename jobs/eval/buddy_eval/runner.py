@@ -65,6 +65,21 @@ class RunResult:
     identity: IndexIdentity | None = None
 
 
+def scored_version(verdict: ItemVerdict) -> str:
+    """The scored-marker version for one verdict: the scorer set plus a digest of the verdict.
+
+    A trace is scored again when its verdict changes, and never twice for the same verdict.
+    """
+    digest = key_for(
+        status=verdict.status,
+        checks=dict(verdict.checks),
+        reasons=list(verdict.reasons),
+        invented=verdict.invented,
+        judge=verdict.judge.model_dump(mode="json") if verdict.judge else None,
+    )
+    return f"{SCORER_SET_VERSION}-{digest[:16]}"
+
+
 def _errored(item: GoldenItem, error: str, trace_id: str | None = None) -> ItemOutcome:
     return ItemOutcome(item.id, "errored", None, trace_id, error)
 
@@ -164,13 +179,16 @@ async def _judge_item(
     """The judge's verdict for one answered outcome, cached; a judge LlmError errors the item.
 
     A refusal, a referral or an error is never judged. A failed call is never cached, so a rerun
-    asks the judge again while the cached outcome keeps its trace.
+    asks the judge again while the cached outcome keeps its trace. The key holds a digest of the
+    reply, so a verdict is reused only for the reply it judged (CR-01).
     """
     reply = outcome.reply
     if outcome.status != "completed" or reply is None or reply.kind != "answer":
         return outcome, None
+    reply_digest = key_for(reply=reply.model_dump(mode="json"))
     key = key_for(
         outcome_key=outcome_key,
+        reply_digest=reply_digest,
         judge_model=settings.judge_model,
         judge_prompt_version=JUDGE_PROMPT_VERSION,
         scoring_version=SCORING_VERSION,
@@ -201,7 +219,7 @@ async def run_items(
     """Collect every item in id order inside one sink run, then hand the verdicts to the sink.
 
     An item whose outcome is cached and whose trace still exists is not collected again (D-14),
-    and feedback goes only to traces not yet scored for the current scorer set.
+    and feedback goes only to traces whose current verdict has not been attached yet.
     """
     config = WorkflowConfig(
         reformulate_model=settings.reformulate_model,
@@ -290,9 +308,9 @@ async def run_items(
             for v in verdicts
             if v.trace_id is not None
             and v.status != "errored"
-            and not cache.is_scored(v.trace_id, SCORER_SET_VERSION)
+            and not cache.is_scored(v.trace_id, scored_version(v))
         }
         sink.score(list(scored), scored)
-        for trace_id in scored:
-            cache.mark_scored(trace_id, SCORER_SET_VERSION)
+        for trace_id, scored_verdict in scored.items():
+            cache.mark_scored(trace_id, scored_version(scored_verdict))
     return RunResult(tuple(outcomes), verdicts, aborted=aborted, identity=identity)
