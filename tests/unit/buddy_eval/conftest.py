@@ -35,6 +35,7 @@ _SETTINGS_VARIABLES = (
     "GOLDEN_PUBLIC_PATH",
     "GOLDEN_PRIVATE_PATH",
     "PRIVATE_DIR",
+    "ARTIFACT_DIR",
     "MLFLOW_TRACKING_URI",
     "MLFLOW_EXPERIMENT",
     "MLFLOW_UI_BASE_URL",
@@ -105,6 +106,7 @@ class RecordingTraceSink:
     traced_calls: list[TracedCall] = field(default_factory=list)
     expectations: dict[str, Mapping[str, object]] = field(default_factory=dict)
     score_calls: list[ScoreCall] = field(default_factory=list)
+    forgotten: set[str] = field(default_factory=set)
 
     def run(self, name: str, tags: Mapping[str, str]) -> AbstractContextManager[str | None]:
         return self._run(name, tags)
@@ -132,6 +134,15 @@ class RecordingTraceSink:
         self.score_calls.append(
             ScoreCall(tuple(trace_ids), dict(verdicts), traced_before=len(self.traced_calls))
         )
+
+    def trace_exists(self, trace_id: str) -> bool:
+        return trace_id not in self.forgotten and any(
+            call.trace_id == trace_id for call in self.traced_calls
+        )
+
+    def forget(self, trace_id: str) -> None:
+        """Simulate a tracking server that lost the trace (for example a removed volume)."""
+        self.forgotten.add(trace_id)
 
     def trace_url(self, trace_id: str) -> str:
         return f"http://ui/#/t/{trace_id}"
@@ -178,5 +189,7 @@ def eval_settings(tmp_path: Path) -> EvalSettings:
         golden_public_path=tmp_path / "golden" / "guides.yaml",
         golden_private_path=tmp_path / "private" / "golden-handbook.yaml",
         private_dir=tmp_path / "private",
+        # The directory the `mcp_server` fixture writes its index to.
+        artifact_dir=tmp_path / "artifacts",
         item_pause_seconds=0,
     )

@@ -15,6 +15,7 @@ import mlflow.anthropic
 import mlflow.genai
 import mlflow.langchain
 import pytest
+from mlflow.exceptions import MlflowException
 from pydantic import ValidationError
 
 from buddy_eval import tracing
@@ -214,7 +215,50 @@ class TestCollect:
         )
 
 
+class TestTraceExists:
+    def test_a_trace_the_server_returns_exists(self, fake: FakeMlflow) -> None:
+        assert MlflowTraceSink(_settings()).trace_exists("tr-1") is True
+
+    def test_a_trace_the_server_does_not_return_does_not_exist(
+        self, fake: FakeMlflow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(mlflow, "get_trace", lambda _trace_id: None)
+
+        assert MlflowTraceSink(_settings()).trace_exists("tr-1") is False
+
+    def test_a_lookup_the_server_rejects_means_the_trace_does_not_exist(
+        self, fake: FakeMlflow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def reject(_trace_id: str) -> None:
+            raise MlflowException("Trace not found")
+
+        monkeypatch.setattr(mlflow, "get_trace", reject)
+
+        assert MlflowTraceSink(_settings()).trace_exists("tr-1") is False
+
+    def test_an_unexpected_failure_is_not_hidden_as_a_missing_trace(
+        self, fake: FakeMlflow, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fail(_trace_id: str) -> None:
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(mlflow, "get_trace", fail)
+
+        with pytest.raises(RuntimeError, match="boom"):
+            MlflowTraceSink(_settings()).trace_exists("tr-1")
+
+
 class TestScore:
+    def test_scoring_no_trace_runs_no_evaluate_and_touches_no_autolog(
+        self, fake: FakeMlflow
+    ) -> None:
+        sink = MlflowTraceSink(_settings())
+        fake.calls.clear()
+
+        sink.score([], {})
+
+        assert fake.calls == []
+
     def test_evaluate_gets_only_data_and_scorers_with_the_fetched_traces(
         self, fake: FakeMlflow
     ) -> None:

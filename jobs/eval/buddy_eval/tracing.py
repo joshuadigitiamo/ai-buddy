@@ -17,6 +17,7 @@ import mlflow.anthropic
 import mlflow.genai
 import mlflow.langchain
 from mlflow.entities import Feedback
+from mlflow.exceptions import MlflowException
 from mlflow.genai.scorers import scorer
 
 if TYPE_CHECKING:
@@ -24,6 +25,9 @@ if TYPE_CHECKING:
     from buddy_eval.scoring import ItemVerdict
 
 CITATION_CHECK: Final = "citation"
+# Bump when the set of scorers changes (05-08 adds invented_policy): traces scored by an older
+# set are scored again, and keep their earlier feedback next to the new one (A-07-3).
+SCORER_SET_VERSION: Final = "1"
 
 
 class TracingError(RuntimeError):
@@ -52,6 +56,10 @@ class TraceSink(Protocol):
 
     def score(self, trace_ids: Sequence[str], verdicts: Mapping[str, ItemVerdict]) -> None:
         """Attach precomputed verdicts (keyed by trace id) to the traces collected earlier."""
+        ...
+
+    def trace_exists(self, trace_id: str) -> bool:
+        """True while the backend still holds the trace (a cached outcome links to it)."""
         ...
 
     def trace_url(self, trace_id: str) -> str:
@@ -111,6 +119,10 @@ class MlflowTraceSink:
         if missing:
             raise TracingError(f"no verdict for {len(missing)} collected trace(s)")
 
+        if not trace_ids:
+            # A rerun whose traces were all scored already: nothing to attach, no evaluate run.
+            return
+
         @scorer
         def correctness(trace: Any) -> Feedback:
             verdict = verdicts[trace.info.trace_id]
@@ -136,6 +148,12 @@ class MlflowTraceSink:
             mlflow.genai.evaluate(data=traces, scorers=[correctness, citation])
         finally:
             mlflow.anthropic.autolog()
+
+    def trace_exists(self, trace_id: str) -> bool:
+        try:
+            return mlflow.get_trace(trace_id) is not None
+        except MlflowException:
+            return False
 
     def trace_url(self, trace_id: str) -> str:
         return (
