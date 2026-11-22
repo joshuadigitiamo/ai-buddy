@@ -213,7 +213,16 @@ services:
       # The Opus judge (eval profile) must not fall to the [1m] tier by default; the live bot
       # uses only Haiku and Sonnet, so the live profile is unaffected.
       MERIDIAN_OPUS_MODEL: ${MERIDIAN_OPUS_MODEL:-opus}
+      # Meridian's own login: a one-year `claude setup-token` token from .env, passed as an
+      # oauthToken profile (Meridian docs/deployment.md). Never seed from the host
+      # ~/.claude/.credentials.json: its refresh token is shared with the host Claude Code CLI,
+      # and whichever side refreshes first logs the other out (services/chat_bot/README.md).
+      MERIDIAN_PROFILES: '[{"id":"local","oauthToken":"${MERIDIAN_OAUTH_TOKEN:-}"}]'
+      MERIDIAN_DEFAULT_PROFILE: local
+    # Comes back after a host restart; the token needs no reseeding.
+    restart: unless-stopped
     volumes:
+      # SDK session state only; the credentials come from the token above.
       - meridian-claude:/home/claude/.claude
 
   chat-bot-live:

@@ -394,6 +394,7 @@ Not a rename/refactor phase, but it creates runtime state. State that exists aft
 ### Pitfall 5: Three copies of one OAuth refresh-token chain
 **What goes wrong:** "Two instances sharing refresh tokens can invalidate each other" [CITED: Meridian docs]. Compose dev volume, kind Secret and Cloud Run bucket are all seeded from the same login.
 **How to avoid:** only the Cloud Run instance refreshes. Run the dev compose and kind Meridian with `MERIDIAN_CREDENTIALS_READONLY=1` after the cloud seed, or re-seed from a fresh `claude` login for the cloud and leave the local login separate. Document in the bootstrap guide. The seed copy happens once, with the file never printed.
+**Correction (2026-11-22, phase 05):** the host Claude Code CLI is a fourth holder of the chain. A compose volume seeded by copying the host `~/.claude/.credentials.json` was logged out whenever the host CLI refreshed first (seen after PC restarts in 05-13 and 05-17). The compose Meridian now uses its own `claude setup-token` token in an `oauthToken` profile (`MERIDIAN_OAUTH_TOKEN` in `.env`), which has no refresh token to rotate.
 
 ### Pitfall 6: Audience and invoker mismatches on the first live deploy
 **What goes wrong:** `MCP_AUDIENCE` != `MCP_PUBLIC_BASE_URL`; `BOT_SA_EMAILS` missing the runtime SA; Chat requests rejected because the service requires IAM.

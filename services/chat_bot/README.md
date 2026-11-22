@@ -24,22 +24,20 @@ The bot is a client of the MCP server (`MCP_URL`); it contains no search code an
 - A Google Cloud project with the Chat API and the Pub/Sub API enabled, the Chat app configured as described below, and a pull subscription on the Chat topic.
 - A service-account key file for the bot, kept **outside** the repository.
 - The handbook snapshot folder and a checkout of the Guides repository. The `sync` service of the compose file builds the index from them into the `artifacts` volume (see `jobs/sync/README.md` for what it reads).
-- Joshua's Claude login on the host (`~/.claude/.credentials.json`), used once to seed Meridian.
+- Joshua's Claude subscription (Max or Team), used once a year to mint a token for Meridian.
 
-### Seed the Meridian credentials (once)
+### Give Meridian its own token (once a year)
 
-Meridian refreshes its OAuth tokens, so it needs a directory it can write. The credentials therefore live in a dedicated Docker named volume, `meridian-claude`, that only the Meridian container mounts. The host `~/.claude` is never mounted and nothing is baked into an image. Seed the volume once by copying the single credentials file into it:
+Meridian authenticates with a long-lived token from `claude setup-token`, passed in as an `oauthToken` profile (Meridian docs/deployment.md, "OAuth-token profiles in Docker"). The token has no refresh token, so nothing rotates.
 
-```bash
-docker volume create meridian-claude
-docker run --rm \
-  -v meridian-claude:/dest \
-  -v "$HOME/.claude/.credentials.json:/src/.credentials.json:ro" \
-  alpine:3 sh -c 'cp /src/.credentials.json /dest/.credentials.json \
-    && chown -R 1000:1000 /dest && chmod 600 /dest/.credentials.json'
-```
+Do not copy the host `~/.claude/.credentials.json` into Meridian. That file holds a rotating refresh token that the host Claude Code CLI also uses. Whichever side refreshes first invalidates the other's copy, so Meridian reports `loggedIn: false; login required` a few hours later, typically after a PC restart.
 
-The compose file declares the volume `external: true`, so the `live` profile refuses to start until it exists. Compose keeps this volume writable, so Meridian can refresh its own login (04-01 token_chain (b)). Uid 1000 is the user Meridian runs as. If the login expires or is revoked, repeat the seeding with a fresh login.
+1. On the host, run `claude setup-token` and complete the browser sign-in. It prints a token valid for one year and stores it nowhere.
+2. Put it in `.env` (gitignored) as `MERIDIAN_OAUTH_TOKEN=<token>`. Never commit or print it.
+3. Create the state volume once: `docker volume create meridian-claude`. Meridian keeps its SDK session state there; the volume holds no credentials.
+4. Start or restart Meridian (`docker compose -p aibuddy --profile live up -d meridian`).
+
+The compose file declares the volume `external: true`, so the `live` and `eval` profiles refuse to start until it exists. Meridian runs with `restart: unless-stopped`, so it comes back after a host restart. When the token expires after a year, mint a new one and replace the `.env` line.
 
 ### Start
 
