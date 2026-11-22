@@ -28,8 +28,8 @@ from buddy_eval import cache as cache_module
 from buddy_eval.cache import bot_version
 from buddy_eval.config import EvalSettings
 from buddy_eval.golden import GoldenItem, load_golden
-from buddy_eval.judge import JudgeVerdict
-from buddy_eval.runner import RunResult, run_items
+from buddy_eval.judge import FactCheck, JudgeVerdict
+from buddy_eval.runner import RunResult, run_items, scored_version
 from buddy_eval.sources import SourceIndex
 from buddy_eval.tracing import SCORER_SET_VERSION
 
@@ -349,9 +349,11 @@ def test_scoring_feedback_is_attached_once_per_trace_and_scorer_set_version(
 ) -> None:
     sink = RecordingTraceSink()
     items = _items(eval_settings, [A])
-    _run(eval_settings, mcp_server, _llm([GOOD_DRAFT]), sink, items)
+    first = _run(eval_settings, mcp_server, _llm([GOOD_DRAFT]), sink, items)
     scored_dir = eval_settings.private_dir / "eval" / "cache" / "scored"
-    assert [p.name for p in scored_dir.glob("*.json")] == [f"tr-1-{SCORER_SET_VERSION}.json"]
+    marker = f"tr-1-{scored_version(first.verdicts[0])}.json"
+    assert marker.startswith(f"tr-1-{SCORER_SET_VERSION}-")
+    assert [p.name for p in scored_dir.glob("*.json")] == [marker]
 
     _run(eval_settings, mcp_server, FakeLlm({}), sink, items)
     assert [c.trace_ids for c in sink.score_calls] == [("tr-1",), ()]
@@ -362,6 +364,98 @@ def test_scoring_feedback_is_attached_once_per_trace_and_scorer_set_version(
     _run(eval_settings, mcp_server, FakeLlm({}), sink, items)
 
     assert [c.trace_ids for c in sink.score_calls] == [("tr-1",), (), ("tr-1",), ()]
+
+
+# The judge now finds the one key fact missing: a different verdict for the same item.
+MISSING_VERDICT = JudgeVerdict(
+    facts=[FactCheck(fact="synthetic fact", present=False, contradicted=False)],
+    invented_claims=[],
+    reasoning="synthetic reasoning, fact missing",
+)
+OTHER_DRAFT = GOOD_DRAFT.model_copy(update={"answer": "Una risposta sintetica diversa."})
+
+
+def _judge_calls(llm: FakeLlm) -> int:
+    return [c.schema for c in llm.calls].count(JudgeVerdict)
+
+
+def test_a_recollected_item_with_a_different_reply_is_judged_again(
+    eval_settings: EvalSettings, mcp_server: FastMCP
+) -> None:
+    sink = RecordingTraceSink()
+    items = _items(eval_settings, [A])
+    first = _run(eval_settings, mcp_server, _llm([GOOD_DRAFT]), sink, items)
+    assert first.verdicts[0].status == "correct"
+    sink.forget("tr-1")
+    llm = FakeLlm(
+        {
+            Reformulation: [REFORMULATION],
+            AnswerDraft: [OTHER_DRAFT],
+            JudgeVerdict: [MISSING_VERDICT],
+        }
+    )
+
+    second = _run(eval_settings, mcp_server, llm, sink, items)
+
+    assert _judge_calls(llm) == 1
+    verdict = second.verdicts[0]
+    assert verdict.trace_id == "tr-2"
+    assert verdict.judge == MISSING_VERDICT
+    assert verdict.status == "wrong"
+    assert sink.score_calls[1].trace_ids == ("tr-2",)
+    assert sink.score_calls[1].verdicts["tr-2"] == verdict
+
+
+def test_a_recollected_item_with_an_identical_reply_reuses_the_cached_verdict(
+    eval_settings: EvalSettings, mcp_server: FastMCP
+) -> None:
+    sink = RecordingTraceSink()
+    items = _items(eval_settings, [A])
+    first = _run(eval_settings, mcp_server, _llm([GOOD_DRAFT]), sink, items)
+    sink.forget("tr-1")
+    # No judge answer is scripted: a judge call would error the item.
+    llm = FakeLlm({Reformulation: [REFORMULATION], AnswerDraft: [GOOD_DRAFT]})
+
+    second = _run(eval_settings, mcp_server, llm, sink, items)
+
+    assert _judge_calls(llm) == 0
+    assert second.outcomes[0].status == "completed"
+    assert second.verdicts[0].judge == first.verdicts[0].judge
+    assert sink.score_calls[1].trace_ids == ("tr-2",)
+
+
+def test_an_already_scored_trace_whose_verdict_changes_is_scored_again(
+    eval_settings: EvalSettings, mcp_server: FastMCP
+) -> None:
+    sink = RecordingTraceSink()
+    items = _items(eval_settings, [A])
+    _run(eval_settings, mcp_server, _llm([GOOD_DRAFT]), sink, items)
+    # A new judge model changes the verdict key while the outcome and its trace stay cached.
+    other_judge = eval_settings.model_copy(update={"judge_model": "test-other-judge"})
+    llm = FakeLlm({JudgeVerdict: [MISSING_VERDICT]})
+
+    second = _run(other_judge, mcp_server, llm, sink, items)
+
+    assert _judge_calls(llm) == 1
+    assert len(sink.traced_calls) == 1
+    assert sink.score_calls[1].trace_ids == ("tr-1",)
+    assert sink.score_calls[1].verdicts["tr-1"] == second.verdicts[0]
+    assert second.verdicts[0].status == "wrong"
+
+
+def test_an_already_scored_trace_whose_verdict_is_unchanged_is_not_scored_again(
+    eval_settings: EvalSettings, mcp_server: FastMCP
+) -> None:
+    sink = RecordingTraceSink()
+    items = _items(eval_settings, [A])
+    _run(eval_settings, mcp_server, _llm([GOOD_DRAFT]), sink, items)
+    other_judge = eval_settings.model_copy(update={"judge_model": "test-other-judge"})
+    llm = FakeLlm({JudgeVerdict: [GOOD_VERDICT]})
+
+    _run(other_judge, mcp_server, llm, sink, items)
+
+    assert _judge_calls(llm) == 1
+    assert [c.trace_ids for c in sink.score_calls] == [("tr-1",), ()]
 
 
 def test_the_pause_applies_only_to_items_that_are_collected(
