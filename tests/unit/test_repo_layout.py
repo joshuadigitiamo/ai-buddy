@@ -12,6 +12,7 @@ D11_PATHS = {
     "services/mcp_server",
     "services/chat_bot",
     "jobs/sync",
+    "jobs/eval",
     "deploy/k8s",
     "deploy/cloudrun",
     ".github/workflows",
@@ -116,6 +117,7 @@ def test_requirements_are_pinned() -> None:
         "requirements-dev.txt",
         "services/mcp_server/requirements.txt",
         "services/chat_bot/requirements.txt",
+        "jobs/eval/requirements.txt",
     ):
         for line in _lines(name):
             if not line or line.startswith(("#", "-r")):
@@ -143,6 +145,7 @@ def test_shared_pins_agree() -> None:
         "requirements-dev.txt",
         "services/mcp_server/requirements.txt",
         "services/chat_bot/requirements.txt",
+        "jobs/eval/requirements.txt",
     ):
         for package, version in _pins(name).items():
             seen.setdefault(package, {})[name] = version

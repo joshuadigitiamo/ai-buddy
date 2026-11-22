@@ -2,7 +2,7 @@ FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PYTHONPATH=/app/packages/buddy_core:/app/jobs/sync:/app/services/mcp_server:/app/services/chat_bot
+    PYTHONPATH=/app/packages/buddy_core:/app/jobs/sync:/app/services/mcp_server:/app/services/chat_bot:/app/jobs/eval
 # The base digest is the newest python:3.12-slim but ships zlib1g 1+b1 (CVE-2026-76844,
 # CVE-2026-85091); the exact fixed version comes from trixie-security until upstream rebuilds.
 RUN apt-get update \
@@ -87,3 +87,37 @@ RUN mkdir -p /artifacts /app/.cache && chown 10001:10001 /artifacts /app/.cache
 USER 10001
 ENTRYPOINT ["python", "-m", "buddy_sync"]
 CMD ["run"]
+
+# Eval job image (D-12, D-14): runs the bot workflow in-process against the compose MCP server and
+# traces to the local MLflow server. Never deployed; nothing private is baked in. Tracing and
+# telemetry exporters stay off, MLflow evaluates serially (RESEARCH pitfalls 1-2), and git is not
+# installed. /eval-empty is the mount point of the empty-context fixture volume, owned by the
+# runtime user so a fresh named volume inherits that owner.
+FROM python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS eval
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app/packages/buddy_core:/app/services/mcp_server:/app/services/chat_bot:/app/jobs/eval \
+    LANGSMITH_TRACING=false \
+    MLFLOW_DISABLE_TELEMETRY=true \
+    MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=false \
+    MLFLOW_GENAI_EVAL_MAX_WORKERS=1 \
+    MLFLOW_GENAI_EVAL_MAX_SCORER_WORKERS=1 \
+    GIT_PYTHON_REFRESH=quiet
+# The base digest is the newest python:3.12-slim but ships zlib1g 1+b1 (CVE-2026-76844,
+# CVE-2026-85091); the exact fixed version comes from trixie-security until upstream rebuilds.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends zlib1g=1:1.3.dfsg+really1.3.1-1+deb13u1 \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY jobs/eval/requirements.lock jobs/eval/requirements.lock
+RUN pip install --require-hashes -r jobs/eval/requirements.lock
+COPY packages/buddy_core packages/buddy_core
+COPY services/mcp_server/buddy_mcp/__init__.py services/mcp_server/buddy_mcp/__init__.py
+COPY services/mcp_server/buddy_mcp/models.py services/mcp_server/buddy_mcp/models.py
+COPY services/chat_bot/buddy_bot services/chat_bot/buddy_bot
+COPY jobs/eval jobs/eval
+RUN mkdir -p /eval-empty && chown 10001:10001 /eval-empty
+USER 10001
+ENTRYPOINT ["python", "-m", "buddy_eval"]
+CMD ["--help"]

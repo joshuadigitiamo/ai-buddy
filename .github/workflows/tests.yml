@@ -22,6 +22,7 @@ on:
       - ".dockerignore"
       - ".github/dependabot.yml"
       - "scripts/**"
+      - "jobs/eval/**"
       - ".github/workflows/tests.yml"
       - ".github/workflows/_test.yml"
   workflow_dispatch:

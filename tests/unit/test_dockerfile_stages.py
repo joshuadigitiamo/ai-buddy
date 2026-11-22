@@ -6,16 +6,25 @@ import re
 import pytest
 from tests.unit.test_repo_layout import ROOT, _dockerfile_stage, _lines, _pins
 
-RUNTIME_STAGES = ("mcp_server", "chat_bot", "sync")
+RUNTIME_STAGES = ("mcp_server", "chat_bot", "sync", "eval")
 SYNC_COPY_SOURCES = [
     "jobs/sync/requirements.lock",
     "packages/buddy_core",
     "jobs/sync",
 ]
+EVAL_COPY_SOURCES = [
+    "jobs/eval/requirements.lock",
+    "packages/buddy_core",
+    "services/mcp_server/buddy_mcp/__init__.py",
+    "services/mcp_server/buddy_mcp/models.py",
+    "services/chat_bot/buddy_bot",
+    "jobs/eval",
+]
 STAGE_LOCK = {
     "mcp_server": "services/mcp_server/requirements.lock",
     "chat_bot": "services/chat_bot/requirements.lock",
     "sync": "jobs/sync/requirements.lock",
+    "eval": "jobs/eval/requirements.lock",
 }
 PRIVATE_PREFIXES = ("artifacts", "docs", "tests", ".env", ".cache")
 CREDENTIAL_NAME = re.compile(r"credential|secret|token|service[-_]?account|api[-_]?key", re.I)
@@ -65,12 +74,12 @@ def _private_sources(sources: list[str]) -> list[str]:
 
 
 def test_every_stage_exists() -> None:
-    assert _stage_names() == ["base", "test", "mcp_server", "chat_bot", "sync"]
+    assert _stage_names() == ["base", "test", "mcp_server", "chat_bot", "sync", "eval"]
 
 
 PINNED_FROM = re.compile(
     r"^FROM python:3\.12-slim@sha256:(?P<digest>[0-9a-f]{64})"
-    r" AS (?P<stage>base|mcp_server|chat_bot|sync)$"
+    r" AS (?P<stage>base|mcp_server|chat_bot|sync|eval)$"
 )
 
 
@@ -81,7 +90,7 @@ def test_every_stage_uses_the_same_digest_pinned_base() -> None:
     external = [line for line in froms if not line.startswith("FROM base ")]
     matches = [PINNED_FROM.match(line) for line in external]
     assert all(matches), f"FROM lines not pinned as python:3.12-slim@sha256:<64 hex>: {external}"
-    assert [m["stage"] for m in matches if m] == ["base", "mcp_server", "chat_bot", "sync"]
+    assert [m["stage"] for m in matches if m] == ["base", "mcp_server", "chat_bot", "sync", "eval"]
     assert len({m["digest"] for m in matches if m}) == 1, "stages use different base digests"
 
 
@@ -153,6 +162,41 @@ def test_sync_stage_has_git_safe_directory_and_entrypoint() -> None:
     assert _instructions("sync", "ENTRYPOINT") == ['["python", "-m", "buddy_sync"]']
     assert _instructions("sync", "CMD") == ['["run"]']
     assert "PYTHONPATH=/app/packages/buddy_core:/app/jobs/sync" in stage
+
+
+def test_eval_stage_copies_exactly_its_sources() -> None:
+    assert _copy_sources("eval") == EVAL_COPY_SOURCES
+
+
+EVAL_ENV = (
+    "PYTHONDONTWRITEBYTECODE=1",
+    "PYTHONUNBUFFERED=1",
+    "PIP_NO_CACHE_DIR=1",
+    "LANGSMITH_TRACING=false",
+    "MLFLOW_DISABLE_TELEMETRY=true",
+    "MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=false",
+    "MLFLOW_GENAI_EVAL_MAX_WORKERS=1",
+    "MLFLOW_GENAI_EVAL_MAX_SCORER_WORKERS=1",
+    "GIT_PYTHON_REFRESH=quiet",
+)
+
+
+def test_eval_stage_disables_tracing_and_telemetry_and_ends_non_root() -> None:
+    env = _instructions("eval", "ENV")
+    assert len(env) == 1
+    assigned = env[0].split()
+    for assignment in EVAL_ENV:
+        assert assignment in assigned, f"eval: missing ENV {assignment}"
+    assert (
+        "PYTHONPATH=/app/packages/buddy_core:/app/services/mcp_server"
+        ":/app/services/chat_bot:/app/jobs/eval"
+    ) in assigned
+    assert _instructions("eval", "USER")[-1] == "10001"
+    assert _instructions("eval", "ENTRYPOINT") == ['["python", "-m", "buddy_eval"]']
+    assert _instructions("eval", "CMD") == ['["--help"]']
+    runs = " ".join(_instructions("eval", "RUN"))
+    assert "git" not in re.findall(r"install -y [^&]*", runs)[0].split(), "eval: installs git"
+    assert "mkdir -p /eval-empty && chown 10001:10001 /eval-empty" in runs
 
 
 def test_chat_bot_stage_takes_only_the_model_files_from_the_server() -> None:

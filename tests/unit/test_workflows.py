@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 import yaml
-from tests.unit.test_dockerfile_stages import RUNTIME_STAGES, _copy_sources
+from tests.unit.test_dockerfile_stages import _copy_sources
 from tests.unit.test_repo_layout import ROOT
 
 WORKFLOW_DIR = ROOT / ".github" / "workflows"
@@ -313,7 +313,7 @@ def test_push_paths_use_only_prefix_and_exact_patterns(name: str) -> None:
         assert not pattern.startswith("/"), f"{name}: absolute pattern {pattern}"
 
 
-@pytest.mark.parametrize("stage", RUNTIME_STAGES)
+@pytest.mark.parametrize("stage", tuple(STAGE_WORKFLOWS))
 def test_workflow_paths_do_not_drift_from_dockerfile_copy_sources(stage: str) -> None:
     patterns = _push_paths(STAGE_WORKFLOWS[stage])
     uncovered = [s for s in _copy_sources(stage) if not _matches(s, patterns)]
@@ -336,6 +336,7 @@ def test_service_workflow_paths_name_their_own_files_and_the_dockerfile(name: st
         ("services/mcp_server/buddy_mcp/__init__.py", {"mcp-server.yml", "chat-bot.yml"}),
         ("services/chat_bot/buddy_bot/service.py", {"chat-bot.yml"}),
         ("jobs/sync/buddy_sync/cli.py", {"sync.yml"}),
+        ("jobs/eval/buddy_eval/__init__.py", set()),
         ("packages/buddy_core/buddy_core/models.py", set(SERVICE_WORKFLOWS)),
     ],
 )
@@ -497,6 +498,7 @@ def test_test_only_workflow_covers_the_files_no_service_image_copies() -> None:
         ".env.example",
         ".dockerignore",
         ".github/dependabot.yml",
+        "jobs/eval/buddy_eval/__init__.py",
     ):
         assert _matches(path, patterns), f"tests.yml would miss a change to {path}"
 
