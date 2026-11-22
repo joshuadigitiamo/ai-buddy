@@ -53,9 +53,9 @@ beartype==0.23.1 \
     # via
     #   -c /tmp/constraints.txt
     #   py-key-value-aio
-cachetools==8.0.0 \
-    --hash=sha256:5af562e5078f0086771a1e3832a9c3dbf5d336b6e2794a2c12a64680a4c9087d \
-    --hash=sha256:5ed01bd676800d51f0025605e4fd8ad0891550513e7b0a4c3da478463764e5c3
+cachetools==7.3.3 \
+    --hash=sha256:32305addec0581cae6d4f7952d01d078dbc521f922650eba395b9d25b7481843 \
+    --hash=sha256:46e92905f580cb137c499b9ec6acd73d569c2c3542ddfeb286618685e55cb340
     # via
     #   -c /tmp/constraints.txt
     #   py-key-value-aio

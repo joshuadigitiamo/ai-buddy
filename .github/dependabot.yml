@@ -30,3 +30,7 @@ updates:
     directory: /jobs/sync
     schedule:
       interval: weekly
+  - package-ecosystem: pip
+    directory: /jobs/eval
+    schedule:
+      interval: weekly

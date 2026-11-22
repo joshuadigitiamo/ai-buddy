@@ -512,6 +512,7 @@ def test_dependabot_watches_actions_docker_and_pip() -> None:
         ("pip", "/services/mcp_server"),
         ("pip", "/services/chat_bot"),
         ("pip", "/jobs/sync"),
+        ("pip", "/jobs/eval"),
     }
     assert [u["schedule"]["interval"] for u in updates] == ["weekly"] * len(updates)
 

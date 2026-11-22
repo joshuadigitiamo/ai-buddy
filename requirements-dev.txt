@@ -2,6 +2,7 @@
 -r services/mcp_server/requirements.txt
 -r services/chat_bot/requirements.txt
 -r jobs/sync/requirements.txt
+-r jobs/eval/requirements.txt
 pytest==9.2.0
 pytest-cov==7.1.0
 ruff==0.17.3

@@ -1,0 +1,4 @@
+# Eval job runtime dependencies (Phase 5). Versions approved at the 05-02 legitimacy gate; install
+# together with the root requirements.txt and services/chat_bot/requirements.txt.
+mlflow-skinny==3.18.0
+pandas==3.1.1  # required by mlflow.genai.evaluate harness; not a dependency of mlflow-skinny

@@ -7,6 +7,7 @@
 #   2. services/mcp_server/requirements.lock   from requirements.txt + the service file
 #      services/chat_bot/requirements.lock
 #      jobs/sync/requirements.lock
+#      jobs/eval/requirements.lock   from requirements.txt + the chat_bot file + its own file
 # The stage locks are compiled with the pins of requirements-dev.lock as a constraint, so the
 # shipped images resolve the same versions as the tested image. Every lock carries sha256 hashes;
 # the Dockerfile installs them with `pip install --require-hashes`.
@@ -66,9 +67,10 @@ compile_stage() {
 compile_stage services/mcp_server/requirements.lock requirements.txt services/mcp_server/requirements.txt
 compile_stage services/chat_bot/requirements.lock requirements.txt services/chat_bot/requirements.txt
 compile_stage jobs/sync/requirements.lock requirements.txt jobs/sync/requirements.txt
+compile_stage jobs/eval/requirements.lock requirements.txt services/chat_bot/requirements.txt jobs/eval/requirements.txt
 INNER_END
 
-log "compiling four locks in Docker ..."
+log "compiling five locks in Docker ..."
 docker run --rm \
   --user "$(id -u):$(id -g)" \
   -e HOME=/tmp \
@@ -77,4 +79,4 @@ docker run --rm \
   -w /repo \
   "${BASE_IMAGE}" bash -c "${INNER}"
 
-log "done: requirements-dev.lock and the three stage locks regenerated"
+log "done: requirements-dev.lock and the four stage locks regenerated"

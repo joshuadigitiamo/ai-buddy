@@ -24,6 +24,11 @@ STAGE_LOCKS = {
         "services/chat_bot/requirements.txt",
     ),
     "jobs/sync/requirements.lock": ("requirements.txt", "jobs/sync/requirements.txt"),
+    "jobs/eval/requirements.lock": (
+        "requirements.txt",
+        "services/chat_bot/requirements.txt",
+        "jobs/eval/requirements.txt",
+    ),
 }
 DEV_INPUTS = (
     "requirements.txt",
@@ -31,6 +36,7 @@ DEV_INPUTS = (
     "services/mcp_server/requirements.txt",
     "services/chat_bot/requirements.txt",
     "jobs/sync/requirements.txt",
+    "jobs/eval/requirements.txt",
 )
 ALL_LOCKS = (DEV_LOCK, *STAGE_LOCKS)
 
@@ -184,3 +190,11 @@ def test_pip_tools_stays_out_of_the_images_and_requirement_files() -> None:
     for name in (*DEV_INPUTS, *ALL_LOCKS):
         assert "pip-tools" not in "\n".join(_lines(name)).lower(), f"{name} lists pip-tools"
     assert "pip-tools" not in (ROOT / "Dockerfile").read_text().lower()
+
+
+@pytest.mark.parametrize(
+    "name", ("services/chat_bot/requirements.lock", "services/mcp_server/requirements.lock")
+)
+def test_bot_and_server_locks_carry_no_mlflow(name: str) -> None:
+    """D-18: the deployed bot and server images are never traced, so they never ship mlflow."""
+    assert [p for p in _lock(name) if p.startswith("mlflow")] == [], f"{name} carries mlflow"
