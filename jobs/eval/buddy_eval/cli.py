@@ -21,8 +21,8 @@ from typing import Final, TextIO
 from pydantic import ValidationError
 
 from buddy_bot.llm import build_llm_client
-from buddy_bot.mcp_client import FastMcpConnector
-from buddy_bot.ports import LlmClient, McpConnector
+from buddy_bot.mcp_client import FastMcpConnector, McpToolError
+from buddy_bot.ports import LlmClient, LlmError, McpConnector
 from buddy_eval.cache import ResultCache, bot_version
 from buddy_eval.config import EvalSettings
 from buddy_eval.empty_context import (
@@ -30,6 +30,7 @@ from buddy_eval.empty_context import (
 )
 from buddy_eval.empty_context import (
     EmptyContextResult,
+    empty_scored_version,
     format_empty_context,
     run_empty_context,
     unscored,
@@ -57,14 +58,21 @@ from buddy_eval.report import emit, write_json_report
 from buddy_eval.runner import RunResult, run_items
 from buddy_eval.scoring import headline
 from buddy_eval.sources import SourceIndex
-from buddy_eval.tracing import EMPTY_SCORER_SET_VERSION, MlflowTraceSink, TraceSink, TracingError
+from buddy_eval.tracing import MlflowTraceSink, TraceSink, TracingError
 
 LOGGER_NAME: Final = "buddy_eval"
 LOG_FORMAT: Final = "%(levelname)s %(name)s %(message)s"
 _VALUE_ERROR_PREFIX: Final = "Value error, "
 
 # Failures that end a command with one ERROR line and exit code 1.
-_EXPECTED_ERRORS: Final = (GoldenError, TracingError, FixtureError, OSError)
+_EXPECTED_ERRORS: Final = (
+    GoldenError,
+    TracingError,
+    FixtureError,
+    OSError,
+    McpToolError,
+    LlmError,
+)
 
 LlmFactory = Callable[[], LlmClient]
 SinkFactory = Callable[[EvalSettings], TraceSink]
@@ -254,8 +262,8 @@ def _run_empty_context(
         )
         fresh = unscored(result, cache)
         sink.score(list(fresh), fresh, scorers="empty_context")
-        for trace_id in fresh:
-            cache.mark_scored(trace_id, EMPTY_SCORER_SET_VERSION)
+        for trace_id, scored in fresh.items():
+            cache.mark_scored(trace_id, empty_scored_version(scored))
     return result, sink
 
 

@@ -30,7 +30,7 @@ from buddy_eval.cache import ResultCache, bot_version, key_for
 from buddy_eval.config import EvalSettings
 from buddy_eval.golden import GoldenItem
 from buddy_eval.sources import SourceIndex
-from buddy_eval.tracing import EMPTY_SCORER_SET_VERSION, TraceSink
+from buddy_eval.tracing import EMPTY_SCORER_SET_VERSION, TraceSink, TracingError
 from buddy_mcp.models import GapReportOutput, GuidesSearchOutput, HandbookSearchOutput
 
 LOGGER: Final = logging.getLogger("buddy_eval")
@@ -235,6 +235,12 @@ async def _collect(
     except (LlmError, McpToolError) as exc:
         LOGGER.warning("item %s errored: %s", item.id, type(exc).__name__)
         return EmptyContextItem(item.id, "errored", "error", False, counter.total, None)
+    except TracingError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - a transport failure errors the item, never the run
+        # Type name only: the message may carry a URL or request detail (T-05-53).
+        LOGGER.warning("item %s errored: %s", item.id, type(exc).__name__)
+        return EmptyContextItem(item.id, "errored", "error", False, counter.total, None)
     sink.log_expectations(trace_id, {"expected_outcome": EXPECTED_OUTCOME, "kind": item.kind})
     try:
         reply = BotReply.model_validate(output)
@@ -420,6 +426,11 @@ def payload(result: EmptyContextResult) -> dict[str, object]:
     }
 
 
+def empty_scored_version(item: EmptyContextItem) -> str:
+    """The scored marker of an item's trace; a changed status makes it score again."""
+    return f"{EMPTY_SCORER_SET_VERSION}-{item.status}"
+
+
 def unscored(result: EmptyContextResult, cache: ResultCache) -> dict[str, EmptyContextItem]:
     """Items with a trace that has no feedback of the empty-context scorer set yet."""
     return {
@@ -427,5 +438,5 @@ def unscored(result: EmptyContextResult, cache: ResultCache) -> dict[str, EmptyC
         for item in result.items
         if item.trace_id is not None
         and item.status != "errored"
-        and not cache.is_scored(item.trace_id, EMPTY_SCORER_SET_VERSION)
+        and not cache.is_scored(item.trace_id, empty_scored_version(item))
     }

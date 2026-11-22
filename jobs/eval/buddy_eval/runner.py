@@ -25,7 +25,7 @@ from buddy_eval.golden import GoldenItem
 from buddy_eval.judge import JUDGE_PROMPT_VERSION, JudgeVerdict, judge_reply
 from buddy_eval.scoring import SCORING_VERSION, ItemVerdict, score_item
 from buddy_eval.sources import IndexIdentity, SourceIndex
-from buddy_eval.tracing import SCORER_SET_VERSION, TraceSink
+from buddy_eval.tracing import SCORER_SET_VERSION, TraceSink, TracingError
 
 LOGGER: Final = logging.getLogger("buddy_eval")
 TRACE_NAME: Final = "bot_run"
@@ -105,6 +105,12 @@ async def collect_item(
             TRACE_NAME, {"item_id": item.id, "kind": item.kind}, fn
         )
     except (LlmError, McpToolError) as exc:
+        return _errored(item, type(exc).__name__)
+    except TracingError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - a transport failure errors the item, never the run
+        # Type name only: the message may carry a URL or request detail (T-05-53).
+        LOGGER.warning("item %s errored: %s", item.id, type(exc).__name__)
         return _errored(item, type(exc).__name__)
     sink.log_expectations(
         trace_id,
