@@ -382,7 +382,7 @@ def test_a_transport_failure_errors_the_item_and_logs_only_the_type_name(
             ["empty-context"],
             settings=served.settings,
             llm_factory=lambda: _refusal_llm(1),
-            connector_factory=lambda _url: _DownConnector(),  # type: ignore[arg-type,return-value]
+            connector_factory=lambda _url: _DownConnector(),
             sink_factory=lambda _s: RecordingTraceSink(),
             out=out,
         )

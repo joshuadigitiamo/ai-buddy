@@ -672,7 +672,7 @@ def test_an_mcp_outage_errors_items_stops_the_run_and_still_reports_a_fail(
 
     def down(url: str) -> McpConnector:
         harness.connector_calls.append(url)
-        return _DownConnector()  # type: ignore[return-value]
+        return _DownConnector()
 
     harness._connector = down  # type: ignore[method-assign]
 
@@ -685,7 +685,7 @@ def test_an_mcp_outage_errors_items_stops_the_run_and_still_reports_a_fail(
     assert STOP_MESSAGE.format(n=2) in lines
     assert "FAIL errored: 2 items errored (incomplete run)" in lines
     assert RUN_ABORTED in lines
-    assert lines[-1] == "GATE: FAIL"
+    assert lines.count("GATE: FAIL") == 1
     assert len(harness.reports) == 1
     assert "Traceback" not in text + captured.err
     assert "item item-gap-01 errored: _ConnectError" in caplog.text
