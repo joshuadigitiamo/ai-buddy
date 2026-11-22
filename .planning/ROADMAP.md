@@ -212,7 +212,7 @@ Plans:
   3. One command runs the golden set through the bot workflow with the configured `LLM_BACKEND` and prints the correctness-with-citation percentage and the count of invented policies; each judged answer has an MLflow trace (retrieval, generation, gate) viewable in a containerized MLflow UI.
   4. The empty-context test passes: with an index holding no matching content, every question gets a refusal and a logged gap, and the test fails if any answer is produced.
   5. The gate command prints PASS only when correctness-with-citation is >= 90%, invented policies are 0 and the empty-context test passes; otherwise it prints FAIL with the failing metric.
-**Plans**: 7/13 plans executed
+**Plans**: 9/13 plans executed
 
 Plans:
 **Wave 1**
@@ -231,8 +231,8 @@ Plans:
 - [x] 05-07-PLAN.md — Source resolution (permalink to chunk key), index identity, per-item cache with resume and no duplicate scoring
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 05-08-PLAN.md — Opus judge via LlmClient, full D-09 verdicts, invented-policy count, scorers on traces, inspectable report
-- [ ] 05-09-PLAN.md — Golden lint and committed-golden privacy guard; Recall@5 per source with the D5 trigger
+- [x] 05-08-PLAN.md — Opus judge via LlmClient, full D-09 verdicts, invented-policy count, scorers on traces, inspectable report
+- [x] 05-09-PLAN.md — Golden lint and committed-golden privacy guard; Recall@5 per source with the D5 trigger
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 05-10-PLAN.md — Empty-context test: committed fixture, second mcp-server, real-LLM command, stub variant
@@ -255,4 +255,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. MCP Server and Skill | 7/7 | Complete    | 2026-11-06 |
 | 3. Google Chat Bot | 12/12 | Complete    | 2026-11-07 |
 | 4. Infrastructure and CI/CD | 26/26 | Complete    | 2026-11-16 |
-| 5. Evaluation and Milestone Gate | 7/13 | In Progress | - |
+| 5. Evaluation and Milestone Gate | 9/13 | In Progress | - |
