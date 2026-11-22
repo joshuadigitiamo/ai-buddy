@@ -5,12 +5,17 @@ scripts/validate-infra.sh. This guard parses the YAML sources directly and keeps
 resource and secret rules from regressing without either tool.
 """
 
+import json
+import os
 import re
 import shlex
+import shutil
+import subprocess
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -144,16 +149,21 @@ def test_chat_bot_runs_meridian_as_a_loopback_native_sidecar() -> None:
 
 def test_meridian_credentials_arrive_only_through_secret_references() -> None:
     spec = _pod_spec(_workloads()["chat-bot"])
-    seed = _container("chat-bot", "seed-credentials")
-    mounts = {mount["name"]: mount for mount in seed["volumeMounts"]}
-    assert mounts["meridian-credentials"]["readOnly"] is True
+    meridian_env = _env(_container("chat-bot", "meridian"))
+    profiles = meridian_env["MERIDIAN_PROFILES"]["valueFrom"]["secretKeyRef"]
+    assert profiles == {"name": "meridian-credentials", "key": "MERIDIAN_PROFILES"}, (
+        "same oauthToken profile as Compose, from the Secret kind-up.sh creates"
+    )
+    assert meridian_env["MERIDIAN_DEFAULT_PROFILE"]["value"] == "local"
+    names = [container["name"] for container in _containers(_workloads()["chat-bot"])]
+    assert "seed-credentials" not in names, "no credentials file is copied any more"
     volumes = {volume["name"]: volume for volume in spec["volumes"]}
-    assert volumes["meridian-credentials"]["secret"]["secretName"] == "meridian-credentials"
-    assert "emptyDir" in volumes["meridian-home"], "the copy lands in an emptyDir, not a host path"
+    assert "meridian-credentials" not in volumes, "the Secret arrives as env, not as a file"
+    assert "emptyDir" in volumes["meridian-home"], "SDK session state lives in an emptyDir"
     for name in ("MERIDIAN_API_KEY", "THREAD_KEY_SECRET"):
         reference = _env(_container("chat-bot", "chat-bot"))[name]["valueFrom"]["secretKeyRef"]
         assert reference == {"name": "bot-secrets", "key": name}
-    key_reference = _env(_container("chat-bot", "meridian"))["MERIDIAN_API_KEY"]["valueFrom"]
+    key_reference = meridian_env["MERIDIAN_API_KEY"]["valueFrom"]
     assert key_reference["secretKeyRef"] == {"name": "bot-secrets", "key": "MERIDIAN_API_KEY"}
 
 
@@ -321,6 +331,134 @@ def test_kind_up_verifies_the_download_and_creates_secrets_without_printing_them
     assert "kind-config.yaml" in script and "__ARTIFACTS_DIR__" in script
     smoke = KIND_SMOKE.read_text(encoding="utf-8")
     assert smoke.count("kind smoke ok") == 1 and "/health" in smoke and "guides_search" in smoke
+
+
+SENTINEL_TOKEN = "sk-ant-oat01-SENTINEL-kind-up-test-0123456789"
+
+# Stand-ins for every external command kind-up.sh calls. Each logs its argv; kubectl also
+# captures the content of every --from-file source and of stdin for `-f -`.
+_STUB = """#!/usr/bin/env bash
+name="$(basename "$0")"
+printf '%s\\n' "$name $*" >> "$STUB_LOG/argv.log"
+if [[ "$name" == kind && "${1:-}" == version ]]; then echo "kind v0.33.0 go1.24 linux/amd64"; fi
+if [[ "$name" == kind && "${1:-}" == get ]]; then echo "ai-buddy"; fi
+if [[ "$name" == kubectl ]]; then
+  for arg in "$@"; do
+    if [[ "$arg" == --from-file=* ]]; then
+      spec="${arg#--from-file=}"
+      { printf '%s=' "${spec%%=*}"; cat "${spec#*=}"; echo; } >> "$STUB_LOG/secret.log"
+    fi
+  done
+  if [[ " $* " == *" -f - "* ]]; then cat >> "$STUB_LOG/stdin.log"; fi
+fi
+exit 0
+"""
+
+
+def _kind_up_sandbox(tmp_path: Path) -> tuple[Path, dict[str, str]]:
+    """Copy kind-up.sh and the files it reads into tmp_path, with stubs first on PATH.
+
+    The environment is built from scratch: the test container gets the real .env via
+    --env-file, and its MERIDIAN_OAUTH_TOKEN must not leak into these runs.
+    """
+    root = tmp_path / "repo"
+    for relative in (
+        "scripts/kind-up.sh",
+        "deploy/meridian.version",
+        "deploy/k8s/kind-config.yaml",
+        "deploy/k8s/overlays/dev/namespace.yaml",
+    ):
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / relative, target)
+    (root / "artifacts").mkdir()
+    (root / "artifacts" / "index.db").write_bytes(b"")
+    stubs = tmp_path / "stubs"
+    stubs.mkdir()
+    for name in ("docker", "kubectl", "curl"):
+        (stubs / name).write_text(_STUB, encoding="utf-8")
+        (stubs / name).chmod(0o755)
+    (root / ".cache" / "bin").mkdir(parents=True)
+    (root / ".cache" / "bin" / "kind").write_text(_STUB, encoding="utf-8")
+    (root / ".cache" / "bin" / "kind").chmod(0o755)
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    env = {
+        "PATH": f"{stubs}:{os.environ.get('PATH', '/usr/bin:/bin')}",
+        "HOME": str(tmp_path),
+        "STUB_LOG": str(logs),
+        "ENV_FILE": str(root / ".env"),
+    }
+    return root, env
+
+
+def _run_kind_up(root: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["bash", str(root / "scripts" / "kind-up.sh")],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+
+
+def test_kind_up_no_longer_reads_a_credentials_file_from_the_volume() -> None:
+    script = KIND_UP.read_text(encoding="utf-8")
+    assert ".credentials.json" not in script, "the volume holds only SDK session state (8ee67fb)"
+    assert "--entrypoint cat" not in script
+    assert "MERIDIAN_OAUTH_TOKEN" in script and "MERIDIAN_PROFILES" in script
+
+
+def test_kind_up_fails_fast_naming_the_variable_when_the_token_is_missing(
+    tmp_path: Path,
+) -> None:
+    root, env = _kind_up_sandbox(tmp_path)
+    (root / ".env").write_text("OTHER=1\nMERIDIAN_OAUTH_TOKEN=\n", encoding="utf-8")
+    result = _run_kind_up(root, env)
+    assert result.returncode != 0
+    assert "MERIDIAN_OAUTH_TOKEN" in result.stderr and "not set" in result.stderr
+    argv_log = Path(env["STUB_LOG"]) / "argv.log"
+    calls = argv_log.read_text(encoding="utf-8") if argv_log.exists() else ""
+    assert "kubectl create" not in calls and "docker build" not in calls, (
+        "the check runs before any cluster or image work"
+    )
+
+
+def test_kind_up_rejects_a_token_that_would_break_the_json_without_printing_it(
+    tmp_path: Path,
+) -> None:
+    root, env = _kind_up_sandbox(tmp_path)
+    bad = 'abc"def'
+    result = _run_kind_up(root, {**env, "MERIDIAN_OAUTH_TOKEN": bad})
+    assert result.returncode != 0
+    assert "MERIDIAN_OAUTH_TOKEN" in result.stderr
+    assert bad not in result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("source", ["environment", "env_file"])
+def test_kind_up_builds_the_compose_profile_secret_and_never_prints_the_token(
+    tmp_path: Path, source: str
+) -> None:
+    root, env = _kind_up_sandbox(tmp_path)
+    if source == "environment":
+        env["MERIDIAN_OAUTH_TOKEN"] = SENTINEL_TOKEN
+    else:
+        (root / ".env").write_text(
+            f'A=1\nMERIDIAN_OAUTH_TOKEN="{SENTINEL_TOKEN}"\nB=2\n', encoding="utf-8"
+        )
+    result = _run_kind_up(root, env)
+    assert result.returncode == 0, result.stderr
+    assert SENTINEL_TOKEN not in result.stdout + result.stderr, "the token is never printed"
+    logs = Path(env["STUB_LOG"])
+    assert SENTINEL_TOKEN not in (logs / "argv.log").read_text(encoding="utf-8"), (
+        "the token never appears on a command line"
+    )
+    secrets = (logs / "secret.log").read_text(encoding="utf-8").splitlines()
+    profile_lines = [line for line in secrets if line.startswith("MERIDIAN_PROFILES=")]
+    assert len(profile_lines) == 1
+    profiles = json.loads(profile_lines[0].removeprefix("MERIDIAN_PROFILES="))
+    assert profiles == [{"id": "local", "oauthToken": SENTINEL_TOKEN}], "same shape as Compose"
 
 
 def test_validate_infra_runs_kubeconform_strict_over_base_and_every_overlay() -> None:

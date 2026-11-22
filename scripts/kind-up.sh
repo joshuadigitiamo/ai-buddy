@@ -5,13 +5,15 @@
 # the images, creates the credentials Secrets imperatively and applies deploy/k8s/overlays/dev.
 # No secret value is printed or written to a file in the repository.
 #
-# Needs: the local Docker volume meridian-claude (the Max login Meridian uses; seed it once as
-# services/chat_bot/README.md describes). Its credentials file is streamed into a Secret and a
-# read-only copy runs in the cluster.
+# Needs: MERIDIAN_OAUTH_TOKEN, the one-year `claude setup-token` token that Compose also uses
+# (services/chat_bot/README.md). It is taken from the environment, or else from the
+# MERIDIAN_OAUTH_TOKEN= line of .env (ENV_FILE overrides the path; the file is not sourced).
+# It reaches the cluster only as the MERIDIAN_PROFILES oauthToken profile in a Secret.
 #
 # Usage:
 #   scripts/kind-up.sh
 #   ARTIFACTS_DIR=/path/with/index.db KIND_CLUSTER=ai-buddy scripts/kind-up.sh
+#   ENV_FILE=/path/to/.env scripts/kind-up.sh
 #
 # The cluster uses its own kubeconfig (.cache/kubeconfig-<cluster>), so ~/.kube/config is not
 # touched. scripts/kind-smoke.sh reads the same file.
@@ -27,7 +29,7 @@ KIND_CLUSTER="${KIND_CLUSTER:-ai-buddy}"
 ARTIFACTS_DIR="${ARTIFACTS_DIR:-${ROOT_DIR}/artifacts}"
 NAMESPACE="ai-buddy"
 ROLLOUT_TIMEOUT="${ROLLOUT_TIMEOUT:-300s}"
-CREDENTIALS_VOLUME="meridian-claude"
+ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
 
 BIN_DIR="${ROOT_DIR}/.cache/bin"
 KIND_BIN="${BIN_DIR}/kind"
@@ -39,6 +41,24 @@ die() { echo "[kind-up] ERROR: $*" >&2; exit 1; }
 
 command -v docker >/dev/null 2>&1 || die "docker is required"
 command -v kubectl >/dev/null 2>&1 || die "kubectl is required"
+
+# ---- Meridian login: checked before any download or cluster work, value never printed
+read_env_file_token() {
+  [[ -f "${ENV_FILE}" ]] || return 0
+  local line
+  line="$(grep -E '^[[:space:]]*(export[[:space:]]+)?MERIDIAN_OAUTH_TOKEN=' "${ENV_FILE}" | tail -n 1 || true)"
+  line="${line#*=}"
+  line="${line%$'\r'}"
+  line="${line#[\"\']}"
+  line="${line%[\"\']}"
+  printf '%s' "${line}"
+}
+MERIDIAN_OAUTH_TOKEN="${MERIDIAN_OAUTH_TOKEN:-$(read_env_file_token)}"
+[[ -n "${MERIDIAN_OAUTH_TOKEN}" ]] \
+  || die "MERIDIAN_OAUTH_TOKEN is not set (environment or ${ENV_FILE#"${ROOT_DIR}"/}); mint it with claude setup-token as services/chat_bot/README.md describes"
+# The token goes into a JSON string unescaped, so only token characters are accepted.
+[[ "${MERIDIAN_OAUTH_TOKEN}" =~ ^[A-Za-z0-9._~+/=-]+$ ]] \
+  || die "MERIDIAN_OAUTH_TOKEN holds characters a claude setup-token token does not (quotes, spaces or backslashes); value not printed"
 
 # ---- kind binary: pinned release, published sha256 checked before the file is made executable
 install_kind() {
@@ -97,15 +117,12 @@ done
 # ---- namespace and Secrets: created here, never written to a manifest (D-15)
 kubectl apply -f "${ROOT_DIR}/deploy/k8s/overlays/dev/namespace.yaml"
 
-# Max credentials: the file is streamed from the local volume straight into the Secret; nothing is
-# printed and nothing touches the disk. The cluster copy is read-only by configuration (Meridian
-# runs with MERIDIAN_CREDENTIALS_READONLY=1), so it never refreshes the shared token chain.
-docker volume inspect "${CREDENTIALS_VOLUME}" >/dev/null 2>&1 \
-  || die "Docker volume ${CREDENTIALS_VOLUME} does not exist; seed it as services/chat_bot/README.md describes"
-log "Creating Secret meridian-credentials from volume ${CREDENTIALS_VOLUME} (value not printed) ..."
-docker run --rm --entrypoint cat -v "${CREDENTIALS_VOLUME}:/src:ro" "${MERIDIAN_IMAGE}" /src/.credentials.json \
-  | kubectl create secret generic meridian-credentials -n "${NAMESPACE}" \
-      --from-file=.credentials.json=/dev/stdin --dry-run=client -o yaml \
+# Meridian login, built as in Compose: a MERIDIAN_PROFILES oauthToken profile. The JSON is written
+# by the printf builtin into a pipe read by kubectl, so the token is in no argv, log or file.
+log "Creating Secret meridian-credentials from MERIDIAN_OAUTH_TOKEN (value not printed) ..."
+kubectl create secret generic meridian-credentials -n "${NAMESPACE}" \
+    --from-file=MERIDIAN_PROFILES=<(printf '[{"id":"local","oauthToken":"%s"}]' "${MERIDIAN_OAUTH_TOKEN}") \
+    --dry-run=client -o yaml \
   | kubectl apply --server-side --force-conflicts -f - >/dev/null
 
 # Bot secrets: random per cluster, kept across re-runs, never printed.

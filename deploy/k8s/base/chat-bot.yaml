@@ -6,11 +6,11 @@
 # The bot has no HTTP port in Pub/Sub intake mode, so it has no HTTP probe. Meridian listens on
 # the loopback only (no other pod can reach it), and kubelet httpGet probes target the pod IP, so
 # Meridian's probes run inside its container with node (the same way its own HEALTHCHECK does).
-# Start-up and readiness use /health (200 once the login is read); /readyz is not usable here
-# because it also needs a Meridian profile and answers 503 "no profiles configured" for the
-# single credentials file this deployment seeds. Liveness uses /livez.
-# Meridian runs with MERIDIAN_CREDENTIALS_READONLY=1: this copy never refreshes or writes the
-# OAuth credentials, so it cannot invalidate the token chain used elsewhere (04-01 token_chain).
+# Start-up and readiness use /health (200 once the login is read). Liveness uses /livez.
+# Meridian logs in as in Compose: MERIDIAN_PROFILES (from the Secret meridian-credentials, built
+# by kind-up.sh from MERIDIAN_OAUTH_TOKEN) holds one oauthToken profile, a `claude setup-token`
+# token with no refresh token. MERIDIAN_CREDENTIALS_READONLY=1 keeps this copy from writing any
+# login state; the emptyDir home holds SDK session state only.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -35,36 +35,6 @@ spec:
     spec:
       automountServiceAccountToken: false
       initContainers:
-        # Copies the read-only Secret file into a writable emptyDir so Meridian finds its usual
-        # credentials directory. Runs as the Meridian image user (uid 1000), the owner Meridian expects.
-        - name: seed-credentials
-          image: ai-buddy/meridian
-          imagePullPolicy: IfNotPresent
-          command:
-            - sh
-            - -c
-            - cp /secrets/.credentials.json /home/claude/.claude/.credentials.json && chmod 600 /home/claude/.claude/.credentials.json
-          resources:
-            requests:
-              cpu: 10m
-              memory: 16Mi
-            limits:
-              cpu: 100m
-              memory: 64Mi
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
-            seccompProfile:
-              type: RuntimeDefault
-          volumeMounts:
-            - name: meridian-credentials
-              mountPath: /secrets
-              readOnly: true
-            - name: meridian-home
-              mountPath: /home/claude/.claude
         - name: meridian
           image: ai-buddy/meridian
           imagePullPolicy: IfNotPresent
@@ -80,6 +50,13 @@ spec:
               value: "1"
             - name: MERIDIAN_CREDENTIALS_READONLY
               value: "1"
+            - name: MERIDIAN_PROFILES
+              valueFrom:
+                secretKeyRef:
+                  name: meridian-credentials
+                  key: MERIDIAN_PROFILES
+            - name: MERIDIAN_DEFAULT_PROFILE
+              value: local
             - name: MERIDIAN_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -181,6 +158,3 @@ spec:
           emptyDir: {}
         - name: meridian-home
           emptyDir: {}
-        - name: meridian-credentials
-          secret:
-            secretName: meridian-credentials
