@@ -76,6 +76,7 @@ async def test_unsupported_question_is_retried_once_then_refused_with_quoted_con
     assert record.tried == (
         "handbook_search: ferie",
         "guides_search: holidays",
+        "guides_search: richiedo ferie?",
         "handbook_search: permessi",
         "guides_search: leave",
     )

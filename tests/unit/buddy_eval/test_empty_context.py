@@ -260,7 +260,8 @@ def test_negative_variant_an_answer_fails_and_names_the_item(
 
     assert code == 1
     lines = output.splitlines()
-    assert lines[0] == "item-a answered evidence=1 trace=http://ui/#/t/tr-1"
+    # Two results: the keyword and the question Guides searches (05-14) both return the chunk.
+    assert lines[0] == "item-a answered evidence=2 trace=http://ui/#/t/tr-1"
     assert "empty_context: FAIL (1 answered: item-a)" in lines
     assert not any(line.startswith("empty_context: PASS") for line in lines)
 

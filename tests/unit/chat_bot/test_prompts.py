@@ -13,7 +13,12 @@ a question is judged by the Phase 5 goldens; this only pins that the rule is in 
 
 import pytest
 
-from buddy_bot.prompts import ANSWER_SENSITIVE_SYSTEM, ANSWER_SYSTEM, REFORMULATE_SYSTEM
+from buddy_bot.prompts import (
+    ANSWER_SENSITIVE_SYSTEM,
+    ANSWER_SYSTEM,
+    CASE_SCOPE_RULE,
+    REFORMULATE_SYSTEM,
+)
 
 LOGISTICS_TERMS = ("parcheggio", "accesso agli uffici", "badge", "wifi", "attrezzatura", "sale")
 
@@ -128,3 +133,17 @@ def test_the_sensitive_prompt_keeps_its_scope_rules() -> None:
 def test_a_missing_general_rule_still_means_not_grounded() -> None:
     assert "`grounded` è false e `citations` è vuoto" in ANSWER_SYSTEM
     assert "`grounded` è false e `citations` è vuoto" in ANSWER_SENSITIVE_SYSTEM
+
+
+def test_the_case_scope_rule_is_a_bullet_against_generalising_one_case() -> None:
+    # 05-GAP-DECISION item 2 (gd-13): a remark about one named system became a general rule.
+    assert CASE_SCOPE_RULE.startswith("- ")
+    assert "caso specifico" in CASE_SCOPE_RULE
+    assert "regola generale" in CASE_SCOPE_RULE
+
+
+@pytest.mark.parametrize("prompt", ANSWER_PROMPTS)
+def test_both_answer_prompts_carry_the_case_scope_rule(prompt: str) -> None:
+    assert CASE_SCOPE_RULE in prompt
+    cite = prompt.index("- Cita ogni affermazione")
+    assert prompt.index(CASE_SCOPE_RULE) == prompt.index("\n", cite) + 1
