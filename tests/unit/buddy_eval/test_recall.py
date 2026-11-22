@@ -348,6 +348,70 @@ class TestErrors:
         assert result.trigger is False
 
 
+class _ConnectError(Exception):
+    """An httpx-style transport error: neither OSError nor McpToolError."""
+
+
+class _FailingConnector(FakeConnector):
+    """A session that fails to open, or that fails on close after yielding the tools."""
+
+    def __init__(self, tools: McpTools, *, on_enter: bool) -> None:
+        super().__init__(tools)
+        self._on_enter = on_enter
+
+    @asynccontextmanager
+    async def _session(self) -> AsyncIterator[McpTools]:
+        self.sessions += 1
+        if self._on_enter:
+            raise _ConnectError("connect failed SENTINEL-DETAIL")
+        yield self._tools
+        raise _ConnectError("close failed SENTINEL-DETAIL")
+
+
+class TestSessionFailure:
+    def test_a_session_that_fails_to_open_errors_every_item_and_raises_nothing(
+        self,
+        eval_settings: EvalSettings,
+        cache: ResultCache,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        connector = _FailingConnector(FakeTools(guides=_guides_script([True, True])), on_enter=True)
+
+        with caplog.at_level(logging.WARNING, logger="buddy_eval"):
+            result = _measure(_guides_items(2), eval_settings, connector, cache)
+
+        assert result.errored_ids == ("gd-00", "gd-01")
+        assert result.guides_total == 0
+        assert "recall: INCOMPLETE (2 errored: gd-00, gd-01)" in format_recall(result)
+        assert "_ConnectError" in caplog.text
+        assert "SENTINEL-DETAIL" not in caplog.text
+
+    def test_a_transport_error_mid_run_keeps_measured_items_and_errors_the_rest(
+        self, eval_settings: EvalSettings, cache: ResultCache
+    ) -> None:
+        guides: Script = {**_guides_script([True, False, True]), "en1": _ConnectError("gone")}
+
+        result = _measure(
+            _guides_items(3), eval_settings, FakeConnector(FakeTools(guides=guides)), cache
+        )
+
+        assert result.errored_ids == ("gd-01", "gd-02")
+        assert (result.guides_hits, result.guides_total) == (1, 1)
+        assert "recall: INCOMPLETE (2 errored: gd-01, gd-02)" in format_recall(result)
+
+    def test_a_session_that_fails_on_close_keeps_every_measured_item(
+        self, eval_settings: EvalSettings, cache: ResultCache
+    ) -> None:
+        connector = _FailingConnector(
+            FakeTools(guides=_guides_script([True, False])), on_enter=False
+        )
+
+        result = _measure(_guides_items(2), eval_settings, connector, cache)
+
+        assert result.errored_ids == ()
+        assert (result.guides_hits, result.guides_total) == (1, 2)
+
+
 class TestCacheAndSession:
     def test_a_second_run_makes_no_model_call_and_gives_the_same_numbers(
         self, eval_settings: EvalSettings, cache: ResultCache

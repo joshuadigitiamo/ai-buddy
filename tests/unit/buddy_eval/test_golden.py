@@ -174,7 +174,26 @@ def test_a_handbook_source_missing_from_the_index_is_an_error(eval_settings: Eva
 
     issues = _rendered(_lint(eval_settings))
 
-    assert "error: hb-ghost: expected_sources: handbook://99-x not in the current index" in issues
+    assert "error: hb-ghost: expected_sources: expected_sources[0] not in the current index" in issues
+
+
+def test_a_missing_handbook_source_is_named_by_position_never_by_page_id(
+    eval_settings: EvalSettings,
+) -> None:
+    present = _private()[0]["expected_sources"][0]
+    _write(eval_settings)
+    write_golden(
+        eval_settings.golden_private_path,
+        [
+            *_private()[:-1],
+            golden_item("hb-ghost", "handbook", expected_sources=[present, "handbook://99-x"]),
+        ],
+    )
+
+    issues = [line for line in _rendered(_lint(eval_settings)) if "hb-ghost" in line]
+
+    assert issues == ["error: hb-ghost: expected_sources: expected_sources[1] not in the current index"]
+    assert all("handbook://" not in line and "99-x" not in line for line in issues)
 
 
 def test_no_no_rule_sensitive_item_is_a_branch_error(eval_settings: EvalSettings) -> None:
