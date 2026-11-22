@@ -108,7 +108,7 @@ Done 2026-11-15, Joshua authorized each step in chat; Claude ran them (Cloud She
 - Six secrets set: four generated in place (never shown), `allowed-users` from `.env` by script (holds an email, which the allow-list accepts), `google-client-secret` version 2 (new `GOCSPX-` secret; version 1 held a wrongly pasted value and is disabled). `oauth-storage-encryption-key` version 2 is a Fernet key; version 1 (plain random) is disabled.
 - Nine GitHub repository variables set; OAuth redirect URI `…run.app/auth/callback` added (the trycloudflare URI is kept).
 - Claude bucket seeded from a fresh, separate `claude auth login` (token_chain b); local copy deleted. Meridian reports the account as a Team subscription ("Max recommended").
-- `sync-and-publish.sh`: 20 videos uploaded, index build `20261115T102549Z-dec3522a035e` (22 handbook pages, 2795 Guides sections, `07-wi-fi.md` redacted) published.
+- `sync-and-publish.sh`: 20 videos uploaded, index build `20261115T102549Z-dec3522a035e` (22 handbook pages, 2795 Guides sections, the Wi-Fi page redacted) published.
 - CI: `meridian` green; `mcp-server` and `chat-bot` green end to end after the fixes below. `ci-deployer` role changed by hand from `run.developer` to `run.admin` (Joshua's choice).
 - Chat app switched from Cloud Pub/Sub to the HTTP endpoint URL (add-on format, one URL for all triggers). The local Pub/Sub bot no longer receives Chat events.
 
@@ -127,7 +127,7 @@ Run 2026-11-15 by Claude through Chrome (Joshua's session) and Docker gcloud, at
 
 1. WIF (INFRA-05): **passed.** Every deploy run authenticated through the WIF provider as `ci-deployer`; no key in the repo or GitHub secrets.
 2. Post-deploy step: **passed** after fixes `119950b` and `b3f9237`. mcp-server `GET /health` 200 and `POST /mcp` 401 without a token; chat-bot `POST /` 401.
-3. Chat HTTP JWT and answer with a source line: **passed.** "Come richiedo le ferie?" got a placeholder, then an answer ending "Fonte: Manuale – Ferie e Permessi (handbook://17-ferie-e-permessi)". The first attempt failed on Meridian (fixed in `4f28c2a`).
+3. Chat HTTP JWT and answer with a source line: **passed.** "Come richiedo le ferie?" got a placeholder, then an answer ending "Fonte: <handbook page title> (handbook://<handbook page>)". The first attempt failed on Meridian (fixed in `4f28c2a`).
 4. Bot-to-MCP ID token: **passed.** `POST /mcp` 200 from the bot in the mcp-server log.
 5. Slow question (billing_mode a): **passed, no stall.** A three-part first-person question had its placeholder replaced within about a minute; the content was the designed personal-case route ("Per il tuo caso specifico chiedi a HR.").
 6. Cold start: **observed.** First message after deploy: about 17 s for the bot instance (Meridian probe passed after 2 attempts) plus about 8 s for mcp-server, which was also cold. Not yet re-measured after 20 minutes idle.

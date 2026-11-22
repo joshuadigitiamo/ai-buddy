@@ -212,7 +212,7 @@ Plans:
   3. One command runs the golden set through the bot workflow with the configured `LLM_BACKEND` and prints the correctness-with-citation percentage and the count of invented policies; each judged answer has an MLflow trace (retrieval, generation, gate) viewable in a containerized MLflow UI.
   4. The empty-context test passes: with an index holding no matching content, every question gets a refusal and a logged gap, and the test fails if any answer is produced.
   5. The gate command prints PASS only when correctness-with-citation is >= 90%, invented policies are 0 and the empty-context test passes; otherwise it prints FAIL with the failing metric.
-**Plans**: 15/17 plans executed (13 executed; 4 gap-closure plans added 2026-11-22 per 05-GAP-DECISION.md)
+**Plans**: 17/17 plans executed (13 original plans; 4 gap-closure plans added 2026-11-22 per 05-GAP-DECISION.md)
 
 Plans:
 **Wave 1**
@@ -249,10 +249,10 @@ Plans:
 - [x] 05-15-PLAN.md — Golden edits (gd-02 facts, gd-05 second source, sr-02 fact 1 private) with live-index lint; WR-03 lint privacy; WR-01 recall session failure
 
 **Gap wave 2** *(blocked on 05-14; frontmatter wave 2)*
-- [ ] 05-16-PLAN.md — CR-01 reply digest in the verdict key, WR-02 verdict-specific scored markers and stale MLflow feedback superseded, WR-01 transport failures as errored items, citation rationale
+- [x] 05-16-PLAN.md — CR-01 reply digest in the verdict key, WR-02 verdict-specific scored markers and stale MLflow feedback superseded, WR-01 transport failures as errored items, citation rationale
 
 **Gap wave 3** *(blocked on gap waves 1-2; frontmatter wave 3)*
-- [ ] 05-17-PLAN.md — Live gate re-run once on build 20261122T094743Z-55ce792552d8: rebuild eval image, 05-13 cache moved aside, preflight, recall/run/empty-context/gate; verdict recorded as printed
+- [x] 05-17-PLAN.md — Live gate re-run once on build 20261122T094743Z-55ce792552d8: rebuild eval image, 05-13 cache moved aside, preflight, recall/run/empty-context/gate; verdict recorded as printed
 
 ## Progress
 
@@ -265,4 +265,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. MCP Server and Skill | 7/7 | Complete    | 2026-11-06 |
 | 3. Google Chat Bot | 12/12 | Complete    | 2026-11-07 |
 | 4. Infrastructure and CI/CD | 26/26 | Complete    | 2026-11-16 |
-| 5. Evaluation and Milestone Gate | 15/17 | In Progress | - |
+| 5. Evaluation and Milestone Gate | 17/17 | In Progress | - |

@@ -19,17 +19,17 @@ verified_by: claude (live HTTP on 127.0.0.1:18000; port 8000 held by another pro
 note: first boot refused with one ERROR line because .env lacked GUIDES_WEB_BASE and GOOGLE_CLOUD_PROJECT (local config, not code); keys added, boot clean.
 
 ### 2. Italian Handbook Search
-expected: handbook_search "quando posso chiedere una feria?" returns status ok, first result page 17-ferie-e-permessi with full markdown text, source_url handbook://17-ferie-e-permessi, revision_date 2026-07-29, revision_kind last_updated.
+expected: handbook_search "quando posso chiedere una feria?" returns status ok, first result the matching handbook page with full markdown text, source_url handbook://<handbook page>, revision_date 2026-07-29, revision_kind last_updated.
 result: pass
 verified_by: claude (live server, real handbook snapshot)
 
 ### 3. Accent Folding and No Results
-expected: handbook_search "festività", "FESTIVITÀ" and "festivita" all return 17-ferie-e-permessi first. handbook_search "xyzzy" returns status no_results, isError false, text "Nessun risultato per: xyzzy".
+expected: handbook_search "festività", "FESTIVITÀ" and "festivita" all return the same handbook page first. handbook_search "xyzzy" returns status no_results, isError false, text "Nessun risultato per: xyzzy".
 result: pass
 verified_by: claude (live server)
 
 ### 4. Handbook TOC and Page Resource
-expected: handbook_get with no section returns the table of contents (22 pages, position order, starting 00-handbook-digitiamo). Reading handbook://17-ferie-e-permessi starts with "Fonte: handbook://17-ferie-e-permessi - Revisione: 2026-07-29", blank line, "# Ferie e Permessi". handbook_get section "nope" is no_results (isError false); resource handbook://nope is an MCP error "Pagina non trovata: nope".
+expected: handbook_get with no section returns the table of contents (22 pages, position order, starting with the first handbook page). Reading handbook://<handbook page> starts with "Fonte: handbook://<handbook page> - Revisione: 2026-07-29", blank line, "# <page heading>". handbook_get section "nope" is no_results (isError false); resource handbook://nope is an MCP error "Pagina non trovata: nope".
 result: pass
 verified_by: claude (live server)
 

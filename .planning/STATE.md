@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Evaluation and Milestone Gate
 status: executing
-stopped_at: Phase 5 context gathered
-last_updated: "2026-11-22T14:17:32.766Z"
+stopped_at: Phase 5 executed (17/17), UAT complete 6/6; awaiting the verifier
+last_updated: "2026-11-22T23:00:00.000Z"
 last_activity: 2026-11-22
-last_activity_desc: Phase 05 execution started
-state_head: 21de68246b7f4514a3b9ec0bd987468db70e3bac
+last_activity_desc: Phase 05 validation strategy recorded (05-VALIDATION validated) after security verification (threats_open 0) and code review disposition
+state_head: 41f89fe3d3cae180131815fb3076a11a4abb54b4
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 73
-  completed_plans: 69
+  completed_plans: 73
   percent: 80
 ---
 
@@ -20,24 +20,24 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-07)
+See: .planning/PROJECT.md (updated 2026-11-22)
 
 **Core value:** An employee gets an answer only from official sources with the source cited, or an honest "non lo so, chiedi a ..." with the gap logged. Never an invented policy.
 **Current focus:** Phase 05 — Evaluation and Milestone Gate
 
 ## Current Position
 
-Phase: 05 (Evaluation and Milestone Gate) — READY TO EXECUTE
-Plan: 13 of 13
-Status: Ready to execute
-Last activity: 2026-11-22 — Phase 05 execution started
+Phase: 05 (Evaluation and Milestone Gate) — EXECUTED, AWAITING VERIFIER
+Plan: 17 of 17 executed
+Status: Live gate GATE: PASS 38/40 (95.0%), invented 0, empty-context 28/28; UAT 6/6; security threats_open 0; validation validated; awaiting the verifier
+Last activity: 2026-11-22 — 05-VALIDATION.md validated
 
 Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 56
+- Total plans completed: 73
 - Average duration: - min
 - Total execution time: 0.0 hours
 
@@ -49,6 +49,7 @@ Progress: [████████░░] 80%
 | 02 | 7 | - | - |
 | 03 | 12 | - | - |
 | 4 | 26 | - | - |
+| 05 | 17 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -224,6 +225,9 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-23: scan-policy fixable (ignore-unfixed true), Trivy v0.76.2, trivy-action pinned to v0.36.0 commit; first deploy needs the zlib1g base-digest bump
 - [Phase 04]: 04-25: the five GCP identifiers are repository secrets only (no vars expression); a missing one fails the deploy and Meridian runs by name instead of skipping
 - [Phase 04]: 04-25: chat-bot deploy polls up to 30 min (30 s interval) for the Meridian image before the existing error; deploy job timeout 75 min
+- [Phase 05]: 05-GAP-DECISION approved changes (all four): Guides search also uses the standalone question with k 4 -> 8 (05-14); case-scope answer-prompt rule (05-14); CR-01, WR-01..03 fixes (05-15, 05-16); golden edits gd-02, sr-02, gd-05 (05-15); then one live gate re-run (05-17)
+- [Phase 05]: 05-17: live gate re-run printed GATE: PASS — correctness-with-citation 38/40 = 95.0%, invented 0, empty-context 28/28; Recall@5 handbook 15/15 = 1.00, Guides 11/13 = 0.85 (no D5 hybrid trigger)
+- [Phase 05]: 05-GAP-DECISION UAT follow-up: Joshua accepted 05-17 GATE: PASS 38/40 as the Milestone 1 outcome; gd-05 and sr-03 recorded as known compound-fact items; no golden, judge, threshold or bot change, no re-run
 
 ### Pending Todos
 
@@ -231,7 +235,7 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 1] How synced data reaches the MCP container (image rebuild vs bucket read): decide in Phase 1 plan (SYNC-07)
+- [Phase 1] RESOLVED: how synced data reaches the MCP container (SYNC-07) decided in 01-02 / ADR 0001 (ArtifactStore port); bucket store implemented in Phase 4 (04-04)
 - [Phase 1] Per-scene video clips: source is the Guides README (full-video URLs); scene-clip URLs may not exist yet, fall back to full video
 - [Phase 1] RESOLVED: no ClickUp token needed. ClickUp is shut down (D-25); the handbook comes from the local gitignored snapshot and the Guides from a local checkout, with no tokens
 - [Phase 2] RESOLVED: Bot-to-MCP authentication mechanism defined by D-12 and tested in 02-05 (Google-signed service-account ID token, BOT_SA_EMAILS allowlist). 02-07 verified the user OAuth flow live; a live bot ID-token call was not run (covered by offline tests, revisit with the Phase 3 bot)
@@ -252,6 +256,7 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-21T12:43:30.295Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-evaluation-and-milestone-gate/05-CONTEXT.md
+Last session: 2026-11-22
+Stopped at: Phase 5 executed 17/17, UAT complete 6/6, security and validation done
+Next step: run the verifier (05-VERIFICATION.md), then the Phase 5 transition (marks Phase 5 and EVAL-01..06 complete)
+Resume file: .planning/phases/05-evaluation-and-milestone-gate/05-GAP-DECISION.md

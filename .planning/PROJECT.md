@@ -26,12 +26,12 @@ Milestone 1 is done when the eval phase reports all three:
 - ✓ Content sync: local handbook snapshot (`HANDBOOK_DIR`, gitignored, read-only mount) and local Guides checkout (read-only mount, no token) into the `buddy_core` index; redaction filter; incremental sync on revision date + content hash; section -> video mapping — Phase 1 (D-25..D-27: no ClickUp API, no `CLICKUP_TOKEN`, no `GUIDES_REPO_TOKEN`)
 - ✓ MCP server: five cited tools over stateless HTTP, Firestore gap log, Google-domain OAuth, Skill `digitiamo-buddy` — Phase 2 (UAT 24/25, connector check deferred to Phase 4)
 - ✓ Google Chat bot: Pub/Sub events in dev, HTTP + Google JWT on Cloud Run, LangGraph 2-step RAG with citations and confidence gate, pluggable LLM client (`meridian | api`, Vertex configured not enabled), allowlist guard, cards with source link and "Guarda" video button — Phase 3 (live JWT path and Guarda playback carried to Phase 4)
+- ✓ Infra: Dockerfile per service, docker compose, kind manifests (Kustomize), Cloud Run YAMLs (europe-west8), GitHub Actions path-filtered build/test/push/deploy with Workload Identity Federation — Phase 4 (completed 2026-11-16; live Cloud Run deploy 04-13)
 
 ### Active
 
 Full list with IDs in `.planning/REQUIREMENTS.md`. Summary by area:
 
-- [ ] Infra (Phase 4, in progress: 04-01 and 04-02 complete, 04-03 running): Dockerfile per service, docker compose, kind manifests (Kustomize), Cloud Run YAMLs (europe-west8), GitHub Actions path-filtered build/test/push/deploy with Workload Identity Federation
 - [ ] Eval: golden set (30-50, drafted by Claude, reviewed by Joshua), Recall@5, correctness + citation scoring, MLflow tracing, empty-context refusal test, gate verdict
 
 ### Out of Scope
@@ -50,7 +50,7 @@ Full list with IDs in `.planning/REQUIREMENTS.md`. Summary by area:
 
 ## Context
 
-- **Status (2026-11-14):** Phases 1–3 complete; Phase 4 (Infrastructure and CI/CD) in progress: 04-01 and 04-02 complete, 04-03 running. Phase 5 not started.
+- **Status (2026-11-22):** Phases 1–4 complete (Phase 4 on 2026-11-16). Phase 5 (Evaluation and Milestone Gate) executed 17/17: live gate GATE: PASS 38/40 (95.0%), invented policies 0, empty-context 28/28; UAT 6/6; verification pending.
 - **Sources:** the official handbook (originally ClickUp doc [ClickUp doc ID removed], 23 pages, ~4,000 words, ~8k tokens, Italian) is being rewritten by HR and is not touched. ClickUp is being shut down (D-25): no live or recurring ClickUp sync, no `CLICKUP_TOKEN`. Milestone 1 reads the 23-page raw snapshot from the gitignored `docs/research/handbook-raw/` via `HANDBOOK_DIR` (D-26), never committed. Guides are read from the local checkout `~/Desktop/WORK/Guides`, mounted read-only, no `GUIDES_REPO_TOKEN` (D-27) (~15 technical guides, markdown, plus a video pipeline; videos currently live as release assets of a private GitHub repo; Phase 4 plans a private Cloud Storage bucket, 04-CONTEXT D-16).
 - **GCP:** the existing GCP project `ai-buddy-dev` (ID in docs/internal/gcp-project.md, gitignored), under the digitiamo.com Google Cloud organization, billing account linked. Organization policies (e.g. domain-restricted sharing) may apply to deploys.
 - **Retrieval:** handbook fits in one context (no vector DB, D4); Guides use heading-chunked SQLite FTS5/BM25 (D5).
@@ -110,7 +110,7 @@ Locked (Milestone 1 approved 03/11/2026):
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Meridian + Max for personal dev only (D1a) | Fast dev loop with no API spend; Joshua is sole user; guards enforce it | — Pending (revisit before any second user) |
-| Handbook in full context, Guides in FTS5 (D4, D5) | ~8k-token handbook needs no RAG; Guides need section search without vector infra | — Pending (Recall@5 decides) |
+| Handbook in full context, Guides in FTS5 (D4, D5) | ~8k-token handbook needs no RAG; Guides need section search without vector infra | — Pending (transition); D5 measured 2026-11-22: Guides Recall@5 0.85 >= 0.8, no hybrid trigger |
 | MCP server stateless, JSON, Firestore gap log (D10) | Fits Cloud Run free tier and ephemeral filesystem | — Pending |
 | Bot as MCP client over HTTP, monorepo (D11) | No duplicated retrieval logic; future split needs no rewrite | — Pending |
 | Milestone 1 includes bot, infra, eval (D13) | Joshua's request; Pub/Sub avoids a public URL to the dev machine | — Pending |
@@ -138,4 +138,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-14 (stale-info cleanup: Phases 1–3 complete, Phase 4 in progress, GCP project exists, local sources)*
+*Last updated: 2026-11-22 (Phase 4 complete, Infra moved to Validated; Phase 5 executed 17/17 with live GATE: PASS 38/40, verification pending)*
