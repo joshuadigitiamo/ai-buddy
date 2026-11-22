@@ -25,6 +25,7 @@ from buddy_eval.tracing import TraceSink
 LOGGER: Final = logging.getLogger("buddy_eval")
 TRACE_NAME: Final = "bot_run"
 RUN_NAME: Final = "eval-run"
+STOP_MESSAGE: Final = "stopped after {n} consecutive errors; re-run the same command to resume"
 
 LlmFactory = Callable[[], LlmClient]
 ConnectorFactory = Callable[[str], McpConnector]
@@ -109,6 +110,8 @@ async def run_items(
     )
     ordered = sorted(items, key=lambda item: item.id)
     outcomes: list[ItemOutcome] = []
+    consecutive_errors = 0
+    aborted = False
     with sink.run(RUN_NAME, {"items": str(len(ordered))}):
         for index, item in enumerate(ordered):
             if index > 0 and settings.item_pause_seconds > 0:
@@ -124,11 +127,18 @@ async def run_items(
             )
             LOGGER.info("item %s %s", item.id, outcome.status)
             outcomes.append(outcome)
+            # A completed item resets the run of errors; an errored one is never retried (D-14).
+            consecutive_errors = consecutive_errors + 1 if outcome.status == "errored" else 0
+            if consecutive_errors >= settings.max_consecutive_errors:
+                LOGGER.warning("run stopped after %d consecutive errors", consecutive_errors)
+                aborted = True
+                break
+        # Items after an abort were never collected: they get no outcome and no verdict.
         verdicts = tuple(
-            score_item(item, outcome) for item, outcome in zip(ordered, outcomes, strict=True)
+            score_item(item, outcome) for item, outcome in zip(ordered, outcomes, strict=False)
         )
         scored = {
             v.trace_id: v for v in verdicts if v.trace_id is not None and v.status != "errored"
         }
         sink.score(list(scored), scored)
-    return RunResult(tuple(outcomes), verdicts, aborted=False)
+    return RunResult(tuple(outcomes), verdicts, aborted=aborted)

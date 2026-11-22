@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import TextIO
 
 from buddy_eval.config import EvalSettings
-from buddy_eval.runner import RunResult
+from buddy_eval.runner import STOP_MESSAGE, RunResult
 from buddy_eval.scoring import headline
 from buddy_eval.tracing import TraceSink
 
@@ -66,3 +66,5 @@ def emit(result: RunResult, *, settings: EvalSettings, sink: TraceSink, out: Tex
     """Present a run: the only presentation call the CLI makes (extended by 05-05 and 05-08)."""
     for line in format_run(result, trace_url=sink.trace_url):
         print(line, file=out)
+    if result.aborted:
+        print(STOP_MESSAGE.format(n=settings.max_consecutive_errors), file=out)
