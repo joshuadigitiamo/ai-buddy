@@ -17,6 +17,7 @@ from typing import Final, TextIO
 
 from pydantic import ValidationError
 
+from buddy_bot.llm import build_llm_client
 from buddy_bot.mcp_client import FastMcpConnector
 from buddy_bot.ports import LlmClient, McpConnector
 from buddy_eval.config import EvalSettings
@@ -25,7 +26,7 @@ from buddy_eval.golden import GoldenError, GoldenItem, GoldenSet, load_golden
 from buddy_eval.report import emit
 from buddy_eval.runner import RunResult, run_items
 from buddy_eval.scoring import headline
-from buddy_eval.tracing import TraceSink, TracingError
+from buddy_eval.tracing import MlflowTraceSink, TraceSink, TracingError
 
 LOGGER_NAME: Final = "buddy_eval"
 LOG_FORMAT: Final = "%(levelname)s %(name)s %(message)s"
@@ -148,10 +149,10 @@ def _execute(
 def main(
     argv: Sequence[str] | None = None,
     *,
-    llm_factory: LlmFactory,
-    sink_factory: SinkFactory,
     settings: EvalSettings | None = None,
+    llm_factory: LlmFactory | None = None,
     connector_factory: ConnectorFactory | None = None,
+    sink_factory: SinkFactory | None = None,
     out: TextIO | None = None,
 ) -> int:
     """Run one subcommand; return 0 on success or PASS, 1 on a reported failure or FAIL, 2 on
@@ -168,11 +169,13 @@ def main(
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
     try:
+        resolved = settings if settings is not None else EvalSettings()
         return _execute(
             args,
-            settings=settings if settings is not None else EvalSettings(),
-            llm_factory=llm_factory,
-            sink_factory=sink_factory,
+            settings=resolved,
+            # Production defaults (D-13): the real model client, MCP connector and MLflow sink.
+            llm_factory=llm_factory or (lambda: build_llm_client(resolved)),
+            sink_factory=sink_factory or MlflowTraceSink,
             connector_factory=connector_factory or FastMcpConnector,
             out=stream,
         )

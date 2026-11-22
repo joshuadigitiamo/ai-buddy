@@ -10,19 +10,38 @@ from __future__ import annotations
 
 import json
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from anthropic import APIError, AsyncAnthropic
 from anthropic.types import TextBlock
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 
-from buddy_bot.config import BotSettings
 from buddy_bot.ports import LlmOutputError, LlmUnavailableError, M
 
 if TYPE_CHECKING:
     import httpx2
 
 MERIDIAN_PLACEHOLDER_KEY = "meridian-local"
+
+
+class LlmBackendSettings(Protocol):
+    """The settings build_llm_client reads; BotSettings and EvalSettings both satisfy it."""
+
+    @property
+    def llm_backend(self) -> str: ...
+
+    @property
+    def llm_base_url(self) -> str | None: ...
+
+    @property
+    def anthropic_api_key(self) -> SecretStr | None: ...
+
+    @property
+    def meridian_api_key(self) -> SecretStr | None: ...
+
+    @property
+    def llm_timeout_seconds(self) -> float: ...
+
 
 _FENCE = re.compile(r"```[A-Za-z0-9_-]*\s*(.*?)```", re.DOTALL)
 
@@ -114,12 +133,12 @@ class AnthropicMessagesClient:
 
 
 def build_llm_client(
-    settings: BotSettings, *, http_client: httpx2.AsyncClient | None = None
+    settings: LlmBackendSettings, *, http_client: httpx2.AsyncClient | None = None
 ) -> AnthropicMessagesClient:
     """Pick base URL and key from ``LLM_BACKEND``; ``http_client`` is injectable for tests."""
     if settings.llm_backend == "api":
         key = settings.anthropic_api_key
-        assert key is not None  # BotSettings refuses api without ANTHROPIC_API_KEY
+        assert key is not None  # the settings classes refuse api without ANTHROPIC_API_KEY
         client = AsyncAnthropic(
             api_key=key.get_secret_value(),
             timeout=settings.llm_timeout_seconds,
