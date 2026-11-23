@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 current_phase: 5
 status: completed
 stopped_at: Phase 5 complete — all phases complete
-last_updated: "2026-11-23T11:15:37.364Z"
+last_updated: "2026-11-23T15:59:44.782Z"
 last_activity: 2026-11-23
 last_activity_desc: Phase 5 complete
-state_head: 6af3b94ca905cfe38ce3ceed041cb9ab01f39c1f
+state_head: 5eb5ecd1a70a29c04cafc44768f7c9aaf2a3594f
 progress:
   total_phases: 5
   completed_phases: 5
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 Phase: 5
 Plan: Not started
 Status: All phases complete
-Last activity: 2026-11-23 - Completed quick task 261123-fpj: Restructure internal deep dive and story deck into three parts, with terminology, fact and clear-writing fixes
+Last activity: 2026-11-23 - Completed quick task 261123-ljr: Rewrite deep dive to Guides zero-to-production structure and align story deck
 
 Progress: [██████████] 100%
 
@@ -250,6 +250,8 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 261123-fpj | Restructure internal deep dive and story deck into three parts, with terminology, fact and clear-writing fixes | 2026-11-23 | 6af3b94 | [261123-fpj-restructure-deep-dive-and-story-deck-aft](./quick/261123-fpj-restructure-deep-dive-and-story-deck-aft/) |
+| 261123-k6x | Remove planning-process references from deep-dive and story deck | 2026-11-23 | 5eb5ecd | [261123-k6x-remove-planning-process-references-from-](./quick/261123-k6x-remove-planning-process-references-from-/) |
+| 261123-ljr | Rewrite deep dive to Guides zero-to-production structure and align story deck | 2026-11-23 | 5eb5ecd | [261123-ljr-rewrite-deep-dive-to-guides-zero-to-prod](./quick/261123-ljr-rewrite-deep-dive-to-guides-zero-to-prod/) |
 
 ## Deferred Items
 
