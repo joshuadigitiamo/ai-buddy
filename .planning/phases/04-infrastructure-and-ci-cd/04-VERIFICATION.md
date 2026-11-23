@@ -90,7 +90,7 @@ overrides_applied: 0 # the override closes a human-verification item, not a scor
 overrides:
   - must_have: "Meridian credentials durability on Cloud Run: token refreshes persist across restarts, bucket seeded once (live check 12, decision D-12)"
     reason: "Manual re-seeding of the Meridian credentials bucket is accepted as the recovery when the login drops (deploy/cloudrun/README.md 'Seeding the Meridian credentials bucket'). Signal: chat-bot logs 'reformulate failed: LlmUnavailableError: <SDK error name>' (fix 60aed0a) and Meridian logs 'loggedIn: false'. No phase-4 success criterion or INFRA requirement names credential durability. Backlog: alert on that log line."
-    accepted_by: "Joshua"
+    accepted_by: "The owner"
     accepted_at: "2026-11-16T00:00:00Z"
 re_verification:
   previous_status: human_needed
@@ -124,7 +124,7 @@ advisory:
 
 All five success criteria and all nine earlier gaps are verified in the code at HEAD. Since the previous report, only three files changed: `services/chat_bot/buddy_bot/workflow.py`, `tests/unit/chat_bot/test_workflow.py` and `04-26-SUMMARY.md`. The workflow change adds one log line in an error branch. I ran the full suite on HEAD in Docker and it passes with one test more than before (1586). The tests and chat-bot workflows on `60aed0a` are green on GitHub Actions. The mcp-server workflow did not run on `60aed0a` because no server file changed; its last run, on `cf7e7c3`, is green.
 
-The one human item from the previous report is closed by the user's decision. On 2026-11-16 Joshua chose to accept manual re-seeding of the Meridian credentials bucket when the login drops. This overrides the "seeded once" promise of D-12. The silent-`LlmError` advisory is fixed, and its log line is the signal for a lost login.
+The one human item from the previous report is closed by the user's decision. On 2026-11-16 the owner chose to accept manual re-seeding of the Meridian credentials bucket when the login drops. This overrides the "seeded once" promise of D-12. The silent-`LlmError` advisory is fixed, and its log line is the signal for a lost login.
 
 ## Goal Achievement
 
@@ -146,10 +146,10 @@ The live observations were made in the user's browser and project and are record
 
 | Item | Status | Evidence |
 |------|--------|----------|
-| Meridian credentials durability on Cloud Run (live check 12, D-12: "token refreshes ... persist across restarts. Seeded once") | PASSED (override) | Override: manual re-seeding is accepted as the recovery when the login drops. Accepted by Joshua on 2026-11-16. |
+| Meridian credentials durability on Cloud Run (live check 12, D-12: "token refreshes ... persist across restarts. Seeded once") | PASSED (override) | Override: manual re-seeding is accepted as the recovery when the login drops. Accepted by the owner on 2026-11-16. |
 
 Consistency check of the override text, done in this pass:
-- In `04-CONTEXT.md`, D-12 carries a sub-bullet "Override 2026-11-16 (Joshua)". It accepts manual re-seeding, names the `reformulate failed` log line as the signal, and withdraws "seeded once" as a guarantee. This matches the frontmatter override.
+- In `04-CONTEXT.md`, D-12 carries a sub-bullet "Override 2026-11-16 (the owner)". It accepts manual re-seeding, names the `reformulate failed` log line as the signal, and withdraws "seeded once" as a guarantee. This matches the frontmatter override.
 - The runbook section it names exists: `deploy/cloudrun/README.md:121` "Seeding the Meridian credentials bucket".
 - The signal exists in code. When Meridian rejects a call, the Anthropic SDK raises an `APIError`. `llm.py:110-112` maps that error to `LlmUnavailableError(<SDK exception type name>)`, and `workflow.py:102-106` logs it as `reformulate failed: LlmUnavailableError: <name>`. Reformulate is the first LLM call of every question, so a lost login logs this line on the first question.
 - `04-26-SUMMARY.md` Gaps marks the silent-`LlmError` item as fixed in `60aed0a` and names the pinning test. This matches the advisory entry.
@@ -252,7 +252,7 @@ None. The D-12 durability item is closed by the user override above.
 
 ### Gaps Summary
 
-There are no gaps. The five success criteria are verified, and the nine earlier gaps stay closed. Since the previous report, the code changed by one log line, pinned by a test that passes. The full suite passes on HEAD in Docker, and CI is green on the fix commit. The last open item, Meridian login durability under D-12, is closed by Joshua's decision of 2026-11-16 to accept manual re-seeding, signalled by the new log line. The cold-start advisory stays accepted. The CI evaluation gate is deferred to Phase 5.
+There are no gaps. The five success criteria are verified, and the nine earlier gaps stay closed. Since the previous report, the code changed by one log line, pinned by a test that passes. The full suite passes on HEAD in Docker, and CI is green on the fix commit. The last open item, Meridian login durability under D-12, is closed by the owner's decision of 2026-11-16 to accept manual re-seeding, signalled by the new log line. The cold-start advisory stays accepted. The CI evaluation gate is deferred to Phase 5.
 
 ---
 

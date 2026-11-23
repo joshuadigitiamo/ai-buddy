@@ -41,7 +41,7 @@ created: "2026-11-07"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 03-01-01 | 01 | 1 | — | T-03-SC | no new-pin install before Joshua approves pins and the Meridian SHA | manual (checkpoint) | — | n/a | ✅ approved |
+| 03-01-01 | 01 | 1 | — | T-03-SC | no new-pin install before the owner approves pins and the Meridian SHA | manual (checkpoint) | — | n/a | ✅ approved |
 | 03-01-02 | 01 | 1 | — | T-03-39 | six decisions settled before later plans | manual (checkpoint) | — | n/a | ✅ approved |
 | 03-01-03 | 01 | 1 | BOT-07, BOT-09, BOT-10, BOT-11 | T-03-SC, T-03-39 | overrides of D-09/D-11/D-16 written as 03-CONTEXT.md amendments matching the SUMMARY tags; image carries exactly the approved pins | unit | `./run-unit-tests.sh --single-file test_repo_layout.py tests/unit` | ✅ | ✅ green |
 | 03-02-01 | 02 | 1 | BOT-06 | T-03-04, T-03-05 | YAML equals SKILL.md table; roles only | unit | `./run-unit-tests.sh --single-file test_escalation.py tests/unit/buddy_core` | ✅ | ✅ green |
@@ -92,7 +92,7 @@ created: "2026-11-07"
 |----------|-------------|------------|-------------------|
 | Package and Meridian source legitimacy | — (T-03-SC) | registry pages and repository review need a human | 03-01 Task 1 how-to-verify |
 | Phase decisions (Meridian mount, BOT-09 rendering, memory key, dev Firestore, gap question, HTTP ack) | BOT-07, BOT-09, BOT-10, BOT-11 | contradict or interpret locked decisions | 03-01 Task 2; accepted overrides of D-09, D-11, D-16 are checked in `## Amendments (03-01 checkpoint)` of 03-CONTEXT.md by 03-01 Task 3 |
-| Chat app visibility limited to Joshua | BOT-03 | Google Cloud Console setting, not code | README "Google Chat app settings (manual)"; checked in 03-12 Task 3 |
+| Chat app visibility limited to the owner | BOT-03 | Google Cloud Console setting, not code | README "Google Chat app settings (manual)"; checked in 03-12 Task 3 |
 | Live DM round trip: handbook answer, Guides video card, sensitive question, no-source refusal with gap, follow-up, /aiuto, room @mention | BOT-01, BOT-05, BOT-06, BOT-09, BOT-10 | needs a real GCP project, Chat app, Pub/Sub subscription and Meridian login | 03-12 Task 3 how-to-verify (deferrable to Phase 4 per D-18) |
 | Residual live items after the 2026-11-07 DM check: room @mention against a real room, Guarda `#t=` offset click, authenticated HTTP / ID-token paths, intro message on install | BOT-01, BOT-02, BOT-09 | synthetic fixtures only; need a real room or a deployed environment | 03-VERIFICATION.md "Human Verification Required"; tracked in `.planning/WINDOWS.md` |
 

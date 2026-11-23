@@ -56,13 +56,13 @@ because the isolation rules forbid running git against the primary checkout.
 
 ## Live-readiness list (names only, no values)
 
-State as found on the host, before Joshua starts Task 2.
+State as found on the host, before the owner starts Task 2.
 
 **Decision to confirm first**
 
-- Region `europe-west8` for the Firestore `(default)` database: one-way, cannot change afterwards (D-03). The bootstrap prompt asks Joshua to type it.
+- Region `europe-west8` for the Firestore `(default)` database: one-way, cannot change afterwards (D-03). The bootstrap prompt asks the owner to type it.
 
-**Bootstrap variables (Joshua sets them; values stay in `docs/internal/gcp-project.md` or the console)**
+**Bootstrap variables (the owner sets them; values stay in `docs/internal/gcp-project.md` or the console)**
 
 - `PROJECT_ID`, `PROJECT_NUMBER`, `GITHUB_REPO_ID`, `OWNER_EMAIL`
 
@@ -77,7 +77,7 @@ State as found on the host, before Joshua starts Task 2.
 **Console steps**
 
 - OAuth client: add the mcp-server `/auth/callback` URL as an authorized redirect URI (path per `services/mcp_server/README.md`).
-- Chat app: switch to the HTTP endpoint URL of chat-bot with Authentication Audience = that URL; visibility stays Joshua only.
+- Chat app: switch to the HTTP endpoint URL of chat-bot with Authentication Audience = that URL; visibility stays the owner only.
 
 **Meridian seeding route (token_chain b, D-12)**
 
@@ -91,25 +91,25 @@ State as found on the host, before Joshua starts Task 2.
 | `gcloud` on the host PATH | missing (the README runs it in Docker) |
 | host gcloud config directory (`~/.config/gcloud`) | missing: `gcloud auth login` and `gcloud auth application-default login` still to do before the bootstrap `docker run` mount works |
 | Docker volume `meridian-claude` (local chain) | present; stays untouched |
-| Extra video directory `.cache/videos` (video_fetch a) | missing: `gh release download videos --repo <owner>/Guides --dir .cache/videos` still to run (eight mp4 missing locally per Joshua's checklist) |
+| Extra video directory `.cache/videos` (video_fetch a) | missing: `gh release download videos --repo <owner>/Guides --dir .cache/videos` still to run (eight mp4 missing locally per the owner's checklist) |
 | Local artifacts directory with an index | present: `index.db` and `index.manifest.json` (dated 2026-11-03, older than the current redaction work: `scripts/sync-and-publish.sh` rebuilds and publishes the real one) |
 | Guides checkout (`.cache/guides`) | present |
-| Fresh `claude` login for the bucket seed | not done (needs a browser login by Joshua) |
+| Fresh `claude` login for the bucket seed | not done (needs a browser login by the owner) |
 | `.env` | not read |
 
 **Deferral line (plan Task 1):** not applicable. The project and billing already exist, so nothing was added to STATE.md and no deferral is recorded.
 
 ## Live deploy
 
-Done 2026-11-15, Joshua authorized each step in chat; Claude ran them (Cloud Shell in Chrome, Docker gcloud on the host).
+Done 2026-11-15, the owner authorized each step in chat; Claude ran them (Cloud Shell in Chrome, Docker gcloud on the host).
 
-- `bootstrap.sh` ran in Cloud Shell. Firestore `(default)` created in **europe-west8** (Joshua confirmed the region; one-way). TTL on `expire_at` for `gaps` and `thread_memory`. Artifact Registry `ai-buddy`, three buckets, three service accounts, WIF pool `github` / provider `monorepo`. No org-policy error.
+- `bootstrap.sh` ran in Cloud Shell. Firestore `(default)` created in **europe-west8** (the owner confirmed the region; one-way). TTL on `expire_at` for `gaps` and `thread_memory`. Artifact Registry `ai-buddy`, three buckets, three service accounts, WIF pool `github` / provider `monorepo`. No org-policy error.
 - Deviation: the script's `firestore databases describe` pre-check hung about 3 minutes; that one call was killed, the script fell through to its typed-region prompt.
 - Six secrets set: four generated in place (never shown), `allowed-users` from `.env` by script (holds an email, which the allow-list accepts), `google-client-secret` version 2 (new `GOCSPX-` secret; version 1 held a wrongly pasted value and is disabled). `oauth-storage-encryption-key` version 2 is a Fernet key; version 1 (plain random) is disabled.
 - Nine GitHub repository variables set; OAuth redirect URI `…run.app/auth/callback` added (the trycloudflare URI is kept).
 - Claude bucket seeded from a fresh, separate `claude auth login` (token_chain b); local copy deleted. Meridian reports the account as a Team subscription ("Max recommended").
 - `sync-and-publish.sh`: 20 videos uploaded, index build `20261115T102549Z-dec3522a035e` (22 handbook pages, 2795 Guides sections, the Wi-Fi page redacted) published.
-- CI: `meridian` green; `mcp-server` and `chat-bot` green end to end after the fixes below. `ci-deployer` role changed by hand from `run.developer` to `run.admin` (Joshua's choice).
+- CI: `meridian` green; `mcp-server` and `chat-bot` green end to end after the fixes below. `ci-deployer` role changed by hand from `run.developer` to `run.admin` (the owner's choice).
 - Chat app switched from Cloud Pub/Sub to the HTTP endpoint URL (add-on format, one URL for all triggers). The local Pub/Sub bot no longer receives Chat events.
 
 Fixes committed during the live run (each with tests, full suite green):
@@ -123,7 +123,7 @@ Fixes committed during the live run (each with tests, full suite green):
 
 ## Live checks
 
-Run 2026-11-15 by Claude through Chrome (Joshua's session) and Docker gcloud, at Joshua's request.
+Run 2026-11-15 by Claude through Chrome (the owner's session) and Docker gcloud, at the owner's request.
 
 1. WIF (INFRA-05): **passed.** Every deploy run authenticated through the WIF provider as `ci-deployer`; no key in the repo or GitHub secrets.
 2. Post-deploy step: **passed** after fixes `119950b` and `b3f9237`. mcp-server `GET /health` 200 and `POST /mcp` 401 without a token; chat-bot `POST /` 401.
@@ -131,10 +131,10 @@ Run 2026-11-15 by Claude through Chrome (Joshua's session) and Docker gcloud, at
 4. Bot-to-MCP ID token: **passed.** `POST /mcp` 200 from the bot in the mcp-server log.
 5. Slow question (billing_mode a): **passed, no stall.** A three-part first-person question had its placeholder replaced within about a minute; the content was the designed personal-case route ("Per il tuo caso specifico chiedi a HR.").
 6. Cold start: **observed.** First message after deploy: about 17 s for the bot instance (Meridian probe passed after 2 attempts) plus about 8 s for mcp-server, which was also cold. Not yet re-measured after 20 minutes idle.
-7. claude.ai connector: **removed by Joshua.** The claude.ai Team org lets only an org owner add a custom connector, and the owner cannot be asked. The MCP OAuth login on Cloud Run is therefore covered by unit tests only, not live; the Chat bot does not use that path.
-8. Non-digitiamo rejection: **removed by Joshua** ("no one is going to try that"). Offline coverage stays: `tests/unit/mcp_server/test_auth.py` rejects other domains and a hosted-domain mismatch; the OAuth consent screen is Internal.
+7. claude.ai connector: **removed by the owner.** The claude.ai Team org lets only an org owner add a custom connector, and the owner cannot be asked. The MCP OAuth login on Cloud Run is therefore covered by unit tests only, not live; the Chat bot does not use that path.
+8. Non-digitiamo rejection: **removed by the owner** ("no one is going to try that"). Offline coverage stays: `tests/unit/mcp_server/test_auth.py` rejects other domains and a hosted-domain mismatch; the OAuth consent screen is Internal.
 9. Firestore TTL (D-05): **passed.** `expire_at` ACTIVE on `gaps` and `thread_memory`.
-10. Guarda playback (D-16, Pitfall 13): **partial.** The video opened in a new tab from the private bucket through Joshua's Google session and played inline (not a download), but from 0:00: the opened page had no `#t=` fragment, although `buddy_core/models.py` appends `#t=<seconds>`. The fragment is lost in the Chat button or the storage.cloud.google.com redirect.
+10. Guarda playback (D-16, Pitfall 13): **partial.** The video opened in a new tab from the private bucket through the owner's Google session and played inline (not a download), but from 0:00: the opened page had no `#t=` fragment, although `buddy_core/models.py` appends `#t=<seconds>`. The fragment is lost in the Chat button or the storage.cloud.google.com redirect.
 11. Forced revision after publish (D-08): **passed.** `date_edited` of one handbook page changed locally; `sync-and-publish.sh` published build `20261115T114311Z-57b88ae9e574` and forced revision `mcp-server-00005`; the next answer cited that page with "revisione 2026-11-15" (was 2025-06-12). The date was restored and the original content republished.
 12. Meridian token across a revision (D-12): **partly shown.** Answers worked on three consecutive chat-bot revisions seeded once from the bucket; not yet checked after a token refresh.
 
@@ -170,4 +170,4 @@ The plan's `files_modified` lists STATE.md and WINDOWS.md. Neither was touched: 
 
 1. **Task 1: Offline gate and live-readiness list** - this SUMMARY only (no code or planning file changed)
 2. **Task 2: Bootstrap, publish, first CI deploy** - fixes `16db709`, `119950b`, `b3f9237`, `4f28c2a`; record `233ebe0`
-3. **Task 3: Live checks** - `cd4e859`, `810547c` and this close-out (checks 7 and 8 removed by Joshua)
+3. **Task 3: Live checks** - `cd4e859`, `810547c` and this close-out (checks 7 and 8 removed by the owner)

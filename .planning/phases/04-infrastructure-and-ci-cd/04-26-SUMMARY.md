@@ -22,7 +22,7 @@ completed: 2026-11-16
 
 # Phase 4 Plan 26: Live proof of the gap-closure hardening Summary
 
-**All three tasks are done: the offline gate is green, the live setup is in place, and live checks L1..L11 passed. Three gaps found on the way are listed under Gaps (one fixed live, two in the backlog). The five old repository variables were deleted on 2026-11-16 at Joshua's request.**
+**All three tasks are done: the offline gate is green, the live setup is in place, and live checks L1..L11 passed. Three gaps found on the way are listed under Gaps (one fixed live, two in the backlog). The five old repository variables were deleted on 2026-11-16 at the owner's request.**
 
 ## Offline gate
 
@@ -54,14 +54,14 @@ Local Trivy 0.76.2 with `ignore-unfixed` reports 0 HIGH or CRITICAL on `mcp_serv
 
 ### Live-readiness list (names only, no values)
 
-Everything below needs Joshua's identity (gcloud config, gh login) and is run in Tasks 2 and 3, not here.
+Everything below needs the owner's identity (gcloud config, gh login) and is run in Tasks 2 and 3, not here.
 
 1. **Bootstrap re-run** on the existing project (README "Bootstrap", `deploy/cloudrun/bootstrap.sh`): creates `sa-publisher`, its `roles/storage.objectAdmin` on the index and videos buckets, and the owner's `roles/iam.serviceAccountTokenCreator` on it; binds `ci-deployer` to `roles/run.admin` (L8 checks that `roles/run.developer` is not held by it). The Firestore `describe` pre-check must be allowed to finish (a killed describe would fall into the create prompt). Fallback if it cannot finish: only `gcloud iam service-accounts create sa-publisher` and the three bindings.
-2. **Optional, Joshua decides:** remove the owner's two `roles/storage.objectAdmin` bucket bindings (index and videos) so live IAM equals the repository.
+2. **Optional, the owner decides:** remove the owner's two `roles/storage.objectAdmin` bucket bindings (index and videos) so live IAM equals the repository.
 3. **Five repository secrets** from the existing variables, without printing: `GCP_PROJECT_ID`, `GCP_PROJECT_NUMBER`, `GCP_DEPLOYER_SA`, `GCP_WIF_PROVIDER`, `GCP_OAUTH_CLIENT_ID` (`gh variable get <NAME> | gh secret set <NAME>`). The variables stay until the first green deploy on secrets. The four other variables (`GUIDES_WEB_BASE`, `CHAT_JWT_ISSUER_EMAIL`, `VIDEO_THUMBNAIL_URL`, `HELP_COMMAND_ID`) stay variables.
-4. **The push** of `main` (64 local commits ahead of origin at HEAD `65ce1b0`); only when Joshua asks.
-5. **After L1..L11 pass and Joshua agrees:** delete the five old variables (`gh variable delete <NAME>`).
-6. **Optional, destructive, Joshua's choice (T-04-82):** delete older public run logs that still show identifiers. Nothing is deleted without his explicit request.
+4. **The push** of `main` (64 local commits ahead of origin at HEAD `65ce1b0`); only when the owner asks.
+5. **After L1..L11 pass and the owner agrees:** delete the five old variables (`gh variable delete <NAME>`).
+6. **Optional, destructive, the owner's choice (T-04-82):** delete older public run logs that still show identifiers. Nothing is deleted without his explicit request.
 
 ### Flagged assumptions this plan resolves live
 
@@ -69,7 +69,7 @@ Everything below needs Joshua's identity (gcloud config, gh login) and is run in
 
 ## Live setup
 
-Done 2026-11-15 (Claude in Joshua's Chrome session and gcloud through the pinned cloud-sdk image, at Joshua's request): five repository secrets set, `deploy/cloudrun/bootstrap.sh` re-run (sa-publisher created, ci-deployer moved to `roles/run.admin`), main pushed at `86e7324`, all five runs green. 2026-11-16: the three follow-up fixes (`61d72f6`, `6efd761`, `cf7e7c3`) pushed; the owner's `roles/storage.objectAdmin` removed from the index and videos buckets after the publish worked (a pre-existing `objectViewer` on the videos bucket stays).
+Done 2026-11-15 (Claude in the owner's Chrome session and gcloud through the pinned cloud-sdk image, at the owner's request): five repository secrets set, `deploy/cloudrun/bootstrap.sh` re-run (sa-publisher created, ci-deployer moved to `roles/run.admin`), main pushed at `86e7324`, all five runs green. 2026-11-16: the three follow-up fixes (`61d72f6`, `6efd761`, `cf7e7c3`) pushed; the owner's `roles/storage.objectAdmin` removed from the index and videos buckets after the publish worked (a pre-existing `objectViewer` on the videos bucket stays).
 
 ## Live checks
 
@@ -89,7 +89,7 @@ Done 2026-11-15 (Claude in Joshua's Chrome session and gcloud through the pinned
 
 - Meridian login lost on Cloud Run (found during L9, fixed live): new instances logged `Claude auth status ... loggedIn: false; login required`, and every question ended in the error reply. Fixed 2026-11-16 by re-seeding `gs://<PROJECT_ID>-ai-buddy-claude/.credentials.json` with a fresh login (deploy/cloudrun/README.md "Seeding the Meridian credentials bucket"). Cause of the broken refresh chain not proven. backlog: alert or health signal when Meridian reports logged out.
 - The bot logs nothing when the LLM call fails: `workflow.py` catches `LlmError` in reformulate and returns the error reply without a log line, so Cloud Run showed no error for the failures above. Fixed 2026-11-16 (`60aed0a`): the step logs `reformulate failed: <type>: <SDK error name>`, pinned by `test_reformulation_failure_is_logged_with_the_error_type_only`.
-- Cold start exceeds Chat's ~30 s HTTP limit: request at +0 s, Meridian ready at +11 s, bot started at +36 s, response at 55.7 s, so Chat shows "AI Buddy non risponde" on the first message after idle while the answer still arrives in the thread. Accepted (Joshua, 2026-11-16: no `minScale: 1`, free-hosting goal). backlog: profile the ~25 s between Meridian ready and bot start.
+- Cold start exceeds Chat's ~30 s HTTP limit: request at +0 s, Meridian ready at +11 s, bot started at +36 s, response at 55.7 s, so Chat shows "AI Buddy non risponde" on the first message after idle while the answer still arrives in the thread. Accepted (the owner, 2026-11-16: no `minScale: 1`, free-hosting goal). backlog: profile the ~25 s between Meridian ready and bot start.
 
 ## Deferred review items
 

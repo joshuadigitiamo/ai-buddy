@@ -2,7 +2,7 @@
 
 ## Overview
 
-Milestone 1 builds the full AI Buddy chain for Joshua's personal development use, against the local handbook snapshot (D-25) and the Guides repo. It starts with the content the assistant may speak from (sync, redaction, index), puts it behind five cited MCP tools plus the `digitiamo-buddy` Skill, adds the Google Chat bot that reasons over those tools with a 2-step RAG workflow, packages everything for kind and Cloud Run with CI/CD, and closes with an eval phase that decides the milestone gate: >= 90% correct answers with citation on the golden set, 0 invented policies, and the empty-context test refusing. Every phase applies the Guides best practices (D16) and its plan cites the sections used.
+Milestone 1 builds the full AI Buddy chain for the owner's personal development use, against the local handbook snapshot (D-25) and the Guides repo. It starts with the content the assistant may speak from (sync, redaction, index), puts it behind five cited MCP tools plus the `digitiamo-buddy` Skill, adds the Google Chat bot that reasons over those tools with a 2-step RAG workflow, packages everything for kind and Cloud Run with CI/CD, and closes with an eval phase that decides the milestone gate: >= 90% correct answers with citation on the golden set, 0 invented policies, and the empty-context test refusing. Every phase applies the Guides best practices (D16) and its plan cites the sections used.
 
 Execution environment for every phase: Python 3.12, all code and tests run in Docker, no Python on the host.
 
@@ -52,7 +52,7 @@ Plans:
 - [x] 01-07-PLAN.md — Sync CLI and pipeline end to end on fixtures (run, list-pages, guides-index, search)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [x] 01-08-PLAN.md — Real Guides maps + GUIDES_INDEX.md (Joshua commits); its live ClickUp run was removed by D-25 and moved to 01-11
+- [x] 01-08-PLAN.md — Real Guides maps + GUIDES_INDEX.md (the owner commits); its live ClickUp run was removed by D-25 and moved to 01-11
 - [x] 01-09-PLAN.md — Gap: local handbook folder replaces ClickUp in the sync (handbook:// citation, file denylist, no token)
 
 **Wave 6** *(blocked on Wave 5 completion)*
@@ -87,13 +87,13 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [x] 02-05-PLAN.md — Auth: Google OAuth proxy restricted to @digitiamo.com, bot service-account ID tokens (D-12), AUTH_MODE/K_SERVICE guard, per-identity rate limit
-- [x] 02-06-PLAN.md — digitiamo-buddy Skill (escalation list approved by Joshua) and one-page install guide
+- [x] 02-06-PLAN.md — digitiamo-buddy Skill (escalation list approved by the owner) and one-page install guide
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [x] 02-07-PLAN.md — `python -m buddy_mcp` composition root, real-process emulator test, runtime image stage, env contract + README, live Google login checkpoint (may defer to Phase 4)
 
 ### Phase 3: Google Chat Bot
-**Goal**: Joshua can ask the bot a question in Google Chat and get a cited, grounded answer (or an honest refusal or escalation) with a video card when one exists.
+**Goal**: the owner can ask the bot a question in Google Chat and get a cited, grounded answer (or an honest refusal or escalation) with a video card when one exists.
 **Depends on**: Phase 2
 **Requirements**: BOT-01, BOT-02, BOT-03, BOT-04, BOT-05, BOT-06, BOT-07, BOT-08, BOT-09, BOT-10, BOT-11
 **Guides applied (D16)**: LANGCHAIN_GUIDE and LANGGRAPH_GUIDE (2-step RAG workflow, citations seen by the model), MCP_SERVERS_GUIDE (client side), RAG_CHATBOT_GUIDE (confidence gate, refusal), DESIGN_PATTERNS_GUIDE (pluggable LLM client, transport interface); plan lists exact sections and exceptions.
@@ -142,7 +142,7 @@ Plans:
   2. Applying the Kustomize dev overlay to a local kind cluster brings the services up, and a health check plus one MCP tool call succeed in-cluster; base and overlays pass manifest validation.
   3. Cloud Run YAMLs for `mcp_server` and `chat_bot` target europe-west8 with scale-to-zero and request-based billing, the SYNC-07 handoff (bucket read through `GcsArtifactStore`) is wired in, and the sync job runs on demand from the laptop and forces a new `mcp_server` revision after each publish (no nightly Scheduler, no sync job on Cloud Run; D-07, D-09). (reworded 2026-11 per 04-CONTEXT D-07/D-09)
   4. A change under `services/mcp_server` triggers only that service's workflow, which runs `run-unit-tests.sh --all` (ruff, mypy, pytest with coverage) and blocks the image push on failure; on success it pushes to Artifact Registry and deploys, authenticating through Workload Identity Federation with no key file in the repo or secrets.
-  5. Guide videos play inline in the browser from access-controlled hosting (not GitHub release downloads) and the Guarda button opens at the section's timestamp; timestamp coverage in the guides index improved beyond the 238/2524 scene-mapped rows. (Carried over from the Phase 3 live check, deferred by Joshua; recommended path: Cloud Storage with video/mp4 served inline, access-controlled because the Guides are private.)
+  5. Guide videos play inline in the browser from access-controlled hosting (not GitHub release downloads) and the Guarda button opens at the section's timestamp; timestamp coverage in the guides index improved beyond the 238/2524 scene-mapped rows. (Carried over from the Phase 3 live check, deferred by the owner; recommended path: Cloud Storage with video/mp4 served inline, access-controlled because the Guides are private.)
 **Plans**: 26/26 plans complete (04-15 to 04-26 are gap-closure plans)
 **Note**: Live deploy runs in the existing GCP project `ai-buddy-dev` (digitiamo.com organization, billing linked; org policies may apply) and still needs Workload Identity Federation (Admin Google); region europe-west8 is still to be confirmed (D7). Until the live deploy runs, criteria 3 and 4 are verified statically (YAML schema validation, workflow lint, dry runs) and the live deploy check is recorded as pending.
 
@@ -171,7 +171,7 @@ Plans:
 - [x] 04-13-PLAN.md — Live deploy checkpoint (bootstrap, first CI deploy, twelve live checks)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [x] 04-14-PLAN.md — Five Guides sections.yaml drafts, Joshua's Guides commit, coverage above 238/2524
+- [x] 04-14-PLAN.md — Five Guides sections.yaml drafts, the owner's Guides commit, coverage above 238/2524
 
 **Gap closure** (04-VERIFICATION gaps 1-9, 04-REVIEW WR-01..WR-09; gap waves run after Wave 6)
 
@@ -207,7 +207,7 @@ Plans:
 **Requirements**: EVAL-01, EVAL-02, EVAL-03, EVAL-04, EVAL-05, EVAL-06
 **Guides applied (D16)**: RAG_CHATBOT_GUIDE (evaluation, Recall@k), MLFLOW_GENAI_GUIDE (tracing, scorers, LLM judges), LANGGRAPH_GUIDE (tracing the workflow), DESIGN_PATTERNS_GUIDE; plan lists exact sections and exceptions.
 **Success Criteria** (what must be TRUE):
-  1. A golden set of 30-50 Q&A pairs exists in the repo, drafted from the test doc [ClickUp doc ID removed] and the Guides, with expected answer and expected source per item, covering answerable, no-answer and sensitive-escalation cases, each item showing Joshua's review status, and none pointing at the official handbook.
+  1. A golden set of 30-50 Q&A pairs exists in the repo, drafted from the test doc [ClickUp doc ID removed] and the Guides, with expected answer and expected source per item, covering answerable, no-answer and sensitive-escalation cases, each item showing the owner's review status, and none pointing at the official handbook.
   2. One command prints Recall@5 for handbook search and Guides search over the golden set, and flags Guides Recall@5 < 0.8 as the hybrid-upgrade trigger.
   3. One command runs the golden set through the bot workflow with the configured `LLM_BACKEND` and prints the correctness-with-citation percentage and the count of invented policies; each judged answer has an MLflow trace (retrieval, generation, gate) viewable in a containerized MLflow UI.
   4. The empty-context test passes: with an index holding no matching content, every question gets a refusal and a logged gap, and the test fails if any answer is produced.
@@ -216,7 +216,7 @@ Plans:
 
 Plans:
 **Wave 1**
-- [x] 05-01-PLAN.md — D-01 prerequisite: regenerate GUIDES_INDEX.md at Guides 4526500 (Joshua commits), strict drift check, refreshed index identity
+- [x] 05-01-PLAN.md — D-01 prerequisite: regenerate GUIDES_INDEX.md at Guides 4526500 (the owner commits), strict drift check, refreshed index identity
 - [x] 05-02-PLAN.md — Legitimacy gate for mlflow-skinny and pandas, hashed locks, Dockerfile eval stage, phase decision record
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -236,13 +236,13 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [x] 05-10-PLAN.md — Empty-context test: committed fixture, second mcp-server, real-LLM command, stub variant
-- [x] 05-11-PLAN.md — Golden set drafted from the fresh index (public/private split), Joshua's review checkpoint
+- [x] 05-11-PLAN.md — Golden set drafted from the fresh index (public/private split), the owner's review checkpoint
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [x] 05-12-PLAN.md — Full gate command, preflight, eval README, smoke asserts the gate exit code
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [x] 05-13-PLAN.md — Live checkpoints: Meridian preflight, then recall, run, empty-context and gate run by Joshua; verdict recorded
+- [x] 05-13-PLAN.md — Live checkpoints: Meridian preflight, then recall, run, empty-context and gate run by the owner; verdict recorded
 
 **Gap wave 1** *(gap closure, 05-GAP-DECISION.md; frontmatter wave 1)*
 - [x] 05-14-PLAN.md — Bot retrieval fix: Guides search also queries the standalone question (Italian function words removed), Guides k 4 -> 8, keyword-first merge; case-scope rule in both answer prompts

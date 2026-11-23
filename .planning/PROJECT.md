@@ -4,7 +4,7 @@
 
 AI Buddy Digitiamo is a conversational assistant that answers Digitiamo employees' questions about company processes, tools and culture, in Italian, using only official sources: the company Handbook and the Guides repo. Every answer cites its source page (with revision date, and a video clip when the Guides have one). When no source exists it says so and logs the gap; sensitive topics always go to a person.
 
-Milestone 1 delivers the full chain (content sync, MCP server, Google Chat bot, infra, eval) for **personal development use by Joshua only**, against a local, gitignored snapshot of the handbook (ClickUp is being shut down, D-25). No other employee uses it in this milestone.
+Milestone 1 delivers the full chain (content sync, MCP server, Google Chat bot, infra, eval) for **personal development use by the owner only**, against a local, gitignored snapshot of the handbook (ClickUp is being shut down, D-25). No other employee uses it in this milestone.
 
 ## Core Value
 
@@ -59,7 +59,7 @@ Full list with IDs in `.planning/REQUIREMENTS.md`. Summary by area:
 - **Privacy posture:** gap log has no user id (Statuto dei Lavoratori art. 4); EU data residency (GDPR); no per-person logging.
 - **Guides as standards:** `~/Desktop/WORK/Guides` doubles as the best-practice source for D16 (MCP_SERVERS_GUIDE, RAG_CHATBOT_GUIDE, LANGCHAIN_GUIDE / LANGGRAPH_GUIDE, MLFLOW_GENAI_GUIDE, KUBERNETES_GUIDE, DESIGN_PATTERNS_GUIDE). Section numbers cited in PLAN.md (e.g. MCP_SERVERS_GUIDE 17, 20) were not verified at ingest; phase plans verify them.
 - **Research:** `docs/research/01..07` back the decisions (handbook inventory, Meridian and Anthropic terms, onboarding practices, gap analysis, open models, hosting, Cloud Run costs). docs/PLAN.md section 2.1 (03/11/2026) overrides section 2 where they conflict.
-- **Conflict report:** `.planning/INGEST-CONFLICTS.md` (0 blockers, 3 warnings acknowledged and resolved: cycle downgrade accepted; Joshua's Max account is his alone so D1a holds; golden set drafted by Claude from the handbook snapshot + Guides and reviewed by Joshua).
+- **Conflict report:** `.planning/INGEST-CONFLICTS.md` (0 blockers, 3 warnings acknowledged and resolved: cycle downgrade accepted; the owner's Max account is his alone so D1a holds; golden set drafted by Claude from the handbook snapshot + Guides and reviewed by the owner).
 
 ## Constraints
 
@@ -70,7 +70,7 @@ Full list with IDs in `.planning/REQUIREMENTS.md`. Summary by area:
 - **Deploy targets**: local development on kind (Kubernetes), production on Cloud Run europe-west8 (region still "da confermare") in the existing GCP project `ai-buddy-dev` (ID in docs/internal/gcp-project.md, gitignored; digitiamo.com org, billing linked); CI/CD GitHub Actions with Workload Identity Federation (no keys)
 - **MCP**: FastMCP / SDK `mcp`; streamable-http, stateless, JSON responses, no persistent SSE (cost and ephemeral filesystem); fewer than 10 tools; read-only; every output carries source url + revision date
 - **Gap log**: Firestore, no user id, short retention
-- **LLM access (Milestone 1)**: Meridian + Joshua's Claude Max only for personal dev, single user. Guards: Google Chat app visible to Joshua only, `ALLOWED_USERS` allowlist enforced by the bot, `LLM_BACKEND` switch `meridian | api`. Before anyone else uses the bot, `LLM_BACKEND` must move to an API key (Console or Vertex EU)
+- **LLM access (Milestone 1)**: Meridian + the owner's Claude Max only for personal dev, single user. Guards: Google Chat app visible to the owner only, `ALLOWED_USERS` allowlist enforced by the bot, `LLM_BACKEND` switch `meridian | api`. Before anyone else uses the bot, `LLM_BACKEND` must move to an API key (Console or Vertex EU)
 - **Test data**: the local handbook snapshot via `HANDBOOK_DIR` (gitignored, never committed, public repo); no ClickUp API and no token (D-25, D-26); the official handbook is not used in Milestone 1
 - **Redaction**: no credential may reach the index; the Wi-Fi page is excluded before indexing
 - **Repo layout (D11)**: `packages/buddy_core`, `services/mcp_server`, `services/chat_bot`, `jobs/sync`, `deploy/k8s`, `deploy/cloudrun`, `.github/workflows`, `tests/`, `run-unit-tests.sh`
@@ -87,7 +87,7 @@ Locked decisions from docs/PLAN.md sections 2 and 2.1 (section 2.1 overrides sec
 Locked (Milestone 1 approved 03/11/2026):
 
 - **D1** (locked, overridden in part by D1a): Do not use Meridian. Anthropic terms forbid routing requests through Free/Pro/Max credentials on behalf of other users; enforced since 9/1/2026. Still applies to any multi-user use.
-- **D1a** (locked, overrides D1 for personal dev): Meridian + Joshua's Claude Max only for personal development; Joshua is the sole user (confirmed 03/11/2026: the Max account is used by him alone). Guards: Google Chat app visibility Joshua only, `ALLOWED_USERS` allowlist in the bot, `LLM_BACKEND` switch `meridian | api`. Before another person uses the bot, `LLM_BACKEND` moves to an API key (Console or Vertex EU). Personal use is a grey area accepted by Joshua. Meridian now declares an MIT license.
+- **D1a** (locked, overrides D1 for personal dev): Meridian + the owner's Claude Max only for personal development; the owner is the sole user (confirmed 03/11/2026: the Max account is used by him alone). Guards: Google Chat app visibility the owner only, `ALLOWED_USERS` allowlist in the bot, `LLM_BACKEND` switch `meridian | api`. Before another person uses the bot, `LLM_BACKEND` moves to an API key (Console or Vertex EU). Personal use is a grey area accepted by the owner. Meridian now declares an MIT license.
 - **D2** (locked): One Claude seat per person, ideally moving from Max to Claude Team (licence decision owned by Direzione).
 - **D3** (locked, "no custom bot" overridden by D13): Phase 1 = remote MCP server + Skill.
 - **D4** (locked): Handbook in full context; no vector DB for the handbook (~8k tokens).
@@ -109,15 +109,15 @@ Locked (Milestone 1 approved 03/11/2026):
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Meridian + Max for personal dev only (D1a) | Fast dev loop with no API spend; Joshua is sole user; guards enforce it | — Pending (revisit before any second user) |
+| Meridian + Max for personal dev only (D1a) | Fast dev loop with no API spend; the owner is sole user; guards enforce it | — Pending (revisit before any second user) |
 | Handbook in full context, Guides in FTS5 (D4, D5) | ~8k-token handbook needs no RAG; Guides need section search without vector infra | ✓ Good — measured 2026-11-22: handbook Recall@5 1.00, Guides 0.85 >= 0.8, no hybrid trigger (05-17) |
 | MCP server stateless, JSON, Firestore gap log (D10) | Fits Cloud Run free tier and ephemeral filesystem | — Pending |
 | Bot as MCP client over HTTP, monorepo (D11) | No duplicated retrieval logic; future split needs no rewrite | — Pending |
-| Milestone 1 includes bot, infra, eval (D13) | Joshua's request; Pub/Sub avoids a public URL to the dev machine | — Pending |
+| Milestone 1 includes bot, infra, eval (D13) | The owner's request; Pub/Sub avoids a public URL to the dev machine | — Pending |
 | Test handbook instead of official doc (D14) | Official handbook is being rewritten and has known defects | Superseded by D-25 (local snapshot) |
 | Local sources, no ClickUp sync or tokens (D-25..D-27) | ClickUp is being shut down; public repo keeps handbook content gitignored | ✓ Phase 1 |
 | Foundation (repo skeleton, `run-unit-tests.sh`, tooling) lands in Phase 1, not Phase 4 | Phases 1-3 cannot be verified in Docker without the test runner | ✓ Phase 1 |
-| Golden set drafted by Claude from handbook snapshot + Guides, reviewed by Joshua | No HR-sourced set exists for the snapshot; HR set replaces it later | ✓ Good — 40 items approved, used in the live gate (05-11, 05-17); compound key facts need narrow wording (05-GAP-DECISION) |
+| Golden set drafted by Claude from handbook snapshot + Guides, reviewed by the owner | No HR-sourced set exists for the snapshot; HR set replaces it later | ✓ Good — 40 items approved, used in the live gate (05-11, 05-17); compound key facts need narrow wording (05-GAP-DECISION) |
 | Phase 4 checkpoints (04-01): request-based billing; 0-offset video fallback kept; Claude drafts 5 `sections.yaml`; videos via `gh release download` into `.cache/videos`; separate Cloud Run login for the Max token chain; `google-cloud-storage==3.17.1` and Meridian commit pinned in `deploy/meridian.version` | Recorded before infra plans; project sits under the digitiamo.com org, so org policies may apply | — Pending |
 
 ## Evolution

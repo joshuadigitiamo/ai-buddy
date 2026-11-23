@@ -141,7 +141,7 @@ These were not re-run in this continuation (no code changed).
 
 ## Task 3: Live Google login (checkpoint) - PARTIALLY VERIFIED
 
-Performed with Joshua on 2026-11-06.
+Performed with the owner on 2026-11-06.
 
 **Setup:** GCP project `ai-buddy-dev` under the digitiamo.com organization; Google Auth Platform consent screen user type Internal; Web OAuth client `ai-buddy-mcp` with redirect URI `<public tunnel URL>/auth/callback`. The server ran as the `ai-buddy-mcp` image with `AUTH_MODE=on`, `OAUTH_STORAGE=memory` and the Firestore emulator for gaps, exposed through a temporary Cloudflare quick tunnel (torn down afterwards). Secrets lived only in a file outside the repository; none were committed or displayed.
 
@@ -159,7 +159,7 @@ Performed with Joshua on 2026-11-06.
 
 The live check is **not** marked fully passed.
 
-**MCP-07 status:** marked complete by user decision (Joshua, 2026-11-06). Auth is implemented and the Google OAuth flow was verified live through an MCP client; the two live checks above (claude.ai connector, non-digitiamo account rejection) are carried to Phase 4 as pending items in STATE.md.
+**MCP-07 status:** marked complete by user decision (the owner, 2026-11-06). Auth is implemented and the Google OAuth flow was verified live through an MCP client; the two live checks above (claude.ai connector, non-digitiamo account rejection) are carried to Phase 4 as pending items in STATE.md.
 
 ## Deferred to Phase 4
 

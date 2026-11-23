@@ -39,7 +39,7 @@ key-files:
     - tests/unit/mcp_server/test_main.py
 
 key-decisions:
-  - "ci-deployer keeps roles/run.admin in the repo (Joshua's 04-13 choice); a narrower custom role stays a one-line change recorded in the README (T-04-54 accepted)"
+  - "ci-deployer keeps roles/run.admin in the repo (the owner's 04-13 choice); a narrower custom role stays a one-line change recorded in the README (T-04-54 accepted)"
   - "Owner bindings untouched here; 04-24 reworks them, the exact-set test will then change in a reviewed commit"
   - "The CLI error line names OAUTH_STORAGE_ENCRYPTION_KEY only (existing cli behaviour); the full 'must be a Fernet key' text is asserted at McpSettings level"
 
@@ -143,7 +143,7 @@ status: complete
 - `tests/unit/mcp_server/test_main.py` - non-Fernet key exits 1 without echoing the value
 
 ## Decisions Made
-- Kept `roles/run.admin` (Joshua's 04-13 choice, T-04-54 accepted); owner bindings left for 04-24.
+- Kept `roles/run.admin` (the owner's 04-13 choice, T-04-54 accepted); owner bindings left for 04-24.
 - The CLI prints only the variable name on a config error (existing behaviour), so the main-level test asserts the name and the absence of the value; the full message is asserted in test_config.
 
 ## Deviations from Plan

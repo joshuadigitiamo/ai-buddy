@@ -53,7 +53,7 @@ key-files:
     - services/mcp_server/.gitkeep
 
 key-decisions:
-  - "Package legitimacy gate: Joshua approved the three pins as written (fastmcp==4.1.6, snowballstemmer==3.1.1, google-cloud-firestore==2.34.1); the orchestrator confirmed all three on the PyPI JSON API with the expected project links. No pin was changed."
+  - "Package legitimacy gate: the owner approved the three pins as written (fastmcp==4.1.6, snowballstemmer==3.1.1, google-cloud-firestore==2.34.1); the orchestrator confirmed all three on the PyPI JSON API with the expected project links. No pin was changed."
   - "revision_kind keeps its default on HandbookPageResult and GuidesSectionResult (02-02 constructs HandbookPageResult relying on it) but is forced into the advertised JSON schema `required` list through json_schema_extra, so clients see it as always present."
   - "Guides revision_date is the index build date labelled indexed_on (user decision 2); source_url is a GitHub permalink pinned to guides_commit_sha with #L<n> for one-line sections and #L<start>-L<end> otherwise."
   - "Tool functions are async: sync tools run in a threadpool while the SQLite connection belongs to the loop thread."
@@ -135,7 +135,7 @@ status: complete
 
 ## Performance
 
-- **Duration:** 8 min of executor time (continuation after the Task 1 gate; the wait for Joshua's approval is not counted)
+- **Duration:** 8 min of executor time (continuation after the Task 1 gate; the wait for the owner's approval is not counted)
 - **Started:** 2026-11-06T20:47:55Z
 - **Completed:** 2026-11-06T20:55Z
 - **Tasks:** 3 (Task 1 gate, Task 2 tracer, Task 3 TDD)
@@ -151,7 +151,7 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1: Package legitimacy gate** - no commit (gate only). Joshua replied "approved" to the three pins as written; the orchestrator confirmed all three on the PyPI JSON API.
+1. **Task 1: Package legitimacy gate** - no commit (gate only). The owner replied "approved" to the three pins as written; the orchestrator confirmed all three on the PyPI JSON API.
 2. **Task 2: Tracer** - `1ac65e8` (feat)
 3. **Task 3: D-06 contract, guides_get_section, edges, cold-start failures (TDD)**
    - RED `0490bff` (test)

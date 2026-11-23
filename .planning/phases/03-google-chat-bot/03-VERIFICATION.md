@@ -3,7 +3,7 @@ phase: 03-google-chat-bot
 verified: 2026-11-07T15:00:00Z
 status: passed
 score: 8/8 must-haves verified
-score_note: "Human items resolved by live check 2026-11-07 or explicitly accepted/deferred by Joshua; the video-hosting issue (Guarda button downloads the mp4) is accepted for M1 and deferred to Phase 4"
+score_note: "Human items resolved by live check 2026-11-07 or explicitly accepted/deferred by the owner; the video-hosting issue (Guarda button downloads the mp4) is accepted for M1 and deferred to Phase 4"
 covered_files:
   - ".env.example"
   - ".planning/phases/03-google-chat-bot/03-01-PLAN.md"
@@ -60,7 +60,7 @@ behavior_unverified: 1
 overrides_applied: 0
 behavior_unverified_items:
   - truth: "A room @mention (and a bare '@AI Buddy' with blank argumentText) from an allowlisted user gets the placeholder in the room thread and then the answer"
-    test: "In a Google Chat room that contains the bot and Joshua, post '@AI Buddy Come richiedo le ferie?' and then a bare '@AI Buddy'"
+    test: "In a Google Chat room that contains the bot and the owner, post '@AI Buddy Come richiedo le ferie?' and then a bare '@AI Buddy'"
     expected: "The first gets a placeholder in the same thread, replaced by a cited answer, with the mention text absent from the question the bot reformulates; the second gets the /aiuto usage text and no workflow run"
     why_human: "Only synthetic fixtures (spaces/AAAAsyntheticRoom) cover it; Google's real room payload shape, argumentText behaviour and the two-word mention fallback cannot be exercised without a real room (WINDOWS.md #2)"
 human_verification:
@@ -83,7 +83,7 @@ human_verification:
 
 # Phase 3: Google Chat Bot Verification Report
 
-**Phase Goal:** Joshua can ask the bot a question in Google Chat and get a cited, grounded answer (or an honest refusal or escalation) with a video card when one exists.
+**Phase Goal:** the owner can ask the bot a question in Google Chat and get a cited, grounded answer (or an honest refusal or escalation) with a video card when one exists.
 **Verified:** 2026-11-07
 **Status:** passed
 **Re-verification:** No, initial verification
@@ -159,7 +159,7 @@ All 11 IDs are claimed by at least one PLAN frontmatter; REQUIREMENTS.md maps BO
 |-------------|-------------|-------------|--------|----------|
 | BOT-01 | 03-03, 03-04, 03-10, 03-11, 03-12 | Pub/Sub intake, DM and @mention | SATISFIED for DM, NEEDS HUMAN for room @mention | Truths 1, 2 |
 | BOT-02 | 03-10, 03-11 | HTTP endpoint with JWT verification, one intake interface | SATISFIED (unit, real RSA) | Truth 3; live JWT is a Phase 4 item |
-| BOT-03 | 03-03, 03-09, 03-12 | `ALLOWED_USERS` guard before any MCP or LLM call | SATISFIED | Truth 4. The "visible to Joshua only" setting is manual and documented in the README; live app was configured so |
+| BOT-03 | 03-03, 03-09, 03-12 | `ALLOWED_USERS` guard before any MCP or LLM call | SATISFIED | Truth 4. The "visible to the owner only" setting is manual and documented in the README; live app was configured so |
 | BOT-04 | 03-03, 03-05 | LangGraph 2-step RAG over MCP, no duplicate retrieval | SATISFIED | `workflow.py`, `mcp_client.py` |
 | BOT-05 | 03-03, 03-05, 03-08 | Citation check, refusal and gap | SATISFIED | Truth 5 |
 | BOT-06 | 03-02, 03-05 | Sensitive topics: general rule plus referral | SATISFIED | Truth 6 |
@@ -183,9 +183,9 @@ All 11 IDs are claimed by at least one PLAN frontmatter; REQUIREMENTS.md maps BO
 ### Human Verification Required
 
 #### 1. Room @mention and bare "@AI Buddy"
-**Test:** In a Chat room with the bot and Joshua, post "@AI Buddy Come richiedo le ferie?", then a bare "@AI Buddy".
+**Test:** In a Chat room with the bot and the owner, post "@AI Buddy Come richiedo le ferie?", then a bare "@AI Buddy".
 **Expected:** Placeholder in the same thread, then a cited answer, with no "@AI Buddy" text in the reformulated question. The bare mention gets the usage text.
-**Why human:** BOT-01 and SC1 name @mention. Only synthetic fixtures exist. Non-blocking if Joshua accepts the DM-only live evidence for M1 (the bot is single-user, so DMs are the main channel).
+**Why human:** BOT-01 and SC1 name @mention. Only synthetic fixtures exist. Non-blocking if the owner accepts the DM-only live evidence for M1 (the bot is single-user, so DMs are the main channel).
 
 #### 2. Guarda button offset
 **Test:** Click Guarda on a Guides video card.
@@ -218,7 +218,7 @@ _Verifier: Claude (gsd-verifier)_
 
 ## Human verification (2026-11-07)
 
-Live checks run by the orchestrator in Google Chat, in a private space "AI Buddy test" (only Joshua and the bot, deleted afterwards).
+Live checks run by the orchestrator in Google Chat, in a private space "AI Buddy test" (only the owner and the bot, deleted afterwards).
 
 | Item | Result |
 |------|--------|
@@ -226,7 +226,7 @@ Live checks run by the orchestrator in Google Chat, in a private space "AI Buddy
 | Bare "@AI Buddy" | PASS. Usage text returned (the IN-01 fix works live). |
 | Intro on add to space | PASS. "Ciao, sono AI Buddy..." posted. |
 | Guides Fonte line as Markdown link | PASS. Renders as a clickable title. |
-| Guarda button | ISSUE, accepted and deferred. Joshua clicked it and the browser downloaded the mp4 instead of playing it. |
+| Guarda button | ISSUE, accepted and deferred. The owner clicked it and the browser downloaded the mp4 instead of playing it. |
 | Live bot-to-MCP google_id_token call; real Chat-signed HTTP JWT | Still unverified until the Phase 4 deploy (both unit-tested). |
 
 ### Guarda button: root causes
@@ -234,9 +234,9 @@ Live checks run by the orchestrator in Google Chat, in a private space "AI Buddy
 The bot builds the button correctly from the index. The problem is hosting and index data:
 
 1. GitHub release assets are served as attachments, so the browser downloads them and the `#t=` offset never applies.
-2. The joshuadigitiamo/Guides repo is private. All 17 distinct video URLs and the repo page return 404 anonymously; the video worked for Joshua only because he was signed in.
+2. The joshuadigitiamo/Guides repo is private. All 17 distinct video URLs and the repo page return 404 anonymously; the video worked for the owner only because he was signed in.
 3. Only 238 of 2524 video_map rows have `start_seconds` (source=scene). The other 2286 are `readme_fallback` rows with no offset.
 
 ### Decision
 
-Joshua accepts this as a known issue for M1 and defers the fix to Phase 4 (hosting). Recommended path: Cloud Storage serving `video/mp4` inline with access control (the Guides are private, so not public), plus better timestamp coverage in the Phase 2 index. Recorded as a Phase 4 success criterion in ROADMAP.md and in WINDOWS.md.
+The owner accepts this as a known issue for M1 and defers the fix to Phase 4 (hosting). Recommended path: Cloud Storage serving `video/mp4` inline with access control (the Guides are private, so not public), plus better timestamp coverage in the Phase 2 index. Recorded as a Phase 4 success criterion in ROADMAP.md and in WINDOWS.md.

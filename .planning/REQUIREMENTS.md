@@ -3,7 +3,7 @@
 **Defined:** 2026-11-03
 **Core Value:** An employee gets an answer only from official sources with the source cited, or an honest "non lo so, chiedi a ..." with the gap logged. Never an invented policy.
 
-Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requirements.md`. No PRD exists; IDs are derived from explicit PLAN.md statements. Milestone 1 scope: personal dev use only (Joshua), handbook = the local Markdown snapshot kept in a gitignored folder of this repo (D-25: ClickUp is shut down; no ClickUp sync or token).
+Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requirements.md`. No PRD exists; IDs are derived from explicit PLAN.md statements. Milestone 1 scope: personal dev use only (the owner), handbook = the local Markdown snapshot kept in a gitignored folder of this repo (D-25: ClickUp is shut down; no ClickUp sync or token).
 
 ## v1 Requirements (Milestone 1)
 
@@ -38,7 +38,7 @@ Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requireme
 
 - [x] **BOT-01**: In development the bot receives Google Chat events (DM and @mention) through a Pub/Sub subscription and replies in chat.
 - [x] **BOT-02**: The same bot exposes an HTTP endpoint that verifies the Google JWT on every request (reject missing or invalid tokens) for Cloud Run; event intake sits behind one interface so the workflow is identical for both transports.
-- [x] **BOT-03**: An allowlist guard (`ALLOWED_USERS`) rejects any sender not on the list before any MCP or LLM call; the Chat app is visible to Joshua only (documented manual setting).
+- [x] **BOT-03**: An allowlist guard (`ALLOWED_USERS`) rejects any sender not on the list before any MCP or LLM call; the Chat app is visible to the owner only (documented manual setting).
 - [x] **BOT-04**: Answers come from a LangGraph 2-step RAG workflow (query reformulation, retrieval via the MCP server's tools over HTTP as an MCP client, answer with citations, confidence gate); the bot holds no duplicate retrieval logic.
 - [x] **BOT-05**: Every citation in an answer must point to text the MCP tools returned in that run; an answer with an unsupported citation, or below the confidence gate, is replaced by "non lo so, chiedi a ..." and the question is reported via `buddy_report_gap`.
 - [x] **BOT-06**: Sensitive topics (illness, disputes, pay, health, conflicts) get at most the general written rule plus referral to a person; no substantive answer on an individual situation.
@@ -59,7 +59,7 @@ Source: docs/PLAN.md (SPEC, sections 1-4 and 2.1) via `.planning/intel/requireme
 
 ### Evaluation and Gate
 
-- [x] **EVAL-01**: Golden set of 30-50 Q&A pairs drafted by Claude from the test doc [ClickUp doc ID removed] and the Guides, with expected answer and expected source page, covering answerable, no-answer and sensitive-escalation cases; each item records Joshua's review status; no item points at the official [ClickUp doc ID removed].
+- [x] **EVAL-01**: Golden set of 30-50 Q&A pairs drafted by Claude from the test doc [ClickUp doc ID removed] and the Guides, with expected answer and expected source page, covering answerable, no-answer and sensitive-escalation cases; each item records the owner's review status; no item points at the official [ClickUp doc ID removed].
 - [x] **EVAL-02**: One command measures Recall@5 of retrieval (handbook search and Guides search) over the golden set and reports it; a Guides Recall@5 < 0.8 is flagged as the D5 hybrid-upgrade trigger.
 - [x] **EVAL-03**: One command scores the golden set end to end against Claude (via the bot workflow and the configured `LLM_BACKEND`) for correctness and correct citation, and counts invented policies (an answer asserting a rule absent from its cited source).
 - [x] **EVAL-04**: "Empty context" test: with an index that holds no matching content, every answer is a refusal and a gap is logged; the test fails if any answer is produced.
@@ -96,7 +96,7 @@ Deferred beyond Milestone 1. Tracked, not in the current roadmap.
 | Feature | Reason |
 |---------|--------|
 | Official handbook [ClickUp doc ID removed] as sync target | Being rewritten; fix before indexing (D8, D14) |
-| Meridian for any user other than Joshua | Anthropic terms (D1); D1a covers personal dev only |
+| Meridian for any user other than the owner | Anthropic terms (D1); D1a covers personal dev only |
 | Vector DB / embeddings | Only if Guides Recall@5 < 0.8 (D5) |
 | Multi-agent, Deep Agents, A2A | 2-step RAG is enough for Q&A |
 | Per-section ACL | All sources visible to all employees |

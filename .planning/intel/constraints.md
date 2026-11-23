@@ -26,7 +26,7 @@ Source: docs/PLAN.md (SPEC, precedence 0) unless marked "orchestrator/user globa
 ## Google Chat bot event transport
 - source: docs/PLAN.md (D13, D1a)
 - type: protocol
-- content: Events via Pub/Sub in development (no public URL to the local machine); via HTTP with Google JWT verification on Cloud Run in production. Dev guards: app visibility limited to Joshua, `ALLOWED_USERS` allowlist. Google Chat expects a reply within ~30 s (docs/research/06 section 7.1, DOC) else asynchronous reply.
+- content: Events via Pub/Sub in development (no public URL to the local machine); via HTTP with Google JWT verification on Cloud Run in production. Dev guards: app visibility limited to the owner, `ALLOWED_USERS` allowlist. Google Chat expects a reply within ~30 s (docs/research/06 section 7.1, DOC) else asynchronous reply.
 
 ## Bot to MCP server interface
 - source: docs/PLAN.md (D11)
@@ -36,7 +36,7 @@ Source: docs/PLAN.md (SPEC, precedence 0) unless marked "orchestrator/user globa
 ## LLM backend selection
 - source: docs/PLAN.md (D1a, D6, D9, section 3.1)
 - type: api-contract
-- content: Single model-client module, switched by configuration (`LLM_BACKEND`). Milestone 1: Meridian + Joshua's Max allowed ONLY for personal dev, single user, with guards. Before any other user: API key (Console or Vertex EU). Shared/production bot uses commercial credentials with EU residency (Vertex AI, Bedrock EU fallback). Open-model path (OpenAI-compatible `base_url`) requires orchestrator citation check. Meridian exposes Anthropic Messages API on 127.0.0.1:3456 (docs/research/02, DOC).
+- content: Single model-client module, switched by configuration (`LLM_BACKEND`). Milestone 1: Meridian + the owner's Max allowed ONLY for personal dev, single user, with guards. Before any other user: API key (Console or Vertex EU). Shared/production bot uses commercial credentials with EU residency (Vertex AI, Bedrock EU fallback). Open-model path (OpenAI-compatible `base_url`) requires orchestrator citation check. Meridian exposes Anthropic Messages API on 127.0.0.1:3456 (docs/research/02, DOC).
 
 ## Gap log schema
 - source: docs/PLAN.md (section 3, D10, section 7)
@@ -97,5 +97,5 @@ Source: docs/PLAN.md (SPEC, precedence 0) unless marked "orchestrator/user globa
 ## Plan-level dependencies and open questions (unresolved in source)
 - source: docs/PLAN.md (sections 5 and 10, section 3)
 - type: nfr
-- content: Dependencies: license decision Max -> Team (Direzione); ClickUp read-only API token (Admin ClickUp); GCP project + billing (Admin Google); page owners (HR, to be confirmed); consent to make Guides company-wide (Joshua); legal/DPO opinion. Open questions: real team chat (Google Chat vs ClickUp Chat; Milestone 1 proceeds with Google Chat per D13); Team budget; applicable CCNL; official handbook owner; which Guides become company-wide; formal data-sovereignty constraint (decides option A vs B/C in PLAN 3.1); how sync data reaches the container (image rebuild vs bucket).
+- content: Dependencies: license decision Max -> Team (Direzione); ClickUp read-only API token (Admin ClickUp); GCP project + billing (Admin Google); page owners (HR, to be confirmed); consent to make Guides company-wide (the owner); legal/DPO opinion. Open questions: real team chat (Google Chat vs ClickUp Chat; Milestone 1 proceeds with Google Chat per D13); Team budget; applicable CCNL; official handbook owner; which Guides become company-wide; formal data-sovereignty constraint (decides option A vs B/C in PLAN 3.1); how sync data reaches the container (image rebuild vs bucket).
 - update 2026-11-14: ClickUp read-only API token no longer needed (Phase 1 D-25, ClickUp is being shut down). GCP project + billing done: the existing GCP project `ai-buddy-dev` (ID in docs/internal/gcp-project.md, gitignored), under the digitiamo.com organization, billing linked; org policies may apply to deploys. Sync-to-container decided in Phase 4 (04-CONTEXT D-06: private GCS bucket read at cold start).

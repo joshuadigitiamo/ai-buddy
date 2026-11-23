@@ -57,7 +57,7 @@ overrides_applied: 1
 overrides:
   - must_have: "Live gate scores every approved golden item correct (gd-05 and sr-03 wrong in the 05-17 run, 38/40)"
     reason: "Not a bot or retrieval fault: compound golden key facts judged all-or-nothing, plus run-to-run variance at provider-default temperature. No roadmap criterion requires 100%; the gate bar is >= 90%. Diagnosis in .planning/debug/eval-gd-05-wrong.md and eval-sr-03-wrong.md."
-    accepted_by: "Joshua (05-GAP-DECISION.md, UAT follow-up decision; 05-UAT.md test 6 and gap G-05-6)"
+    accepted_by: "The owner (05-GAP-DECISION.md, UAT follow-up decision; 05-UAT.md test 6 and gap G-05-6)"
     accepted_at: "2026-11-22"
 re_verification:
   previous_status: human_needed
@@ -78,7 +78,7 @@ re_verification:
 
 ## Headline
 
-The gate machinery is built, wired, tested and has been run live twice. After the gap-closure plans (05-14..05-16) the one live re-run (05-17) printed **GATE: PASS**: correctness-with-citation 38/40 = 95.0%, invented policies 0, empty-context 28/28 refused with a logged gap, Recall@5 handbook 15/15 and Guides 11/13 (0.85, no D5 trigger). The private gate report written during UAT (from cache, no model call) confirms the same numbers and index identity (build `20261122T094743Z-55ce792552d8`). Two approved items are still wrong (gd-05, sr-03); Joshua accepted this explicitly (UAT test 6, 05-GAP-DECISION.md). Nothing was tuned after the live gate output (EVAL-06). I made no live LLM calls and did not run `run`, `gate` or `empty-context`.
+The gate machinery is built, wired, tested and has been run live twice. After the gap-closure plans (05-14..05-16) the one live re-run (05-17) printed **GATE: PASS**: correctness-with-citation 38/40 = 95.0%, invented policies 0, empty-context 28/28 refused with a logged gap, Recall@5 handbook 15/15 and Guides 11/13 (0.85, no D5 trigger). The private gate report written during UAT (from cache, no model call) confirms the same numbers and index identity (build `20261122T094743Z-55ce792552d8`). Two approved items are still wrong (gd-05, sr-03); the owner accepted this explicitly (UAT test 6, 05-GAP-DECISION.md). Nothing was tuned after the live gate output (EVAL-06). I made no live LLM calls and did not run `run`, `gate` or `empty-context`.
 
 ## Goal Achievement
 
@@ -96,7 +96,7 @@ The gate machinery is built, wired, tested and has been run live twice. After th
 
 ### Overrides
 
-One accepted deviation (gap G-05-6): the strict reading "every approved golden item is correct" is not met (38/40; wrong items gd-05, sr-03). It is carried as PASSED (override), not as a roadmap truth, because no roadmap criterion or EVAL requirement asks for 100%; the contract is >= 90%. Joshua accepted it with the diagnosis recorded (05-GAP-DECISION.md "UAT follow-up decision", `.planning/debug/eval-gd-05-wrong.md`, `eval-sr-03-wrong.md`; UAT test 6 pass).
+One accepted deviation (gap G-05-6): the strict reading "every approved golden item is correct" is not met (38/40; wrong items gd-05, sr-03). It is carried as PASSED (override), not as a roadmap truth, because no roadmap criterion or EVAL requirement asks for 100%; the contract is >= 90%. The owner accepted it with the diagnosis recorded (05-GAP-DECISION.md "UAT follow-up decision", `.planning/debug/eval-gd-05-wrong.md`, `eval-sr-03-wrong.md`; UAT test 6 pass).
 
 ### Coincidental-reliance advisory
 
@@ -182,7 +182,7 @@ None blocking. No TBD/FIXME/XXX in the eval package or smoke script; no stubs in
 |---|---------|----------|--------------|
 | 1 | WR-04: stale-feedback cleanup in `tracing.py` removes every feedback row with a scorer name, including ones from other sources | other | Open in 05-REVIEW-DISPOSITION; only matters if humans annotate eval traces with these scorer names |
 | 2 | IN-01..IN-08 (e.g. `EVAL_LLM_BACKEND=api` advertised but unusable through compose, empty `MERIDIAN_OAUTH_TOKEN` yields a useless profile) | other | Info-level review notes, recorded as open |
-| 3 | Answer and judge sample at provider-default temperature; the sr-03 flip between 05-13 and 05-17 is run-to-run variance. The gate verdict can therefore move by an item or two on a re-run. The margin is now 2 failures used of 4 allowed (36/40 is the pass floor), against 0 spare before | other | Diagnosed and accepted by Joshua; any change (pin temperature, narrow compound facts) needs a new EVAL-06 decision |
+| 3 | Answer and judge sample at provider-default temperature; the sr-03 flip between 05-13 and 05-17 is run-to-run variance. The gate verdict can therefore move by an item or two on a re-run. The margin is now 2 failures used of 4 allowed (36/40 is the pass floor), against 0 spare before | other | Diagnosed and accepted by the owner; any change (pin temperature, narrow compound facts) needs a new EVAL-06 decision |
 | 4 | `_empty_context_detail` returns the string `failed` even when the test passed (visible as `detail: failed` beside `passed: true` in the gate JSON) | other | Cosmetic; the detail is only printed on a failing verdict |
 
 ### Human Verification Required

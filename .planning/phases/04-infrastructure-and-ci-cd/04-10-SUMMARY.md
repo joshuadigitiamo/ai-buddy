@@ -108,7 +108,7 @@ coverage:
         ref: "grep -c 'nightly Cloud Scheduler' ROADMAP.md and REQUIREMENTS.md (0 and 0); grep -c GcsArtifactStore REQUIREMENTS.md (1); grep -c 'D-07/D-09' ROADMAP.md (1)"
         status: pass
     human_judgment: true
-    rationale: "String checks do not prove the reworded requirement states the intended scope; Joshua confirms the text at phase verification"
+    rationale: "String checks do not prove the reworded requirement states the intended scope; the owner confirms the text at phase verification"
 
 duration: 14min
 completed: 2026-11-14
@@ -225,7 +225,7 @@ None in this plan. Running the script against the real bucket needs `gcloud auth
 
 ## Next Phase Readiness
 
-- 04-13 (live): run `scripts/sync-and-publish.sh` with Joshua present; check the first publish before the first deploy (the "not deployed yet" path), the real `GcsBucket` calls, the ADC mount, and that the update creates a revision that takes 100% of traffic (A3). `INDEX_BUILD_ID` is not declared in `deploy/cloudrun/mcp-server.yaml`; it is added by `services update` and dropped by the next `services replace`. Harmless, since nothing reads it, but 04-13 may want it noted when reading revision lists.
+- 04-13 (live): run `scripts/sync-and-publish.sh` with the owner present; check the first publish before the first deploy (the "not deployed yet" path), the real `GcsBucket` calls, the ADC mount, and that the update creates a revision that takes 100% of traffic (A3). `INDEX_BUILD_ID` is not declared in `deploy/cloudrun/mcp-server.yaml`; it is added by `services update` and dropped by the next `services replace`. Harmless, since nothing reads it, but 04-13 may want it noted when reading revision lists.
 - 04-11 and 04-12 are unaffected; the sync image and `FakeBucket` they might reuse are unchanged.
 
 ## Self-Check: PASSED

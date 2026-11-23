@@ -104,7 +104,7 @@ Side observation (not part of this plan): Chat first showed "AI Buddy non rispon
 
 decision: no-fix
 
-Chosen by Joshua: "No fix: the 04-13 click was a fallback row". Justified by P0 to P2 all showing the offset on the scene-mapped section, plus Task 1 finding no loss in our own code. 04-16 only re-runs live check 10 on a scene-mapped section; no code change or deploy. D-16 stays as written in 04-CONTEXT.md, so no interpretation line was appended.
+Chosen by the owner: "No fix: the 04-13 click was a fallback row". Justified by P0 to P2 all showing the offset on the scene-mapped section, plus Task 1 finding no loss in our own code. 04-16 only re-runs live check 10 on a scene-mapped section; no code change or deploy. D-16 stays as written in 04-CONTEXT.md, so no interpretation line was appended.
 
 ## TDD Gate Compliance
 

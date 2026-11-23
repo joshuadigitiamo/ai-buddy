@@ -53,7 +53,7 @@ Note: the ingest set contains no PRD documents. Entries below are taken from exp
 
 ## REQ-google-chat-bot
 - source: docs/PLAN.md (D13, D1a, section 3 Phase 2, section 4 Phase 2)
-- description: Bot Google Chat in Milestone 1 (DM / @menzione). Riceve eventi via Pub/Sub in sviluppo e via HTTP (JWT Google) su Cloud Run. Chiama il server MCP via HTTP come client MCP (D11). Workflow, non agente: 2-step RAG (riformulazione query, retrieval via tool MCP, risposta con citazioni, gate di confidenza). Guardie in sviluppo: app visibile solo a Joshua, allowlist `ALLOWED_USERS`. Google Chat risponde a un evento entro ~30 s, altrimenti risposta asincrona (docs/research/06 section 7.1, DOC).
+- description: Bot Google Chat in Milestone 1 (DM / @menzione). Riceve eventi via Pub/Sub in sviluppo e via HTTP (JWT Google) su Cloud Run. Chiama il server MCP via HTTP come client MCP (D11). Workflow, non agente: 2-step RAG (riformulazione query, retrieval via tool MCP, risposta con citazioni, gate di confidenza). Guardie in sviluppo: app visibile solo a the owner, allowlist `ALLOWED_USERS`. Google Chat risponde a un evento entro ~30 s, altrimenti risposta asincrona (docs/research/06 section 7.1, DOC).
 - acceptance: absent for Milestone 1; Phase 2 feedback KPI thumbs-up >= 80% (section 6)
 - scope: Google Chat bot
 

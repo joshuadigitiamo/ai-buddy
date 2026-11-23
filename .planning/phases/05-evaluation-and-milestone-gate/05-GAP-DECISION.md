@@ -1,6 +1,6 @@
 # Phase 05 gap-closure decision (EVAL-06 record)
 
-Date: 2026-11-22. Decided by Joshua in chat after the live gate FAIL (05-13) and the root-cause diagnosis (private detail: docs/internal/05-gap-diagnosis.md, gitignored).
+Date: 2026-11-22. Decided by the owner in chat after the live gate FAIL (05-13) and the root-cause diagnosis (private detail: docs/internal/05-gap-diagnosis.md, gitignored).
 
 ## Diagnosis (public-safe)
 
@@ -24,11 +24,11 @@ Then re-run the live gate once on the same index; record verdict as is.
 
 ## Orchestrator note
 
-05-16 also fixes a harness display issue found in the diagnosis: the MLflow citation assessment rationale copied unrelated failure reasons. This changes only the feedback rationale text, not any gate rule, threshold, verdict or judge prompt. Added by the orchestrator under the code-review-fixes umbrella and flagged to Joshua in chat.
+05-16 also fixes a harness display issue found in the diagnosis: the MLflow citation assessment rationale copied unrelated failure reasons. This changes only the feedback rationale text, not any gate rule, threshold, verdict or judge prompt. Added by the orchestrator under the code-review-fixes umbrella and flagged to the owner in chat.
 
 ## UAT follow-up decision (2026-11-22, after 05-17 GATE: PASS)
 
-During /gsd-verify-work 5 (test 6), Joshua asked whether the two wrong items (gd-05, sr-03; 38/40) could be fixed. Diagnosis (public: .planning/debug/eval-gd-05-wrong.md, .planning/debug/eval-sr-03-wrong.md; private detail: docs/internal/05-gap-diagnosis-uat.md):
+During /gsd-verify-work 5 (test 6), the owner asked whether the two wrong items (gd-05, sr-03; 38/40) could be fixed. Diagnosis (public: .planning/debug/eval-gd-05-wrong.md, .planning/debug/eval-sr-03-wrong.md; private detail: docs/internal/05-gap-diagnosis-uat.md):
 
 | Item | Fault | Evidence (summary) |
 |---|---|---|
@@ -37,4 +37,4 @@ During /gsd-verify-work 5 (test 6), Joshua asked whether the two wrong items (gd
 
 Neither is a bot or retrieval fault.
 
-**Decision (Joshua, in chat): accept the 05-17 result GATE: PASS, 38/40 (95.0%), invented 0, empty-context 28/28, as the Milestone 1 outcome.** No golden, judge, threshold or bot change; no re-run. gd-05 and sr-03 are recorded as known compound-fact items. Options not taken: narrow both facts and re-run; additionally pin judge temperature and add a partial-fact rule; measure variance first.
+**Decision (the owner, in chat): accept the 05-17 result GATE: PASS, 38/40 (95.0%), invented 0, empty-context 28/28, as the Milestone 1 outcome.** No golden, judge, threshold or bot change; no re-run. gd-05 and sr-03 are recorded as known compound-fact items. Options not taken: narrow both facts and re-run; additionally pin judge temperature and add a partial-fact rule; measure variance first.

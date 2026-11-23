@@ -11,27 +11,27 @@
 
 **Hosting platform**
 - **D-01:** Cloud Run free tier stays the production host (D7 kept). No-card hosts (Render, HF Spaces, Oracle Free, self-hosted k3s) are rejected: they would replace Firestore, Pub/Sub, WIF and the `K_SERVICE` auth guards.
-- **D-02:** Joshua provides a GCP project with an active billing account during this phase. (Update 2026-11-14: provided; existing project `ai-buddy-dev` under the digitiamo.com organization, billing linked; id in docs/internal/gcp-project.md, gitignored.) Plans include a **live deploy checkpoint** (real Cloud Run, WIF, Chat HTTP JWT, bot-to-MCP ID token, claude.ai connector check, non-digitiamo rejection). Static checks (YAML schema, workflow lint, dry runs) still run in CI.
-- **D-03:** Region europe-west8 (Milano). The researcher verifies availability there of Cloud Run (incl. sidecars and GCS volume mounts), Firestore, Artifact Registry and free-tier eligibility. Fallback to europe-west1 only if a blocker is found, and only after asking Joshua. — **Reversibility:** one-way — a Firestore database location cannot be changed after creation; moving it means a new database and data migration.
+- **D-02:** the owner provides a GCP project with an active billing account during this phase. (Update 2026-11-14: provided; existing project `ai-buddy-dev` under the digitiamo.com organization, billing linked; id in docs/internal/gcp-project.md, gitignored.) Plans include a **live deploy checkpoint** (real Cloud Run, WIF, Chat HTTP JWT, bot-to-MCP ID token, claude.ai connector check, non-digitiamo rejection). Static checks (YAML schema, workflow lint, dry runs) still run in CI.
+- **D-03:** Region europe-west8 (Milano). The researcher verifies availability there of Cloud Run (incl. sidecars and GCS volume mounts), Firestore, Artifact Registry and free-tier eligibility. Fallback to europe-west1 only if a blocker is found, and only after asking the owner. — **Reversibility:** one-way — a Firestore database location cannot be changed after creation; moving it means a new database and data migration.
 - **D-04:** CI deploys automatically on push to `main` after `run-unit-tests.sh --all` passes and the image is pushed (no manual approval environment).
 - **D-05:** Gap log and thread memory stay on Firestore. Add a native Firestore TTL policy on `expire_at` (03-07 left expiry read-side until Phase 4).
 
 **Index + sync handoff (closes D-12 / ADR 0001)**
-- **D-06:** Sync runs on Joshua's laptop (handbook snapshot and Guides checkout mounted read-only, as today) and publishes `index.db` to a private GCS bucket through a new `GcsArtifactStore` adapter. `mcp_server` reads the bucket at cold start. The image stays generic (no handbook content), the same image runs in compose, kind and Cloud Run (INFRA-01). — **Reversibility:** costly — ADR 0001 must be updated to record the choice; switching to a baked image later changes CI, image privacy and INFRA-01.
-- **D-07:** The nightly Cloud Scheduler trigger is dropped. Sources change only when Joshua edits them locally, so a nightly run would rebuild identical data. Reword INFRA-04 and ROADMAP Phase 4 criterion 3: sync runs on demand from the laptop.
+- **D-06:** Sync runs on the owner's laptop (handbook snapshot and Guides checkout mounted read-only, as today) and publishes `index.db` to a private GCS bucket through a new `GcsArtifactStore` adapter. `mcp_server` reads the bucket at cold start. The image stays generic (no handbook content), the same image runs in compose, kind and Cloud Run (INFRA-01). — **Reversibility:** costly — ADR 0001 must be updated to record the choice; switching to a baked image later changes CI, image privacy and INFRA-01.
+- **D-07:** The nightly Cloud Scheduler trigger is dropped. Sources change only when the owner edits them locally, so a nightly run would rebuild identical data. Reword INFRA-04 and ROADMAP Phase 4 criterion 3: sync runs on demand from the laptop.
 - **D-08:** After a successful publish, the sync publish step (or a helper script run with it) forces a new `mcp_server` Cloud Run revision so the next request loads the new index. No hot reload; Phase 1 D-11 (cold-start load) stays.
 - **D-09:** No Cloud Run Job YAML for sync. Sync keeps its own Dockerfile stage and its own path-filtered CI test path. INFRA-04 is reworded to "Cloud Run YAMLs for `mcp_server` and `chat_bot`".
 - **D-10:** Compose and kind use `LocalDirArtifactStore` (shared volume in compose, hostPath / kind extraMount in kind). `GcsArtifactStore` is used only on Cloud Run and is unit-tested with a fake. The store is selected by configuration (the audit found `snapshot.py:77` hard-wires the local store).
 
 **Deployed bot + LLM**
-- **D-11:** `chat_bot` runs on Cloud Run with `LLM_BACKEND=meridian`, Meridian as a sidecar container in the same service. D1a guards stay in force: Chat app visible to Joshua only, `ALLOWED_USERS` single entry, startup refusal with more than one user. Joshua accepts that this puts his Max session in the cloud.
+- **D-11:** `chat_bot` runs on Cloud Run with `LLM_BACKEND=meridian`, Meridian as a sidecar container in the same service. D1a guards stay in force: Chat app visible to the owner only, `ALLOWED_USERS` single entry, startup refusal with more than one user. The owner accepts that this puts his Max session in the cloud.
 - **D-12:** Max credentials live on a private GCS bucket mounted at `/home/claude/.claude` through a Cloud Run GCS FUSE volume, so token refreshes written by Meridian persist across restarts. Seeded once from the local `meridian-claude` volume. Bucket IAM: the Meridian/bot runtime service account only. Never baked into an image, never in the repo, never echoed.
 - **D-13:** Cloud Run intake is HTTP + Google JWT (D13, verifier built in 03-10). Pub/Sub intake stays for laptop dev and compose.
 - **D-14:** CI builds Meridian from the approved commit `cafdcf780f1b40c8f0dee17481132f47b4cbb353` and pushes it to the private Artifact Registry. A Meridian bump is a reviewed SHA change.
 - **D-15:** kind runs the full stack: `mcp_server`, `chat_bot`, Meridian and the Firestore + Pub/Sub emulators. Max credentials reach the cluster without being committed (k8s Secret created from the local volume, or hostPath); exact mechanism is the planner's choice, it must not write credential values into manifests.
 
 **Video hosting (Phase 3 carry-over, ROADMAP criterion 5)**
-- **D-16:** Videos are served from a private GCS bucket, uploaded with `Content-Type: video/mp4`. The Guarda link is the authenticated browser URL `https://storage.cloud.google.com/<bucket>/<object>#t=<seconds>`; access by IAM grant to Joshua's account (a domain group later). No expiring signed URLs in chat cards. Researcher verifies inline playback and `#t=` seeking on that URL. [Medium]
+- **D-16:** Videos are served from a private GCS bucket, uploaded with `Content-Type: video/mp4`. The Guarda link is the authenticated browser URL `https://storage.cloud.google.com/<bucket>/<object>#t=<seconds>`; access by IAM grant to the owner's account (a domain group later). No expiring signed URLs in chat cards. Researcher verifies inline playback and `#t=` seeking on that URL. [Medium]
 - **D-17:** The laptop sync step uploads changed mp4s (by content hash) and writes the GCS URLs into the video map, so one command refreshes index and videos.
 - **D-18:** Timestamp coverage target: every Guides section whose guide has a video gets a scene offset (from `sections.yaml` / durations); sections without one fall back to the full video at 0. Coverage is measured and reported against today's 238/2524 scene-mapped rows.
 
@@ -69,7 +69,7 @@ Five things cannot be proven offline and must be live-checkpoint items with a pr
 
 Four code changes are needed in the Python services and are in scope as Phase 4 tasks: store selector (audit warning 1), explicit deployed/local marker replacing the `K_SERVICE`-only guard (warning 4), an extra allowed Host for pod-to-pod calls (warning 5) and a `/healthz` route on `mcp_server`. All other audit warnings are closed by configuration or CI structure.
 
-**Primary recommendation:** Build in this order: code seams (store selector, `DEPLOY_ENV`, `MCP_ALLOWED_HOSTS`, `/healthz`, recording Chat adapter) -> compose smoke -> Kustomize/kind -> Cloud Run YAML + structural tests -> workflows (static) -> live checkpoint with Joshua's GCP project -> video upload and timestamp work. Keep the instance-based-billing switch (`run.googleapis.com/cpu-throttling: 'false'` on `chat_bot` only) ready as the documented fallback for Pitfall 1, but do not apply it without Joshua's consent because success criterion 3 says request-based.
+**Primary recommendation:** Build in this order: code seams (store selector, `DEPLOY_ENV`, `MCP_ALLOWED_HOSTS`, `/healthz`, recording Chat adapter) -> compose smoke -> Kustomize/kind -> Cloud Run YAML + structural tests -> workflows (static) -> live checkpoint with the owner's GCP project -> video upload and timestamp work. Keep the instance-based-billing switch (`run.googleapis.com/cpu-throttling: 'false'` on `chat_bot` only) ready as the documented fallback for Pitfall 1, but do not apply it without the owner's consent because success criterion 3 says request-based.
 
 ## Project Constraints (from CLAUDE.md)
 
@@ -147,7 +147,7 @@ google-cloud-storage==3.17.1
 | google-cloud-storage | PyPI | latest 3.17.1 published 2026-10-15; project is the long-running official Google library (versions back to 0.20) | not reported by the seam | github.com/googleapis/google-cloud-python (packages/google-cloud-storage) | SUS (`too-new`, `unknown-downloads` on the latest version only) | Flagged. Planner adds a `checkpoint:human-verify` before the pin, as 02-01 and 03-01 did for earlier pins |
 
 **Packages removed due to [SLOP] verdict:** none
-**Packages flagged as suspicious [SUS]:** `google-cloud-storage` `[WARNING: flagged as suspicious — verify before using.]` The flag comes from the newest release date and missing download data; the package name, repository and release history are the official Google ones. Joshua may prefer 3.16.0 if he wants an older release.
+**Packages flagged as suspicious [SUS]:** `google-cloud-storage` `[WARNING: flagged as suspicious — verify before using.]` The flag comes from the newest release date and missing download data; the package name, repository and release history are the official Google ones. The owner may prefer 3.16.0 if he wants an older release.
 
 Non-Python tools (kind, kubeconform, actionlint, GitHub Actions) are binaries or actions, not installed packages: provenance is the GitHub release / image manifest checks above. Download the kind binary with its published `.sha256sum` [VERIFIED: release assets `kind-linux-amd64`, `kind-linux-amd64.sha256sum`].
 
@@ -298,7 +298,7 @@ The alternative (an alternate composition root only in tests) is rejected: the s
 - Validation: `kubectl kustomize deploy/k8s/overlays/dev | docker run -i ghcr.io/yannh/kubeconform:v0.8.0 -strict -summary -kubernetes-version 1.37.0 -` (same for `base`). kubeconform reads stdin; piping kustomize output is an inference from its README, so the plan's first task proves it [CITED: github.com/yannh/kubeconform, ASSUMED for the pipe]. `kustomization.yaml` and the kind cluster config are not Kubernetes resources: validate the built output, not those files.
 
 ### Pattern 6: Forced revision after publish (D-08)
-After a successful `publish`, run `gcloud run services update mcp-server --region europe-west8 --update-env-vars INDEX_BUILD_ID=<build_id>`. Any change to the revision template creates a new revision, and with the default `--to-latest` traffic it takes 100% [ASSUMED: standard Cloud Run behaviour, verify at the live checkpoint]. A later CI `services replace` also creates a revision and therefore reloads the index; the YAML does not need `INDEX_BUILD_ID`. The helper `scripts/sync-and-publish.sh` runs: `upload-videos` (network) -> `run` (offline, `--network none` as today) -> `publish` (network) -> gcloud update. Joshua's laptop needs ADC: mount a user ADC file read-only into the sync container for the two network steps only; do not bake or copy it.
+After a successful `publish`, run `gcloud run services update mcp-server --region europe-west8 --update-env-vars INDEX_BUILD_ID=<build_id>`. Any change to the revision template creates a new revision, and with the default `--to-latest` traffic it takes 100% [ASSUMED: standard Cloud Run behaviour, verify at the live checkpoint]. A later CI `services replace` also creates a revision and therefore reloads the index; the YAML does not need `INDEX_BUILD_ID`. The helper `scripts/sync-and-publish.sh` runs: `upload-videos` (network) -> `run` (offline, `--network none` as today) -> `publish` (network) -> gcloud update. The owner's laptop needs ADC: mount a user ADC file read-only into the sync container for the two network steps only; do not bake or copy it.
 
 ### Pattern 7: CI structure (INFRA-05, INFRA-06)
 ```yaml
@@ -376,7 +376,7 @@ Not a rename/refactor phase, but it creates runtime state. State that exists aft
 
 ### Pitfall 1: Background work after the 25 s ack stalls under request-based billing
 **What goes wrong:** `HttpIntake` awaits the run for `ACK_SECONDS` (25.0) then returns `{}`; a slower run continues in a task that later patches the placeholder [VERIFIED: `intake/http.py` header docstring and `ACK_SECONDS: Final = 25.0`]. With request-based billing "CPU is allocated only during request processing" [CITED: run/docs/configuring/billing-settings], so after the response the task has no CPU until another request arrives (and the instance may be reclaimed).
-**How to avoid:** Keep request-based as specified, measure at the live checkpoint with a deliberately slow question. Prepared fallback: `run.googleapis.com/cpu-throttling: 'false'` on `chat_bot` only. Idle instances never stay beyond 15 minutes after the last request [CITED]; for one user the cost is expected to be small but the free tier for instance-based billing is not documented on the pages fetched [ASSUMED]. Needs Joshua's consent because it changes success criterion 3's wording.
+**How to avoid:** Keep request-based as specified, measure at the live checkpoint with a deliberately slow question. Prepared fallback: `run.googleapis.com/cpu-throttling: 'false'` on `chat_bot` only. Idle instances never stay beyond 15 minutes after the last request [CITED]; for one user the cost is expected to be small but the free tier for instance-based billing is not documented on the pages fetched [ASSUMED]. Needs the owner's consent because it changes success criterion 3's wording.
 **Warning signs:** placeholder "Sto cercando nelle fonti..." never replaced after slow answers.
 
 ### Pitfall 2: Cold start of a heavy sidecar vs Chat's deadline
@@ -401,7 +401,7 @@ Not a rename/refactor phase, but it creates runtime state. State that exists aft
 **How to avoid:** deterministic URL in both YAMLs; `invoker-iam-disabled: 'true'` on both services because callers (claude.ai, Chat) are not Google IAM principals and both services verify tokens in-app; this also works when an org policy blocks `allUsers` [CITED: run/docs/authenticating/public]. Cloud Run docs recommend that CI/CD not change unauthenticated-invocation settings [CITED: deploy-cloudrun README]: apply the annotation at bootstrap too, and treat a `services replace` permission error on it as a signal to grant the deployer the needed role rather than widening it [ASSUMED: `run.developer` may not suffice].
 
 ### Pitfall 7: One-way and costly decisions to confirm before executing
-Firestore location (D-03, one-way). ADR 0001 update (D-06, costly). Writing both into the plan as explicit checkpoints with Joshua before `gcloud firestore databases create` runs.
+Firestore location (D-03, one-way). ADR 0001 update (D-06, costly). Writing both into the plan as explicit checkpoints with the owner before `gcloud firestore databases create` runs.
 
 ### Pitfall 8: 421 on pod-to-pod calls
 `host_kwargs` (`server.py:68-86`) allows only `localhost`, `127.0.0.1` and the host of `MCP_PUBLIC_BASE_URL`; `MCP_PUBLIC_BASE_URL` validation admits only `https://` or loopback `http://`. A Service DNS name such as `mcp-server` gets 421. Add a `MCP_ALLOWED_HOSTS` setting (csv, hostnames only) appended to `hosts`; tests assert the default list is unchanged. Keep the guard on.
@@ -413,18 +413,18 @@ Firestore location (D-03, one-way). ADR 0001 update (D-06, costly). Writing both
 `config.py:88` (mcp): `if self.auth_mode == "off" and "K_SERVICE" in os.environ:` and `config.py:126` (bot): `if self.mcp_auth == "none" and "K_SERVICE" in os.environ:` [VERIFIED: read]. Replace with an explicit `DEPLOY_ENV: Literal["local","production"]` defaulting to `production` (fail closed): auth off / `MCP_AUTH=none` / `CHAT_API=recording` allowed only for `local`; `K_SERVICE` still forces `production`. Consequences: every test environment that uses `AUTH_MODE=off` and the compose files must set `DEPLOY_ENV=local` (`tests/integration/test_server_process.py`, `test_bot_process.py` build their own env; their `_BOT_VARIABLES` set is derived from `BotSettings.model_fields`, so the new field is cleared automatically).
 
 ### Pitfall 11: CI cannot execute the test script
-`git ls-files -s run-unit-tests.sh` returns mode `100644` [VERIFIED]. Run `git update-index --chmod=+x run-unit-tests.sh` (a commit is Joshua's call per the global rules) and add a unit test asserting the executable bit via `git ls-files -s`/`os.access`.
+`git ls-files -s run-unit-tests.sh` returns mode `100644` [VERIFIED]. Run `git update-index --chmod=+x run-unit-tests.sh` (a commit is the owner's call per the global rules) and add a unit test asserting the executable bit via `git ls-files -s`/`os.access`.
 
 ### Pitfall 12: The compose round trip silently calls real services
-Without the recording adapter and stub LLM, a "round trip" either needs Joshua's Max session and Chat API or fails at the Chat call. Keep the hermetic profile as the CI-able proof and the Meridian profile as the live one.
+Without the recording adapter and stub LLM, a "round trip" either needs the owner's Max session and Chat API or fails at the Chat call. Keep the hermetic profile as the CI-able proof and the Meridian profile as the live one.
 
 ### Pitfall 13: Video link behaviour is unverified
 D-16 flagged this. Official docs say the authenticated browser download is cookie-based and redirects to a `googleusercontent.com/download/storage/v1/b/...` URL, requires `storage.objects.viewer`, and always requires authentication even for public objects [CITED: docs.cloud.google.com/storage/docs/access-control/cookie-based-authentication]. The docs do not state inline-versus-attachment behaviour, multi-account (`/u/N`) handling, or fragment survival. A URL fragment is normally kept across HTTP redirects, but the login hop may drop it [ASSUMED].
-**How to avoid:** upload with `Content-Type: video/mp4` and also set `Content-Disposition: inline` and `Cache-Control: private` on the object [ASSUMED]; make "open the Guarda URL in Chrome while signed in as Joshua, verify inline play and seek at `#t=`" a live-checkpoint item with pasted evidence. Fallbacks, in order: (a) a tiny HTML player page that sets `currentTime` from `?t=` (needs hosting and auth: heavier, only if the URL fails); (b) revisit signed URLs minted at click time (contradicts D-16: ask Joshua first). Browsers also depend on HTTP range support for seeking; GCS serves ranges [ASSUMED from general GCS behaviour; an ImageKit post shows 206 responses for a public object, not authoritative].
+**How to avoid:** upload with `Content-Type: video/mp4` and also set `Content-Disposition: inline` and `Cache-Control: private` on the object [ASSUMED]; make "open the Guarda URL in Chrome while signed in as the owner, verify inline play and seek at `#t=`" a live-checkpoint item with pasted evidence. Fallbacks, in order: (a) a tiny HTML player page that sets `currentTime` from `?t=` (needs hosting and auth: heavier, only if the URL fails); (b) revisit signed URLs minted at click time (contradicts D-16: ask the owner first). Browsers also depend on HTTP range support for seeking; GCS serves ranges [ASSUMED from general GCS behaviour; an ImageKit post shows 206 responses for a public object, not authoritative].
 
 ### Pitfall 14: Timestamp coverage is data-limited (D-18)
 Index measured this session (`video_map` joined to `guide_chunks`, 2524 rows over 15 guides): scene-mapped rows 238 = Multi-Agent 176 + MCP Servers 62; all other guides 0. In the Guides checkout only `videos/mcp-servers/sections.yaml` and `videos/multi-agent-design/sections.yaml` exist. `durations.json` exists locally for 7 videos: a2a-protocol, airflow, big-data-frameworks, deep-agents, langsmith, mcp-servers, multi-agent-design. Rows of guides that have durations but no `sections.yaml`: A2A 188, Airflow 143, Big Data 249, Deep Agents 140, LangSmith 178 = 898 rows. Guides with an mp4 but no `durations.json` locally: langgraph (164 rows), etl-vs-elt (110). Guides with neither: mlflow-genai 212, langchain 181, kubernetes 168, bigquery 139, rag-chatbot 126, design-patterns 85 (911 rows). `durations.json` is written by `videos/common/tts.py` (Kokoro-82M TTS from `narration.py`); the videos without it were rendered elsewhere (`RENDER_ON_ANOTHER_PC.txt`).
-Consequences for planning: (1) `sections.yaml` is authored in the Guides repo (another repo, private; the sync only indexes committed content per `jobs/sync/README.md`), so those are cross-repo commits; (2) the achievable target without re-rendering is the 5 videos above (+898 rows at most, minus sections no scene covers); (3) the rest needs `durations.json` regenerated by the Guides build (heavy, outside this repo) or stays at the 0-offset fallback; (4) add a `video-coverage` report to the sync CLI (rows by `source`, per guide) so the number is measured, not claimed. Whether sections without a scene should inherit the nearest preceding mapped section's offset is a product decision that D-18 does not settle (D-02 of Phase 1 forbids heuristic text matching; order inheritance is a different heuristic): ask Joshua before implementing.
+Consequences for planning: (1) `sections.yaml` is authored in the Guides repo (another repo, private; the sync only indexes committed content per `jobs/sync/README.md`), so those are cross-repo commits; (2) the achievable target without re-rendering is the 5 videos above (+898 rows at most, minus sections no scene covers); (3) the rest needs `durations.json` regenerated by the Guides build (heavy, outside this repo) or stays at the 0-offset fallback; (4) add a `video-coverage` report to the sync CLI (rows by `source`, per guide) so the number is measured, not claimed. Whether sections without a scene should inherit the nearest preceding mapped section's offset is a product decision that D-18 does not settle (D-02 of Phase 1 forbids heuristic text matching; order inheritance is a different heuristic): ask the owner before implementing.
 
 ### Pitfall 15: Firestore TTL
 Policy is per collection group, one TTL field per group; the field must be a timestamp (absent/null/other type disables expiry); deletion is "typically within 24 hours"; enabling takes at least ten minutes; emulator support is not documented [CITED: firestore/native/docs/ttl]. Writers store `expire_at` as `datetime` (`gaplog.py:70`, `memory.py:60`) [VERIFIED: grep]. The policy therefore cannot be proved in the emulator: verify with `gcloud firestore fields ttls list` at the live checkpoint; keep the read-side expiry in `memory.py:68-69`.
@@ -439,7 +439,7 @@ Cost table (all [CITED: docs.cloud.google.com/free/docs/free-cloud-features unle
 | Firestore | 1 GiB, 50k reads/20k writes/20k deletes per day per project; page does not say which database | gap log, thread memory, OAuth state | Fine; applicability to a non-default database not stated [ASSUMED default only] |
 | Cloud Run request-based | 2M requests, 360,000 GiB-s, 180,000 vCPU-s | both services | Fine; instance-based limits not on that page |
 | Pub/Sub | 10 GiB | unused in prod (HTTP) | n/a |
-Research 07 costed `mcp_server` only; the sidecar, CI and GCS are new. Record the table in the plan summary for Joshua.
+Research 07 costed `mcp_server` only; the sidecar, CI and GCS are new. Record the table in the plan summary for the owner.
 
 ### Pitfall 17: SIGTERM
 03-11 left the interpreter default. Cloud Run gives a short window after SIGTERM [ASSUMED 10 s]. uvicorn drains in-flight requests on SIGTERM by default; the Pub/Sub intake and background patch tasks do not. Minimal handler: on SIGTERM stop accepting, await in-flight run tasks up to a few seconds, then exit 0. Optional per discretion; low risk if skipped, because the placeholder-patch race is already covered by Pitfall 1.
@@ -470,7 +470,7 @@ The extra `ref == refs/heads/main` condition is a recommendation because the rep
 | `ci-deployer` | `roles/artifactregistry.writer` on the repo; `roles/run.developer` on the two services (project-level at first deploy); `roles/iam.serviceAccountUser` on the two runtime SAs |
 | `sa-mcp-server` | `roles/datastore.user`; `roles/storage.objectViewer` on the index bucket; `roles/secretmanager.secretAccessor` on its secrets |
 | `sa-chat-bot` | `roles/datastore.user`; `roles/storage.objectUser` on the credentials bucket only; `roles/secretmanager.secretAccessor` on its secrets; listed in `BOT_SA_EMAILS` |
-| Joshua | `roles/storage.objectViewer` on the video bucket; `roles/storage.objectAdmin` on index + video buckets for the sync step; Run developer for the forced revision |
+| The owner | `roles/storage.objectViewer` on the video bucket; `roles/storage.objectAdmin` on index + video buckets for the sync step; Run developer for the forced revision |
 FUSE volumes need `roles/storage.objectViewer` for read and `roles/storage.objectUser` for write [CITED: cloud-storage-volume-mounts].
 
 ### Firestore TTL (apply once, live checkpoint)
@@ -485,7 +485,7 @@ Defaults in code: `gap_collection: str = "gaps"` (`McpSettings`), `memory_collec
 Follow `tests/unit/test_dev_compose.py` (yaml.safe_load, assertions): for each `deploy/cloudrun/*.yaml` assert `apiVersion: serving.knative.dev/v1`, `kind: Service`, no `minScale` above 0, `cpu-throttling` not `'false'` for `mcp_server`, `execution-environment: gen2` when a `csi` volume is present, exactly one `containerPort`, no literal value for any env name ending `_KEY`/`_SECRET`/`_TOKEN` (must be `valueFrom.secretKeyRef`, the same suffix rule as the compose test), image pinned by tag placeholder not `latest`, region mentioned only through the repo host `europe-west8-docker.pkg.dev`. For workflows assert `permissions: {}` at the top, every `uses:` is a 40-hex SHA or a local `./` path, `deploy` has `needs: test`, and the `paths` drift test of Pattern 7.
 
 ### Sync upload step shape (D-17)
-`buddy_sync upload-videos --videos-dir <dir>`: for each `https://...releases/download/videos/<name>.mp4` in the README table (parsed by `video_map.parse_readme_videos`), find `<name>.mp4` under the videos dir, upload to `gs://<bucket>/videos/<name>.mp4` with `content_type="video/mp4"` only when the blob's md5 differs. `video_map.resolve_video_links` takes an optional URL-rewrite callable that maps the README URL basename to `https://storage.cloud.google.com/<bucket>/videos/<name>.mp4`. The README stays the source of the part list. Only 12 of the 20 README mp4 links exist locally under `Guides/videos/*/out/`; the rest come from `gh release download videos --repo joshuadigitiamo/Guides --dir <dir>` (Joshua's own login; repo is private) [VERIFIED: counts from `find` and README grep; command from Guides README].
+`buddy_sync upload-videos --videos-dir <dir>`: for each `https://...releases/download/videos/<name>.mp4` in the README table (parsed by `video_map.parse_readme_videos`), find `<name>.mp4` under the videos dir, upload to `gs://<bucket>/videos/<name>.mp4` with `content_type="video/mp4"` only when the blob's md5 differs. `video_map.resolve_video_links` takes an optional URL-rewrite callable that maps the README URL basename to `https://storage.cloud.google.com/<bucket>/videos/<name>.mp4`. The README stays the source of the part list. Only 12 of the 20 README mp4 links exist locally under `Guides/videos/*/out/`; the rest come from `gh release download videos --repo joshuadigitiamo/Guides --dir <dir>` (the owner's own login; repo is private) [VERIFIED: counts from `find` and README grep; command from Guides README].
 
 ## State of the Art
 
@@ -509,29 +509,29 @@ Follow `tests/unit/test_dev_compose.py` (yaml.safe_load, assertions): for each `
 | A4 | Meridian image compressed size and cold-start time are acceptable | Pitfall 2 | Bot first message times out; need `minScale: 1` |
 | A5 | Runtime-SA ADC can post to the Chat API with `chat.bot`; impersonation is the keyless fallback | Pitfall 3 | Replies fail live until the fallback is wired |
 | A6 | SIGTERM grace on Cloud Run is about 10 s | Pitfall 17 | Drain handler sized wrong |
-| A7 | `#t=` fragment survives the storage.cloud.google.com login redirect; `Content-Disposition: inline` is honoured; multiple Google accounts do not break it | Pitfall 13 | Guarda opens a download or the wrong account; fallback (a) or (b) needed and Joshua asked about signed URLs |
+| A7 | `#t=` fragment survives the storage.cloud.google.com login redirect; `Content-Disposition: inline` is honoured; multiple Google accounts do not break it | Pitfall 13 | Guarda opens a download or the wrong account; fallback (a) or (b) needed and the owner asked about signed URLs |
 | A8 | Instance-based billing free tier covers a single-user bot | Pitfall 1 | Fallback for Pitfall 1 costs more than expected |
 | A9 | `run.developer` can set the `invoker-iam-disabled` annotation via `services replace` | Pitfall 6 | CI deploy fails at the first run |
 | A10 | Firestore free quota applies to the `(default)` database | Pitfall 16 | Small Firestore charges if another database id is used (plan uses `(default)`) |
 | A11 | Total video size is about 1 GB | Pitfall 16 | Slightly different storage cost |
 | A12 | kubeconform accepts `kubectl kustomize` output on stdin | Pattern 5 | Use a temp file instead |
 | A13 | Restricting the WIF provider to `refs/heads/main` is acceptable for all CI jobs | Code Examples | Pull-request test jobs do not need cloud access, so low risk |
-| A14 | Order-inheritance of scene offsets is a product decision, not yet made (Update 2026-11-14: decided at 04-01, coverage_inheritance (a), no inheritance) | Pitfall 14 | D-18 target is read differently by Joshua and the executor |
+| A14 | Order-inheritance of scene offsets is a product decision, not yet made (Update 2026-11-14: decided at 04-01, coverage_inheritance (a), no inheritance) | Pitfall 14 | D-18 target is read differently by the owner and the executor |
 
 ## Open Questions
 
-(Update 2026-11-14: all six were answered at the 04-01 gate; see 04-01-SUMMARY.md `## Phase decisions (04-01 Task 2)`. 1: (a) request-based. 2: (a) stay at 0. 3: (a) Claude drafts, Joshua reviews and commits. 4: yes, the existing project `ai-buddy-dev` is under the digitiamo.com organization with billing linked; org policies may apply to 04-08 bootstrap and 04-13. 5: (b) a fresh, separate `claude` login seeds the Cloud Run bucket. 6: (a) `gh release download videos --repo <owner>/Guides --dir .cache/videos` with Joshua's login.)
+(Update 2026-11-14: all six were answered at the 04-01 gate; see 04-01-SUMMARY.md `## Phase decisions (04-01 Task 2)`. 1: (a) request-based. 2: (a) stay at 0. 3: (a) Claude drafts, the owner reviews and commits. 4: yes, the existing project `ai-buddy-dev` is under the digitiamo.com organization with billing linked; org policies may apply to 04-08 bootstrap and 04-13. 5: (b) a fresh, separate `claude` login seeds the Cloud Run bucket. 6: (a) `gh release download videos --repo <owner>/Guides --dir .cache/videos` with the owner's login.)
 
-1. **Does Joshua accept request-based billing for `chat_bot` even if slow answers stall?**
+1. **Does the owner accept request-based billing for `chat_bot` even if slow answers stall?**
    - Known: criterion 3 says request-based; the intake design lets runs outlive the ack window.
    - Unclear: how often real runs exceed 25 s (Meridian spawns a CLI turn per request; `LLM_TIMEOUT_SECONDS` default is 60).
    - Recommendation: ship request-based, measure live, flip to `cpu-throttling: 'false'` only with his consent.
 2. **D-18 reading: sections without a scene entry inherit the nearest earlier scene offset, or stay at 0?**
    - Recommendation: stay at 0 (no new heuristic) and report coverage; ask before changing.
 3. **Cross-repo work for `sections.yaml`:** who authors the five missing maps and commits them to the Guides repo?
-   - Recommendation: generate drafts from scene class names plus narration, Joshua reviews, commit in the Guides repo, then re-run sync.
+   - Recommendation: generate drafts from scene class names plus narration, the owner reviews, commit in the Guides repo, then re-run sync.
 4. **Org policy / Workspace:** is the GCP project under a Digitiamo organization (domain-restricted sharing, VPC rules)? The plan uses `invoker-iam-disabled`, which avoids the `allUsers` problem, but an org policy on public buckets or service-account creation could still block bootstrap steps.
-5. **Meridian token chain:** which of the three seeded copies keeps refreshing (Pitfall 5)? Recommendation in the pitfall; confirm with Joshua at seeding time.
+5. **Meridian token chain:** which of the three seeded copies keeps refreshing (Pitfall 5)? Recommendation in the pitfall; confirm with the owner at seeding time.
 6. **Sync on a machine without the Guides videos locally:** the 8 videos not under `Guides/videos/*/out/` must be fetched with `gh release download`; confirm the download path before the first upload.
 
 ## Environment Availability
@@ -548,7 +548,7 @@ Follow `tests/unit/test_dev_compose.py` (yaml.safe_load, assertions): for each `
 | gcloud | bootstrap, `--dry-run`, TTL | no (host) | `google/cloud-sdk:592.0.0-emulators` image present locally (gcloud 592.0.0) | run via Docker; needs network and auth for non-emulator commands |
 | ffprobe / ffmpeg | video inspection | no | n/a | not required: upload uses file bytes; scene offsets come from `durations.json` |
 | GCP project with billing | live checkpoint (criteria 3, 4, 5 live) | not yet (D-02, STATE blocker); (Update 2026-11-14: yes, existing project `ai-buddy-dev` under the digitiamo.com organization, billing linked; id in docs/internal/gcp-project.md, gitignored) | n/a | static checks run now; live checks recorded as pending |
-| Joshua's Max login | Meridian live profile, credentials seed | local volume `meridian-claude` exists | n/a | smoke profile uses the stub LLM |
+| The owner's Max login | Meridian live profile, credentials seed | local volume `meridian-claude` exists | n/a | smoke profile uses the stub LLM |
 
 **Missing dependencies with no fallback:** a GCP project with an active billing account blocks only the live checkpoint, not the static work. (Update 2026-11-14: no longer missing; the project `ai-buddy-dev` exists with billing linked.)
 **Missing dependencies with fallback:** kind, kubeconform, actionlint, gcloud (all via pinned binary or Docker image).
@@ -582,7 +582,7 @@ Follow `tests/unit/test_dev_compose.py` (yaml.safe_load, assertions): for each `
 | INFRA-05 | WIF push and deploy with no key file | live | first push to `main` after bootstrap; check run log and `gcloud run revisions list` | live checkpoint |
 | INFRA-06 | `deploy` job `needs: test`; test job runs `./run-unit-tests.sh --all`; script mode is executable in the git index | unit | `./run-unit-tests.sh --single-file test_workflows.py tests/unit` | Wave 0 |
 | SC5 | Video map URLs rewritten to `storage.cloud.google.com`; coverage report counts `source` per guide; upload skips unchanged md5 (fake bucket) | unit | `./run-unit-tests.sh --single-file test_video_upload.py tests/unit/buddy_sync` | Wave 0 |
-| SC5 | Inline playback and `#t=` seek on the real URL | manual live | Chrome signed in as Joshua; paste evidence | live checkpoint |
+| SC5 | Inline playback and `#t=` seek on the real URL | manual live | Chrome signed in as the owner; paste evidence | live checkpoint |
 
 ### Sampling Rate
 - **Per task commit:** the task's `--single-file` command (seconds).

@@ -35,7 +35,7 @@ key-files:
 key-decisions:
   - "Each sections.yaml entry was drafted from the scene's narration and checked against the guide heading; 6 scenes unmapped in the first draft were added after review, and all 68 original entries were confirmed correct"
   - "Scenes that narrate no single section stay unmapped (titles, chapter intros, level intros, recaps, the whole-turn overview)"
-  - "Item-2 optional decisions: Joshua gave none, so the defaults apply (no extra REDACT_EMAIL_ALLOW_DOMAINS; non-image attachment links keep their URL per D-17; text above a guide's first ## may stay unindexed)"
+  - "Item-2 optional decisions: the owner gave none, so the defaults apply (no extra REDACT_EMAIL_ALLOW_DOMAINS; non-image attachment links keep their URL per D-17; text above a guide's first ## may stay unindexed)"
 
 requirements-completed: [SYNC-04, SYNC-06, GUIDE-01]
 
@@ -56,7 +56,7 @@ coverage:
     requirement: SYNC-06
     verification:
       - kind: command
-        ref: "Joshua reviewed the Guides diff at the checkpoint; narration was re-checked against the guides for the 6 added scenes and the 68 original entries"
+        ref: "The owner reviewed the Guides diff at the checkpoint; narration was re-checked against the guides for the 6 added scenes and the 68 original entries"
         status: pass
     human_judgment: true
     rationale: "Whether a scene narrates a section is a reading judgment; the resolver only proves the heading exists"
@@ -93,7 +93,7 @@ status: complete
 ## Task Commits
 
 1. Task 1 (tracer): `1b75f49` test - local-only check of the real Guides checkout
-2. Task 2 (checkpoint:human-action): commit `810efdd` in the Guides repo (not this repo). Joshua reviewed the diff and told Claude "You can commit and push", so Claude committed and pushed to origin/master. This replaces the plan's "Joshua commits himself" wording; the explicit instruction satisfies the user rule against unrequested commits.
+2. Task 2 (checkpoint:human-action): commit `810efdd` in the Guides repo (not this repo). The owner reviewed the diff and told Claude "You can commit and push", so Claude committed and pushed to origin/master. This replaces the plan's "The owner commits himself" wording; the explicit instruction satisfies the user rule against unrequested commits.
 
 ## Map entries and unmapped scenes
 
@@ -123,7 +123,7 @@ These are probably false positives in guide examples (sample keys, placeholder a
 
 ## Item-2 optional decisions
 
-Joshua gave no answer, so the defaults apply: no extra `REDACT_EMAIL_ALLOW_DOMAINS` (only `digitiamo.com`), non-image attachment links keep their URL (D-17 literal), text above a guide's first `##` may stay unindexed.
+The owner gave no answer, so the defaults apply: no extra `REDACT_EMAIL_ALLOW_DOMAINS` (only `digitiamo.com`), non-image attachment links keep their URL (D-17 literal), text above a guide's first `##` may stay unindexed.
 
 ## Verification
 
@@ -135,8 +135,8 @@ Joshua gave no answer, so the defaults apply: no extra `REDACT_EMAIL_ALLOW_DOMAI
 
 **1. [Rule 3 - Blocking] Guides repo moved while the checkpoint was open**
 - **Found during:** Task 2 (review)
-- **Issue:** Joshua pushed 7 commits from another PC (a60b4cb..720d9d7), including 7270311 "MCP guide: add section 21 Code Mode and renumber sections 22-31". The local checkout was behind and the headings in the mcp-servers map no longer matched the guide.
-- **Fix:** fast-forwarded the local Guides checkout (stashed `.gitignore`, `pull --ff-only`, re-applied the negation on top of Joshua's new Remotion ignore lines), then updated three mcp-servers headings for the renumbering: S09SdkTraps -> "24. SDKs and the Wider Ecosystem" / "24.3 FastMCP — the name collision you need to understand"; S25WrongTool -> "25. When MCP Is the Wrong Tool"; S26Decision -> "27. Decision Checklist — Should You Build a Server?".
+- **Issue:** the owner pushed 7 commits from another PC (a60b4cb..720d9d7), including 7270311 "MCP guide: add section 21 Code Mode and renumber sections 22-31". The local checkout was behind and the headings in the mcp-servers map no longer matched the guide.
+- **Fix:** fast-forwarded the local Guides checkout (stashed `.gitignore`, `pull --ff-only`, re-applied the negation on top of the owner's new Remotion ignore lines), then updated three mcp-servers headings for the renumbering: S09SdkTraps -> "24. SDKs and the Wider Ecosystem" / "24.3 FastMCP — the name collision you need to understand"; S25WrongTool -> "25. When MCP Is the Wrong Tool"; S26Decision -> "27. Decision Checklist — Should You Build a Server?".
 - **Lesson:** number-prefixed headings make scene maps fragile when a guide is renumbered. Strict sync catches it as `VideoMapError`, so the drift is loud, not silent. Consider whether the contract should allow headings without the number prefix (for plan 01-11 or a later contract revision).
 - **Commit:** 810efdd (Guides repo)
 
@@ -147,7 +147,7 @@ Joshua gave no answer, so the defaults apply: no extra `REDACT_EMAIL_ALLOW_DOMAI
 - **Commit:** 810efdd (Guides repo)
 
 **3. [Plan wording] Claude made the Guides commit and push**
-- The plan expected Joshua to commit and said "no push needed". On his explicit instruction ("You can commit and push") Claude committed and pushed 810efdd to origin/master. Acceptance criterion "Guides HEAD unchanged by Claude" is superseded by that instruction; the tracked-file counts (3 and 2) are the check that held.
+- The plan expected the owner to commit and said "no push needed". On his explicit instruction ("You can commit and push") Claude committed and pushed 810efdd to origin/master. Acceptance criterion "Guides HEAD unchanged by Claude" is superseded by that instruction; the tracked-file counts (3 and 2) are the check that held.
 
 **Total deviations:** 2 auto-fixed, 1 wording change. **Impact:** none on scope; the maps are larger than the minimum of 5 entries per video.
 
@@ -161,7 +161,7 @@ None.
 
 ## Threat Flags
 
-None. T-01-37 (cross-repo tampering) was mitigated: the edits stayed in the working tree until Joshua reviewed the diff and gave the explicit commit instruction. T-01-SC: no package added. No `.env` value, handbook content or Wi-Fi page text was printed or copied; the redaction table holds rule names and integers only.
+None. T-01-37 (cross-repo tampering) was mitigated: the edits stayed in the working tree until the owner reviewed the diff and gave the explicit commit instruction. T-01-SC: no package added. No `.env` value, handbook content or Wi-Fi page text was printed or copied; the redaction table holds rule names and integers only.
 
 ## Issues Encountered
 

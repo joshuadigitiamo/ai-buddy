@@ -38,7 +38,7 @@ key-files:
     - tests/unit/test_workflows.py
 
 key-decisions:
-  - "scan-policy fixable: ignore-unfixed true; no .trivyignore.yaml (Joshua, 2026-11-15, on measured local counts)"
+  - "scan-policy fixable: ignore-unfixed true; no .trivyignore.yaml (the owner, 2026-11-15, on measured local counts)"
   - "Trivy binary v0.76.2, outside GHSA-69fq-xp46-6x23, set explicitly in with.version; test rejects 0.69.4, 0.69.5, 0.69.6"
 
 requirements-completed: []
@@ -141,7 +141,7 @@ Unfixed (11 CVEs, all HIGH, Debian OS packages):
 
 ## Scan policy
 
-Decision by Joshua (via the orchestrator, 2026-11-15): fail only on findings that have a fixed version (`ignore-unfixed: true`, as CICD_GUIDE section 16). Dependabot (04-21) moves the base image as fixes land; unfixed findings ship without a per-CVE record. The choice is reversible (one input).
+Decision by the owner (via the orchestrator, 2026-11-15): fail only on findings that have a fixed version (`ignore-unfixed: true`, as CICD_GUIDE section 16). Dependabot (04-21) moves the base image as fixes land; unfixed findings ship without a per-CVE record. The choice is reversible (one input).
 
 scan-policy: fixable
 

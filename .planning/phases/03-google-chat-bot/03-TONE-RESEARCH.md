@@ -20,7 +20,7 @@ Every source points the same way: in a chat surface the answer goes first, in on
 - Enterprise HR/IT assistants: clear identity statement ("a helpful teammate"), 3-5 traits each with example phrases, "Do: concise answers in 2-3 sentences", warmer on HR topics, more direct on technical ones ([Microsoft Employee Self-Service](https://learn.microsoft.com/en-us/microsoft-365/copilot/employee-self-service/design-best-practices)).
 - Microsoft's company-policy template: "professional, approachable, and concise; neutral and non-judgmental on sensitive HR topics" ([template](https://github.com/MicrosoftDocs/m365copilot-docs/blob/main/docs/agent-template-my-company-policy.md)); its eval set has a dedicated Tone & Persona category ([eval sets](https://github.com/microsoft/m365-agent-templates/tree/main/My%20Company%20Policy/Eval%20Sets)).
 - KB persona: "Give the key information first, then link to the full document"; neutral, no editorializing; mention exceptions briefly ([CustomGPT](https://docs.customgpt.ai/docs/knowledge-base-assistant-persona)).
-- **tu vs Lei:** no authoritative Italian source found. General guidance is to match the company's internal communication style ([Google Business Messages IT](https://developers.google.com/business-communications/business-messages/guides/how-to/design/language?hl=it)). Inference: a colleague-style internal bot in an Italian tech company usually uses "tu" — Joshua decides.
+- **tu vs Lei:** no authoritative Italian source found. General guidance is to match the company's internal communication style ([Google Business Messages IT](https://developers.google.com/business-communications/business-messages/guides/how-to/design/language?hl=it)). Inference: a colleague-style internal bot in an Italian tech company usually uses "tu" — the owner decides.
 
 ## 3. Concise without losing grounding
 
@@ -44,7 +44,7 @@ Every source points the same way: in a chat surface the answer goes first, in on
 
 ## Recommendations for AI Buddy (inference from the above)
 
-1. **Persona line** at the top of ANSWER_SYSTEM and ANSWER_SENSITIVE_SYSTEM: "Sei AI Buddy, il collega di Digitiamo che conosce il manuale aziendale e le Guide tecniche: cordiale, diretto, preciso." + register (tu, pending Joshua).
+1. **Persona line** at the top of ANSWER_SYSTEM and ANSWER_SENSITIVE_SYSTEM: "Sei AI Buddy, il collega di Digitiamo che conosce il manuale aziendale e le Guide tecniche: cordiale, diretto, preciso." + register (tu, pending the owner).
 2. **Answer-first rule + length**: first sentence answers; then at most 3-4 short steps only if needed; keep the key condition/deadline; no preamble ("Secondo il manuale…"); `answer` max ~600 chars.
 3. **Two positive few-shot examples** (one procedure, one fact) in Italian showing the target length — per Anthropic, more effective than more rules.
 4. **Citations**: only sources in `citations`, max 3; render as short link text instead of raw URLs (e.g. `Fonte: Ferie e Permessi (rev. 2026-07-29)`, Guides as linked section title). Verify Google Chat's link syntax for the app's Markdown setting [Medium].
@@ -56,7 +56,7 @@ Every source points the same way: in a chat surface the answer goes first, in on
 7 searches (Exa + web), 3 sources read in full or near-full (Anthropic Sonnet 5 prompting, Microsoft ESS design guidance, ChatBento). Exa free tier rate-limited 2 queries; retried via web search. Sub-questions: chat answer length/structure; persona/system prompt; concise-but-grounded; number/format of citations; verbosity evaluation; Italian tu/Lei.
 Gaps: no authoritative tu/Lei source; no hard data on optimal number of citations; message-length numbers come from one vendor.
 
-## Decision (Joshua, 2026-11-07)
+## Decision (the owner, 2026-11-07)
 
 - Register: **tu**.
 - `answer` cap: **600 characters**.

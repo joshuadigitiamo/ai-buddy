@@ -31,7 +31,7 @@ validated: "2026-11-22"
 
 - **After every task commit:** Run the quick run command on the touched test file
 - **After every plan wave:** Run `./run-unit-tests.sh --all` (includes the structural tests this phase edits: compose, dockerfile stages, requirement locks, repo layout, workflows)
-- **Before `/gsd-verify-work`:** Full suite green + `scripts/eval-smoke.sh` (hermetic: stub LLM + real MLflow container) + live checkpoints (`preflight`, `run`, `empty-context`, `gate`) with Joshua
+- **Before `/gsd-verify-work`:** Full suite green + `scripts/eval-smoke.sh` (hermetic: stub LLM + real MLflow container) + live checkpoints (`preflight`, `run`, `empty-context`, `gate`) with the owner
 - **Max feedback latency:** 120 seconds
 
 ---
@@ -43,7 +43,7 @@ Task IDs are filled in by the planner and plan checker. Requirement → test map
 | Requirement | Behavior | Test Type | Automated Command | File Exists | Status |
 |-------------|----------|-----------|-------------------|-------------|--------|
 | EVAL-01 | golden schema, public+private merge, missing private file → incomplete, committed YAML has no handbook-scheme or clickup reference, 30-50 count, unknown expected sources rejected | unit | `./run-unit-tests.sh --single-file test_golden.py tests/unit/buddy_eval` | ✅ | ✅ green |
-| EVAL-01 | Joshua reviews drafts (`draft` → `approved`) | manual checkpoint | human-verify task | n/a | ✅ done (05-11) |
+| EVAL-01 | The owner reviews drafts (`draft` → `approved`) | manual checkpoint | human-verify task | n/a | ✅ done (05-11) |
 | EVAL-02 | recall hit-any + fractional per source, `< 0.8` flag boundary, tool failure = error not miss, cached reformulation → 0 LLM calls, permalink → chunk_key resolution | unit | `--single-file test_recall.py tests/unit/buddy_eval` | ✅ | ✅ green |
 | EVAL-03 | per-kind scoring table, invented count over answered items only, judge prompt fences full source text, cache key ingredients, errored never cached, resume | unit | `--single-file test_scoring.py` / `test_judge.py` / `test_cache.py` / `test_runner.py` | ✅ | ✅ green |
 | EVAL-03 | live scoring through Meridian | live checkpoint | `docker compose --profile eval run --rm eval run` | n/a | ✅ done (05-17, manual-only) |
@@ -97,9 +97,9 @@ Task IDs are filled in by the planner and plan checker. Requirement → test map
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Golden set review | EVAL-01 | Joshua's judgement is the review | Edit `review:` fields to approved/rejected in both golden files |
+| Golden set review | EVAL-01 | The owner's judgement is the review | Edit `review:` fields to approved/rejected in both golden files |
 | New pins legitimacy (mlflow-skinny, pandas flagged SUS: too-new) | EVAL-05 | supply-chain gate needs a human | Confirm PyPI project pages, then approve |
-| Meridian preflight (Opus 5.5 id, quota) | EVAL-03 | needs Joshua's Max credentials | `docker compose --profile eval run --rm eval preflight` |
+| Meridian preflight (Opus 5.5 id, quota) | EVAL-03 | needs the owner's Max credentials | `docker compose --profile eval run --rm eval preflight` |
 | Live run / empty-context / gate | EVAL-03/04/06 | real LLM through Max | run the commands, inspect the report and MLflow UI at 127.0.0.1:5000 |
 
 ---

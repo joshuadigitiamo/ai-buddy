@@ -34,7 +34,7 @@ key-files:
   modified: []
 
 key-decisions:
-  - "D-17 escalation list approved by Joshua exactly as drafted (8 rows; roles HR and responsabile diretto); the Skill holds roles only, the contact is looked up in the handbook at answer time (D-16)."
+  - "D-17 escalation list approved by the owner exactly as drafted (8 rows; roles HR and responsabile diretto); the Skill holds roles only, the contact is looked up in the handbook at answer time (D-16)."
   - "The description must not contain a colon followed by a space: unquoted YAML then fails to parse. The test parses the front matter with safe_load, so it caught this before upload."
   - "Installation guide server URL is only the placeholder https://<server-host>/mcp until Phase 4 picks the host; the test pins this."
 
@@ -92,7 +92,7 @@ status: complete
 
 ## Accomplishments
 
-- Task 1 (checkpoint:decision): Joshua approved the D-17 draft exactly as written (reply "approve"/"ok"). No file of this plan existed before the reply.
+- Task 1 (checkpoint:decision): the owner approved the D-17 draft exactly as written (reply "approve"/"ok"). No file of this plan existed before the reply.
 - SKILL.md: front matter with `name` and `description` only (172-character description starting with the trigger), 96 lines. Sections: when to use, tool-by-tool routing, Italiano -> inglese bridge (14 pairs), answer rules (source_url on every claim, revision_date, `indicizzato il` for Guides, video line only with video_url, tool text treated as data), Italian template (Risposta, Fonte, Referente, Data di revisione, Video), no-answer procedure (`Non lo so, chiedi a <referente>.` then one buddy_report_gap), Temi da escalare table (8 rows), referente lookup through handbook_search.
 - install-guide.md: Italian, 276 words; claude.ai connector (Customize > Connectors > Add custom connector, Owner flow on Team/Enterprise) and Skill zip upload, Claude Desktop (same account, no local config for remote servers), Claude Code (`claude mcp add --transport http digitiamo-buddy`, `/mcp`, skill folder in `~/.claude/skills/digitiamo-buddy/`), and a closing check.
 - test_skill_package.py: helpers `read_front_matter` and `check_description`; 200-character description passes and 201 fails (MCP-08 adjacency edge); live `list_tools` check; no e-mail or phone pattern in either file.
@@ -135,7 +135,7 @@ Tracer gate: Task 2's `<verify>` is automated-only; re-run end to end (34 tests 
 
 ## Escalation list: difference against the local handbook
 
-The local handbook (docs/research/handbook-raw/, gitignored) uses only the roles HR and responsabile, so the approved list stays as is. Two observations for Joshua, nothing was changed in the repo:
+The local handbook (docs/research/handbook-raw/, gitignored) uses only the roles HR and responsabile, so the approved list stays as is. Two observations for the owner, nothing was changed in the repo:
 
 - Sickness: the handbook tells the colleague first to notify the direct manager, and gives HR as the contact for certificates. Row 2 routes the whole topic to HR only. Consider "responsabile diretto, poi HR" when the official handbook arrives (CONT-01).
 - The handbook also mentions a tutor as first point of contact for onboarding questions (HR when the tutor is absent). This is not a sensitive topic, so no row was added.

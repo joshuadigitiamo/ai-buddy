@@ -33,7 +33,7 @@ created: "2026-11-14"
 
 - **After every task commit:** Run the task's `--single-file` command
 - **After every plan wave:** Run `./run-unit-tests.sh --all` plus `scripts/validate-infra.sh`
-- **Before `/gsd-verify-work`:** `--all`, `--emulator`, `compose-smoke.sh`, `kind-smoke.sh` green; live checkpoint recorded (or recorded as deferred if Joshua defers it; the GCP project `ai-buddy-dev` with billing exists since 2026-11-14)
+- **Before `/gsd-verify-work`:** `--all`, `--emulator`, `compose-smoke.sh`, `kind-smoke.sh` green; live checkpoint recorded (or recorded as deferred if the owner defers it; the GCP project `ai-buddy-dev` with billing exists since 2026-11-14)
 - **Max feedback latency:** 120 seconds
 
 ---

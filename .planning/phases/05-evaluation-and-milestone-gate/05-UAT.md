@@ -35,7 +35,7 @@ result: pass
 ### 6. Milestone 1 outcome accepted
 expected: You accept the recorded live gate result as the Milestone 1 outcome: GATE: PASS on build 20261122T094743Z-55ce792552d8, 38/40 correct (wrong: gd-05 unchanged, sr-03 new failure), invented 0, empty-context 28/28, nothing tuned after the run. No further golden/threshold/bot change wanted before closing the phase.
 result: pass
-note: "First asked to fix gd-05/sr-03 (gap G-05-6). After diagnosis (not bot faults) Joshua accepted the 38/40 GATE: PASS as the M1 outcome; decision recorded in 05-GAP-DECISION.md (UAT follow-up decision)."
+note: "First asked to fix gd-05/sr-03 (gap G-05-6). After diagnosis (not bot faults) the owner accepted the 38/40 GATE: PASS as the M1 outcome; decision recorded in 05-GAP-DECISION.md (UAT follow-up decision)."
 
 ## Summary
 
@@ -51,7 +51,7 @@ blocked: 0
 - gap_id: G-05-6
   truth: "Live gate scores every approved golden item correct (gd-05 and sr-03 wrong in 05-17 run, 38/40)"
   status: accepted
-  accepted_by: "Joshua, waiver recorded in 05-GAP-DECISION.md (UAT follow-up decision), 2026-11-22"
+  accepted_by: "The owner, waiver recorded in 05-GAP-DECISION.md (UAT follow-up decision), 2026-11-22"
   reason: "User reported: Is everything working? I noticed 38/40 correct.. Can you fix all?"
   severity: minor
   test: 6
@@ -64,5 +64,5 @@ blocked: 0
     - path: "jobs/eval/buddy_eval/judge.py"
       issue: "JUDGE_SYSTEM all-or-nothing per fact; no partial-credit rule; default temperature"
   missing:
-    - "Recorded EVAL-06 decision from Joshua before any post-gate golden/judge change"
+    - "Recorded EVAL-06 decision from the owner before any post-gate golden/judge change"
   debug_session: ".planning/debug/eval-gd-05-wrong.md, .planning/debug/eval-sr-03-wrong.md (private detail: docs/internal/05-gap-diagnosis-uat.md)"

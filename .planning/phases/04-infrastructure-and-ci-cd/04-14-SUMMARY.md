@@ -6,7 +6,7 @@ tags: [d-18, sections-yaml, video-coverage, scene-timestamps, guides-drafts, cro
 
 requires:
   - phase: 04-infrastructure-and-ci-cd
-    provides: "04-01 sections_authoring (a): Claude drafts, Joshua reviews and commits"
+    provides: "04-01 sections_authoring (a): Claude drafts, the owner reviews and commits"
   - phase: 04-infrastructure-and-ci-cd
     provides: "04-12 video-coverage --guides-dir projection and the 238/2524 baseline"
 provides:
@@ -50,7 +50,7 @@ coverage:
     requirement: INFRA-04
     verification: []
     human_judgment: true
-    rationale: "Heading choice is a judgement about narration versus guide text; only Joshua's spot check at the drafted offsets can confirm it (Task 3)"
+    rationale: "Heading choice is a judgement about narration versus guide text; only the owner's spot check at the drafted offsets can confirm it (Task 3)"
 
 duration: ~35min
 completed: 2026-11-15
@@ -59,7 +59,7 @@ status: complete
 
 # Phase 4 Plan 14: D-18 scene maps (partial, stopped at Task 3) Summary
 
-**Five `sections.yaml` drafts for a2a-protocol, airflow, big-data-frameworks, deep-agents and langsmith validate against the production resolver and project the scene-mapped rows from 238 to 708 of 2524; Task 3 (Joshua's review, Guides commit, re-sync) is open.**
+**Five `sections.yaml` drafts for a2a-protocol, airflow, big-data-frameworks, deep-agents and langsmith validate against the production resolver and project the scene-mapped rows from 238 to 708 of 2524; Task 3 (the owner's review, Guides commit, re-sync) is open.**
 
 ## Status
 
@@ -102,7 +102,7 @@ Residual fallback: 8 guides with video, 8 of them without out/durations.json
 
 Row-level remainder: of the 1816 fallback rows, 1185 sit in those eight guides and 631 sit in unmapped sections of the seven mapped guides (sections whose narration does not cover them; they play the full video from 0 as before).
 
-### The ten files to commit in the Guides repo (Joshua's commit and push)
+### The ten files to commit in the Guides repo (the owner's commit and push)
 
 Five drafts (new, untracked), under `~/Desktop/WORK/Guides/`:
 
@@ -137,11 +137,11 @@ Offsets are seconds from the start of the part, from `scene_offsets` over each `
 - Each narration was read in full against the guide's `##`/`###` headings; headings were copied verbatim, including the typographic dashes and backticked names. All five loaded and resolved on the first run.
 - Scenes left out because they cover no single guide section: title, chapter-bridge ("Part N:") and recap scenes. Rows before the first mapped scene and sections no scene narrates keep the D-18 fallback.
 - A `##` with no `###` entry for that scene is mapped at `##` level when the scene summarises the whole section (for example airflow S14XCom, langsmith S11Feedback); `###` level is used where the narration targets a subsection (for example a2a S16StreamPatterns, deep-agents S10BackendTraps).
-- Judgement calls Joshua may want to change: deep-agents S10BackendTraps owns the FilesystemBackend and StoreBackend subsections while S08Backends owns StateBackend and the comparison; airflow S13Sensors also claims the Deferrable Operators section; a2a S27Choosing owns the "When A2A is the wrong answer" subsection and S28WrongAnswer the section-26 trio.
+- Judgement calls the owner may want to change: deep-agents S10BackendTraps owns the FilesystemBackend and StoreBackend subsections while S08Backends owns StateBackend and the comparison; airflow S13Sensors also claims the Deferrable Operators section; a2a S27Choosing owns the "When A2A is the wrong answer" subsection and S28WrongAnswer the section-26 trio.
 
 ## Committed coverage
 
-Joshua asked Claude to commit the drafts as drafted (spot checks not run). Guides commit `f487737` "Add section maps for five videos" (10 files, local, not pushed). `scripts/sync-and-publish.sh` published build `20261115T115407Z-95a48e5ae357` and forced a new mcp-server revision. `video-coverage` on the published index: `scene=708 fallback=1816 rows=2524 (baseline 238/2524)`, equal to the projection.
+The owner asked Claude to commit the drafts as drafted (spot checks not run). Guides commit `f487737` "Add section maps for five videos" (10 files, local, not pushed). `scripts/sync-and-publish.sh` published build `20261115T115407Z-95a48e5ae357` and forced a new mcp-server revision. `video-coverage` on the published index: `scene=708 fallback=1816 rows=2524 (baseline 238/2524)`, equal to the projection.
 
 Residual fallback: 8 guides with video, 8 of them without out/durations.json (LangChain, LangGraph, MLflow GenAI, RAG Chatbot, BigQuery, ETL vs ELT, Kubernetes, Design Patterns)
 
@@ -151,7 +151,7 @@ Counts only, filled in with the committed numbers:
 
 `- [Phase 04]: D-18 coverage <S>/<T> scene-mapped rows after the Guides maps (baseline 238/2524); <G> guides with video still at fallback (<N> without durations)`
 
-Projected values to expect if Joshua commits as drafted: S=708, T=2524, G=8, N=8.
+Projected values to expect if the owner commits as drafted: S=708, T=2524, G=8, N=8.
 
 ## Deviations from Plan
 
@@ -189,7 +189,7 @@ None. T-04-50: no git command was run in the Guides repo; the drafts are uncommi
 
 ## Next Step
 
-Task 3 (`checkpoint:human-verify`, gate `blocking`): Joshua reviews the drafts and spot checks, commits and pushes the ten files in the Guides repo, runs `scripts/sync-and-publish.sh` (or `--local-only` when the live deploy stays deferred) and replies "committed" or lists files to fix (fixes loop back to Task 2). A continuation then runs `video-coverage` on the published index, writes `## Committed coverage` with a second `Residual fallback:` line, and the orchestrator adds the STATE.md decision line.
+Task 3 (`checkpoint:human-verify`, gate `blocking`): the owner reviews the drafts and spot checks, commits and pushes the ten files in the Guides repo, runs `scripts/sync-and-publish.sh` (or `--local-only` when the live deploy stays deferred) and replies "committed" or lists files to fix (fixes loop back to Task 2). A continuation then runs `video-coverage` on the published index, writes `## Committed coverage` with a second `Residual fallback:` line, and the orchestrator adds the STATE.md decision line.
 
 ## Self-Check: PASSED
 

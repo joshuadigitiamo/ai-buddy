@@ -16,7 +16,7 @@
 - Phase 2 D-10: gap log never stores user identity (no user id, email, IP, session id).
 - Phase 2 D-12: the bot authenticates to the MCP server with a Google-signed ID token minted by its service account. D-13: `AUTH_MODE=off` only off Cloud Run.
 - Phase 1 D-21: the Guides index is English. The bot bridges Italian -> English keywords for `guides_search` (the Skill already has the bridge table).
-- PROJECT D1a: Meridian only for Joshua as the single user. D4/D5: no vector DB. D11: the bot holds no retrieval logic of its own. D15: video shown as thumbnail + "Guarda" button.
+- PROJECT D1a: Meridian only for the owner as the single user. D4/D5: no vector DB. D11: the bot holds no retrieval logic of its own. D15: video shown as thumbnail + "Guarda" button.
 
 **Confidence and citation gate**
 - **D-01:** The gate has two independent signals. (a) Deterministic: refuse if every tool returned `no_results` or the citation check fails. (b) LLM: the answer step returns structured output with a `grounded` flag and a `confidence` score; the bot refuses below a threshold set by env.
@@ -44,9 +44,9 @@
 
 **Dev wiring**
 - **D-15:** Live dev uses a real GCP project: the Chat app is configured to publish to a Pub/Sub topic, and the bot consumes a pull subscription from compose or kind, so no public URL is needed. Automated tests use the Pub/Sub emulator in Docker with recorded Chat event JSON fixtures. Uses the Pub/Sub free tier.
-- **D-16:** Meridian runs in its own compose service: a pinned Node image, with Joshua's Max credentials mounted read-only from the host config dir and never baked into an image. The bot uses it as the Anthropic `base_url` (`http://meridian:<port>`). The `api` backend uses the same Anthropic Messages client with an API key (BOT-07).
+- **D-16:** Meridian runs in its own compose service: a pinned Node image, with the owner's Max credentials mounted read-only from the host config dir and never baked into an image. The bot uses it as the Anthropic `base_url` (`http://meridian:<port>`). The `api` backend uses the same Anthropic Messages client with an API key (BOT-07).
 - **D-17:** Two models: Haiku 5.5 (`claude-haiku-5-5`) for reformulate/classify (standalone query, English keywords, `intent`, `sensitive_topic`), and Sonnet 5.5 (`claude-sonnet-5-5`) for the cited answer plus `grounded`/`confidence`. Both model ids come from env so Phase 5 can A/B them.
-- **D-18:** The last plan ends with a live Chat checkpoint: Joshua DMs the bot scripted questions (one answerable from the handbook, one from the Guides with a video, one sensitive, one with no source) and confirms the results. The checkpoint may be deferred to Phase 4 if GCP setup blocks it (as with 02-07).
+- **D-18:** The last plan ends with a live Chat checkpoint: the owner DMs the bot scripted questions (one answerable from the handbook, one from the Guides with a video, one sensitive, one with no source) and confirms the results. The checkpoint may be deferred to Phase 4 if GCP setup blocks it (as with 02-07).
 
 ### Claude's Discretion
 - Card layout (cardsV2 structure, multi-source answers, thumbnail source) and the exact Italian strings, following BOT-09 and the Skill answer template.
@@ -343,12 +343,12 @@ Not applicable (greenfield package; no rename or migration). One related item: `
 
 ### Pitfall 2: Meridian specifics
 **What goes wrong:** (a) The Meridian Docker doc says the container runs as UID 1000 and the mounted `~/.claude` "must be writable by that user so tokens can refresh" [CITED: raw.githubusercontent.com/rynfar/meridian/main/docs/deployment.md], which conflicts with D-16's "mounted read-only". (b) Sampling controls and exact output-token caps are not honoured. (c) Structured output via `output_config` is undocumented for the Claude backend. (d) With `MERIDIAN_HOST` default `127.0.0.1` the proxy is unreachable from another container unless bound to `0.0.0.0` (the repo Dockerfile sets `CLAUDE_PROXY_HOST=0.0.0.0`) and, if reachable beyond loopback, should have `MERIDIAN_API_KEY` set [CITED: configuration.md].
-**How to avoid:** put the credentials in a dedicated Docker named volume or a copied-once directory that the container can write, not a read-only bind of the live `~/.claude` (never bake them into an image, which keeps the intent of D-16); publish the port only on the compose network (no host port, or `127.0.0.1:` only); set `MERIDIAN_API_KEY` and pass it as the Anthropic key; use JSON-in-prompt structured output; set a generous client timeout (Meridian spawns a CLI turn per request). Flag the read-only deviation to Joshua at the plan checkpoint as a decision, not a silent change. [ASSUMED: Joshua's host uid is 1000; `~/.claude/.credentials.json` exists, mode 600, 573 bytes (checked with `ls`, contents not read).]
+**How to avoid:** put the credentials in a dedicated Docker named volume or a copied-once directory that the container can write, not a read-only bind of the live `~/.claude` (never bake them into an image, which keeps the intent of D-16); publish the port only on the compose network (no host port, or `127.0.0.1:` only); set `MERIDIAN_API_KEY` and pass it as the Anthropic key; use JSON-in-prompt structured output; set a generous client timeout (Meridian spawns a CLI turn per request). Flag the read-only deviation to the owner at the plan checkpoint as a decision, not a silent change. [ASSUMED: the owner's host uid is 1000; `~/.claude/.credentials.json` exists, mode 600, 573 bytes (checked with `ls`, contents not read).]
 **Warning signs:** `401`/auth errors after about an hour; JSON wrapped in prose; slow first token.
 
 ### Pitfall 3: Allowlist identity
 **What goes wrong:** matching on email assumes the event carries it. The User resource documents `email` but is silent on whether app authentication populates it; `name` is `users/{id}` and "only the canonical ID ... is returned" [CITED: developers.google.com/workspace/chat/api/reference/rest/v1/User].
-**How to avoid:** `ALLOWED_USERS` accepts a comma list of `users/<id>` and/or lowercase emails; the guard allows when `event.user.name` or `event.user.email` (if present) matches. The rejected-sender path logs one counter line with no identifier. To learn his own id, Joshua reads it once from the live checkpoint (document the step in the bot README; do not add a code path that logs ids).
+**How to avoid:** `ALLOWED_USERS` accepts a comma list of `users/<id>` and/or lowercase emails; the guard allows when `event.user.name` or `event.user.email` (if present) matches. The rejected-sender path logs one counter line with no identifier. To learn his own id, the owner reads it once from the live checkpoint (document the step in the bot README; do not add a code path that logs ids).
 **Behaviour for non-allowlisted senders:** drop silently (no reply text, no MCP, no LLM, no memory write). Applies to every event type including `ADDED_TO_SPACE`.
 
 ### Pitfall 4: Memory and log privacy (BOT-11)
@@ -357,7 +357,7 @@ Not applicable (greenfield package; no rename or migration). One related item: `
 
 ### Pitfall 5: Handbook sources are not clickable; thumbnails do not exist
 **What goes wrong:** BOT-09 says "handbook answers show the source link", but handbook `source_url` is `handbook://<page_id>` (not an openable URL), and `index.db` 1.0.0 has no thumbnail field [VERIFIED: `docs/index-format.md` video_map columns `chunk_key, video_url, part, start_seconds?, source`; CONTEXT "no thumbnail field"]. Video URLs are GitHub release assets (`.../releases/download/videos/<name>.mp4`), so no frame can be derived without downloading and decoding.
-**How to avoid:** show the handbook citation as text with page title and `handbook://<page_id>`; thumbnail = optional static HTTPS image from `VIDEO_THUMBNAIL_URL` (the ai-buddy repo is public, so a committed generic image served from a raw URL works), omitted when unset. Do not change `index.db`. Ask Joshua whether a text-only handbook citation satisfies BOT-09 (Open Question 1). Per-video thumbnails belong to ROLL-02 when videos move to Drive.
+**How to avoid:** show the handbook citation as text with page title and `handbook://<page_id>`; thumbnail = optional static HTTPS image from `VIDEO_THUMBNAIL_URL` (the ai-buddy repo is public, so a committed generic image served from a raw URL works), omitted when unset. Do not change `index.db`. Ask the owner whether a text-only handbook citation satisfies BOT-09 (Open Question 1). Per-video thumbnails belong to ROLL-02 when videos move to Drive.
 
 ### Pitfall 6: 30 s window and Cloud Run CPU
 **What goes wrong:** a Meridian turn plus MCP plus a possible D-03 retry can exceed 30 s. In HTTP mode on Cloud Run with request-based billing, CPU is throttled after the response, so "ack fast, finish in the background" may stall [ASSUMED: Cloud Run request-based CPU allocation behaviour].
@@ -436,7 +436,7 @@ MAX_LIMIT: Final = 10
 # models.py:115-119 GapReportOutput: status Literal["recorded"], gap_id, marker Literal["nessuna fonte trovata"]
 # gap_tool.py:55   async def buddy_report_gap(question: str, tried: list[str] | None = None)
 ```
-Import `buddy_mcp.models` directly in the bot (single source of truth; its header says "Rename only together with both") and put `services/mcp_server` on the bot's `PYTHONPATH`/image (`buddy_mcp/__init__.py` imports nothing heavy, so only pydantic is pulled in). If Joshua prefers the bot image to exclude server code, mirror the models and keep the in-memory contract test as the drift guard.
+Import `buddy_mcp.models` directly in the bot (single source of truth; its header says "Rename only together with both") and put `services/mcp_server` on the bot's `PYTHONPATH`/image (`buddy_mcp/__init__.py` imports nothing heavy, so only pydantic is pulled in). If the owner prefers the bot image to exclude server code, mirror the models and keep the in-memory contract test as the drift guard.
 
 ### Citation gate
 ```python
@@ -524,7 +524,7 @@ Section numbers verified against the Guides headings read this session (`grep` o
 | A4 | cardsV2 `imageUrl` must be publicly reachable HTTPS | Pitfall 5 | Thumbnail not shown; card still works |
 | A5 | `update_message` mask paths are `["text", "cards_v2"]` in the Python GAPIC client | Pitfall 10 | Card not updated; fix mask name in the live checkpoint |
 | A6 | Meridian passes through plain Messages requests (no `output_config`), ignores sampling, JSON-in-prompt works through it | Pattern 5, Pitfall 2 | Structured calls fail validation more often; tune prompts or probe `output_config` live |
-| A7 | Meridian token refresh needs a writable credentials dir (per Meridian docs), conflicting with D-16 "read-only" | Pitfall 2 | Auth fails after token expiry; needs Joshua's decision |
+| A7 | Meridian token refresh needs a writable credentials dir (per Meridian docs), conflicting with D-16 "read-only" | Pitfall 2 | Auth fails after token expiry; needs the owner's decision |
 | A8 | Default `CONFIDENCE_THRESHOLD` 0.7 is a sensible start | Pattern 3 | Over- or under-refusal; tuned in Phase 5 |
 | A9 | Pub/Sub streaming pull extends ack deadlines while a callback blocks | Pattern 1 | Redelivery during slow runs; dedupe absorbs it |
 | A10 | Cloud Run request-based billing throttles CPU after the response | Pitfall 6 | Background completion stalls (only matters in Phase 4) |
@@ -532,7 +532,7 @@ Section numbers verified against the Guides headings read this session (`grep` o
 | A12 | `LANGSMITH_TRACING` unset/false disables remote tracing | Pitfall 4 | Prompts leave the host; add a test that the variable is false in the image |
 | A13 | `message.argumentText` is the text without the @mention; DM `argumentText` equals text | Events | Wrong question text in @mention case; fallback to `text` |
 | A14 | The Pub/Sub emulator answers a health probe on its root port | Validation | Compose healthcheck needs another probe |
-| A15 | Joshua's host uid is 1000 (Meridian container runs as 1000) | Pitfall 2 | Permission errors on the credentials volume |
+| A15 | The owner's host uid is 1000 (Meridian container runs as 1000) | Pitfall 2 | Permission errors on the credentials volume |
 | A16 | Chat text link syntax `<url|label>` | Pattern 6 | Links render as plain text |
 
 ## Open Questions
@@ -543,10 +543,10 @@ Section numbers verified against the Guides headings read this session (`grep` o
    - Recommendation: render title + `handbook://<page_id>` + revision date as text; record as accepted at the plan checkpoint. A real URL mapping waits for CONT-01 (official handbook).
 2. **Thumbnail source.**
    - Known: no field in `index.db` 1.0.0, videos are mp4 release assets.
-   - Recommendation: optional `VIDEO_THUMBNAIL_URL` static image; omit when unset. Ask Joshua if he wants a generic image committed under the public repo.
+   - Recommendation: optional `VIDEO_THUMBNAIL_URL` static image; omit when unset. Ask the owner if he wants a generic image committed under the public repo.
 3. **Do DM follow-ups share a thread name?** Decide in the live checkpoint (D-18); the memory key source is one line to change.
-4. **Meridian credentials mount (writable vs read-only).** Needs Joshua's choice (Pitfall 2).
-5. **Chat app format (add-on or not) and event email.** Joshua configures the app; both shapes are supported, so this only needs recording at the checkpoint along with the manual settings (visibility Joshua only, Pub/Sub topic, slash command `/aiuto` id, authentication audience).
+4. **Meridian credentials mount (writable vs read-only).** Needs the owner's choice (Pitfall 2).
+5. **Chat app format (add-on or not) and event email.** the owner configures the app; both shapes are supported, so this only needs recording at the checkpoint along with the manual settings (visibility the owner only, Pub/Sub topic, slash command `/aiuto` id, authentication audience).
 6. **Dev compose Firestore:** emulator (default, no cost, no real data) or the real EU project? D-15 only fixes Pub/Sub and Chat as real.
 
 ## Environment Availability
@@ -658,7 +658,7 @@ No project `./CLAUDE.md` exists. Directives come from the global `~/.claude/CLAU
 - `pip` with pinned `requirements*.txt` (repo enforces `==`).
 - No speculative abstractions or future-proofing: ports only where the repo pattern and CONTEXT require them (intake, LLM, MCP, Chat API, memory).
 - Never echo `.env` or secrets; redact in examples. The repo is **public**: internal docs only under `docs/internal/`, fixtures synthetic, no real addresses or names.
-- Work directly on `main`, no branches, no commits or pushes unless Joshua asks (research was not committed).
+- Work directly on `main`, no branches, no commits or pushes unless the owner asks (research was not committed).
 - Apply Guides sections per D16 and justify exceptions (done above).
 - Never invent file paths or APIs: this document's code is marked with its verification source; unverified items are in the Assumptions Log.
 

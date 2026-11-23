@@ -47,7 +47,7 @@
 | Question | Options | Selected |
 |----------|---------|----------|
 | Contacts | Roles in Skill + names from handbook / Gitignored file / Role mailboxes | Roles + handbook |
-| Escalation list | Claude drafts, Joshua reviews / Joshua writes | Claude drafts, Joshua reviews |
+| Escalation list | Claude drafts, the owner reviews / the owner writes | Claude drafts, the owner reviews |
 | Skill language | English instr + Italian answers / All Italian | English + Italian answers |
 | Install guide | claude.ai / Desktop / Claude Code | All three |
 

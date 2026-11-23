@@ -18,7 +18,7 @@ provides:
   - "docker-compose.dev.yml: meridian (pinned SHA build), firestore emulator, mcp_server, chat_bot; no published ports"
   - "services/chat_bot/README.md: env contract, manual Chat app settings, Pub/Sub IAM, rollout checklist"
   - "Structural guard tests for the dev compose file and the README"
-  - "Live Google Chat check (D-18) passed by Joshua on 2026-11-07"
+  - "Live Google Chat check (D-18) passed by the owner on 2026-11-07"
 affects: [phase-04-deploy, phase-05-golden-set]
 
 actuals:
@@ -71,7 +71,7 @@ coverage:
         ref: "docker compose -f docker-compose.dev.yml up, live DMs on 2026-11-07"
         status: pass
   - id: D2
-    description: "Bot README with every BotSettings variable, manual Chat app settings (visibility Joshua only), Pub/Sub IAM and the Prima di un secondo utente checklist"
+    description: "Bot README with every BotSettings variable, manual Chat app settings (visibility the owner only), Pub/Sub IAM and the Prima di un secondo utente checklist"
     requirement: "BOT-03"
     verification:
       - kind: unit
@@ -82,13 +82,13 @@ coverage:
     requirement: "BOT-09"
     verification:
       - kind: manual_procedural
-        ref: "Joshua approved after fixes and retest, 2026-11-07"
+        ref: "The owner approved after fixes and retest, 2026-11-07"
         status: pass
 ---
 
 # Phase 3 Plan 12: Dev stack, bot README and live Google Chat check Summary
 
-One compose file runs Meridian, the MCP server, the bot and the Firestore emulator against a real Google Chat app over Pub/Sub, the bot README documents every manual setting, and Joshua approved the live check after five fix commits.
+One compose file runs Meridian, the MCP server, the bot and the Firestore emulator against a real Google Chat app over Pub/Sub, the bot README documents every manual setting, and the owner approved the live check after five fix commits.
 
 ## Tasks
 
@@ -100,7 +100,7 @@ One compose file runs Meridian, the MCP server, the bot and the Firestore emulat
 
 ## Live check record (D-18)
 
-Date 2026-11-07. GCP project `ai-buddy-dev` (trial billing, personal profile). Topic `ai-buddy-chat`: Publisher role only for the Google Workspace add-ons service agent (`service-629233348577@gcp-sa-gsuiteaddons.iam.gserviceaccount.com`); `chat-api-push` removed. Subscription `ai-buddy-chat-sub`: Subscriber role for the bot service account. Chat app "AI Buddy": Workspace add-on app (irreversible choice), Pub/Sub connection, `/aiuto` command id 1, visible to Joshua only, markup MARKDOWN. Bot key kept outside the repo (mode 600). Meridian credentials volume seeded; Meridian reported the subscription as "team".
+Date 2026-11-07. GCP project `ai-buddy-dev` (trial billing, personal profile). Topic `ai-buddy-chat`: Publisher role only for the Google Workspace add-ons service agent (`service-629233348577@gcp-sa-gsuiteaddons.iam.gserviceaccount.com`); `chat-api-push` removed. Subscription `ai-buddy-chat-sub`: Subscriber role for the bot service account. Chat app "AI Buddy": Workspace add-on app (irreversible choice), Pub/Sub connection, `/aiuto` command id 1, visible to the owner only, markup MARKDOWN. Bot key kept outside the repo (mode 600). Meridian credentials volume seeded; Meridian reported the subscription as "team".
 
 Step 8 observations:
 - Event format: add-on. Events carry `user.email`, so `ALLOWED_USERS` holds one e-mail and it matched.
@@ -155,7 +155,7 @@ Results after fixes (retest):
 - Guarda `#t=` offset (buttons expose no href).
 - Intro message on install (first ADDED_TO_SPACE hit the publish permission error; not re-triggered).
 - Parking classification is model behaviour, to be covered by the Phase 5 golden set.
-- `VIDEO_THUMBNAIL_URL` is Google's sample avatar image because Digitiamo's logo exists only as SVG; Joshua may replace it.
+- `VIDEO_THUMBNAIL_URL` is Google's sample avatar image because Digitiamo's logo exists only as SVG; the owner may replace it.
 - Live bot-to-MCP Google ID token call stays open (existing ledger entry 1; the live check ran with AUTH_MODE=off).
 
 ## Known Stubs
@@ -170,7 +170,7 @@ None beyond the plan threat model. Secrets (key file, `.env`) were never read or
 
 ## Follow-up: tone and length (2026-11-07)
 
-Trigger: after live use the answers were too long and had no persona. Source: `03-TONE-RESEARCH.md`; Joshua's decision: register **tu**, `answer` cap **600 characters**. Commits on `main`, not pushed:
+Trigger: after live use the answers were too long and had no persona. Source: `03-TONE-RESEARCH.md`; the owner's decision: register **tu**, `answer` cap **600 characters**. Commits on `main`, not pushed:
 
 | Commit | What |
 |--------|------|

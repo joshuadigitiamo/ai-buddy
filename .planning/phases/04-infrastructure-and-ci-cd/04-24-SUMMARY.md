@@ -177,7 +177,7 @@ None. Nothing was run against the live project: no bootstrap run, no IAM change,
 
 ## Next Phase Readiness
 
-04-26 must, on the live project: re-run `bootstrap.sh` once (creates `sa-publisher` and its bindings), confirm `gcloud auth print-access-token --impersonate-service-account` works from the mounted owner config in the pinned image, run one real publish on the new token, and, with Joshua's go-ahead, remove the owner's old bucket `objectAdmin` bindings.
+04-26 must, on the live project: re-run `bootstrap.sh` once (creates `sa-publisher` and its bindings), confirm `gcloud auth print-access-token --impersonate-service-account` works from the mounted owner config in the pinned image, run one real publish on the new token, and, with the owner's go-ahead, remove the owner's old bucket `objectAdmin` bindings.
 
 ## Verification
 

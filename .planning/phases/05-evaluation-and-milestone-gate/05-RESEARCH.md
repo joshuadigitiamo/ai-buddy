@@ -9,10 +9,10 @@
 
 ### Locked Decisions
 
-Joshua chose the first four Golden-set answers explicitly, then said "On this phase accept all your recommendations": every remaining decision below is Claude's recommended option, approved by Joshua.
+The owner chose the first four Golden-set answers explicitly, then said "On this phase accept all your recommendations": every remaining decision below is Claude's recommended option, approved by the owner.
 
 #### Prerequisite (before drafting the golden set)
-- **D-01:** The Guides checkout was fast-forwarded on 2026-11-21 to `4526500` (8 commits; 10 guides edited: RAG_CHATBOT, MCP_SERVERS, MULTI_AGENT_ARCHITECTURE_DESIGN, AIRFLOW, BIGQUERY_DATA_WAREHOUSE, BIG_DATA_FRAMEWORKS, ETL_VS_ELT, CICD, CLOUD_DEPLOYMENT, KUBERNETES; ETL vs ELT video re-cut). `GUIDES_INDEX.md` in the Guides repo was last updated 2026-11-03 and is stale. The first plan regenerates `GUIDES_INDEX.md` (Joshua commits it in the Guides repo), re-runs the sync and publish (`sync-and-publish.sh`), and confirms the drift check is green, before any golden item is drafted. Golden expected sources are taken from that fresh index. Recall and scoring runs record the Guides commit and the index content hash.
+- **D-01:** The Guides checkout was fast-forwarded on 2026-11-21 to `4526500` (8 commits; 10 guides edited: RAG_CHATBOT, MCP_SERVERS, MULTI_AGENT_ARCHITECTURE_DESIGN, AIRFLOW, BIGQUERY_DATA_WAREHOUSE, BIG_DATA_FRAMEWORKS, ETL_VS_ELT, CICD, CLOUD_DEPLOYMENT, KUBERNETES; ETL vs ELT video re-cut). `GUIDES_INDEX.md` in the Guides repo was last updated 2026-11-03 and is stale. The first plan regenerates `GUIDES_INDEX.md` (the owner commits it in the Guides repo), re-runs the sync and publish (`sync-and-publish.sh`), and confirms the drift check is green, before any golden item is drafted. Golden expected sources are taken from that fresh index. Recall and scoring runs record the Guides commit and the index content hash.
 
 #### Golden set
 - **D-02:** Split storage. Guides items are committed (`eval/golden/guides.yaml`, or a path the planner picks). Handbook items live gitignored at `docs/internal/golden-handbook.yaml` (`docs/internal/` is already ignored; `docs/research/` is committed apart from `handbook-raw/`, so not there). The loader merges both files and warns loudly if the handbook file is missing; the gate then FAILs (incomplete set). Committed no-answer and sensitive items must not quote handbook text. — **Reversibility:** costly — committing handbook-derived content to the public repo cannot be undone (git history), so the split must hold from the first commit.
@@ -20,7 +20,7 @@ Joshua chose the first four Golden-set answers explicitly, then said "On this ph
 - **D-04:** Item schema (fields; planner finalizes names): `id`, `kind` (`handbook | guides | no_answer | sensitive`), `question` (Italian), `expected_answer` (short reference answer), `key_facts` (list of facts a correct answer must contain), `expected_sources` (list of `source_url`: `handbook://<page_id>` or Guides permalink/section id), `expected_referente_role` (sensitive/no-answer), `review` (`draft | approved | rejected`), `review_note`. No item points at the official handbook doc.
 - **D-05:** Review status gates the gate: scoring counts only `approved` items; the gate refuses PASS (prints FAIL "golden set not fully reviewed") while any item is `draft`. `rejected` items are excluded.
 - **D-06:** Single-turn items only (empty history). Follow-up behaviour stays covered by Phase 3 tests.
-- **D-07:** Claude drafts all items, Joshua reviews them (an existing locked decision, see INGEST-CONFLICTS). Drafting is a plan task that ends in a human-review checkpoint.
+- **D-07:** Claude drafts all items, the owner reviews them (an existing locked decision, see INGEST-CONFLICTS). Drafting is a plan task that ends in a human-review checkpoint.
 
 #### Judging
 - **D-08:** The LLM judge is Opus 5.5 (`claude-opus-5-5`), a different model from the Sonnet 5.5 answer step, to limit self-preference. It goes through the existing `LlmClient.structured()` and `LLM_BACKEND` (Meridian in M1), and the model id comes from config. MLflow's built-in provider judges are not used: they would need their own provider credentials or base_url wiring around Meridian.
@@ -30,7 +30,7 @@ Joshua chose the first four Golden-set answers explicitly, then said "On this ph
   - **Sensitive items:** correct iff the reply is a referral naming the expected role, plus, in the rule-exists branch, a cited general rule from `expected_sources`.
   - The headline % is over all approved items.
 - **D-10:** Invented policy. The judge receives the answer plus the full text of every source the answer cites, as the tools returned it in that run. It flags any normative claim (rule, obligation, entitlement, number, deadline, contact) that the cited text does not support. The invented-policy count is the number of answered items with at least one flagged claim. It is counted on every item that produced an answer, refusal items included if they wrongly answered.
-- **D-11:** No human override of judge verdicts in M1. The report lists every failed item and every invented-policy flag, with the judge's reasoning and the MLflow trace link, for Joshua to inspect. The judge prompt has deterministic unit tests (stub LLM) only.
+- **D-11:** No human override of judge verdicts in M1. The report lists every failed item and every invented-policy flag, with the judge's reasoning and the MLflow trace link, for the owner to inspect. The judge prompt has deterministic unit tests (stub LLM) only.
 
 #### Eval runtime and budget
 - **D-12:** New eval package under `jobs/eval` (e.g. `buddy_eval`), with its own Dockerfile stage and its own requirements (mlflow pinned and passed through the legitimacy gate, like every new pin). Commands (names are planner's discretion): `recall`, `run`, `empty-context`, `gate`. Everything runs in Docker through a compose `eval` profile.
@@ -74,7 +74,7 @@ Joshua chose the first four Golden-set answers explicitly, then said "On this ph
 
 | ID | Description | Research Support |
 |----|-------------|------------------|
-| EVAL-01 | Golden set 30-50 Q&A, expected answer + source, answerable/no-answer/sensitive, Joshua review status, none at the official handbook | Golden schema + split loader + lint (index-existence check, no `handbook://` in committed file); source-id matching section; D-01 prerequisite commands |
+| EVAL-01 | Golden set 30-50 Q&A, expected answer + source, answerable/no-answer/sensitive, the owner review status, none at the official handbook | Golden schema + split loader + lint (index-existence check, no `handbook://` in committed file); source-id matching section; D-01 prerequisite commands |
 | EVAL-02 | One command: Recall@5 for handbook and Guides search, Guides < 0.8 flagged | Recall definition (guide §21), reformulation reuse by calling the `reformulate` node directly, pacing against the MCP rate limiter |
 | EVAL-03 | One command scores golden set end to end via the bot workflow and `LLM_BACKEND`: correctness+citation, invented policies | `BotReply` carries everything needed (kind, sources with full text, referente, gap_reported); deterministic rule table; judge schema; trace-first run + `mlflow.genai.evaluate(data=traces)` |
 | EVAL-04 | Empty-context test: every answer a refusal, gap logged, fails if any answer | Second mcp-server on fixture volume built by `build_index`; `reply.gap_reported` signal verified; fixture-overlap pitfall |
@@ -86,7 +86,7 @@ Joshua chose the first four Golden-set answers explicitly, then said "On this ph
 
 Every Phase 5 capability is buildable on the current codebase with **no change to the bot's behaviour and no mlflow dependency in the bot image**. I executed the real LangGraph workflow (`run_workflow`, langgraph 1.2.20, anthropic 2.6.0, the repo's own `stub_llm.py`) under `mlflow-skinny==3.18.0` against the official MLflow server image and confirmed: LangGraph autolog yields one span per graph node plus router spans; `mlflow.genai.evaluate` accepts an `async def predict_fn`; custom `@scorer` functions receive `inputs/outputs/expectations/trace`; feedback and expectations attach to the trace. Three behaviours of `mlflow.genai.evaluate` that the locked decisions did not anticipate must shape the plan (see "D-14 x D-20 interaction" below): it makes one extra real `predict_fn` call for "trace validation", it defaults to 10 worker threads, and a cached `predict_fn` result produces a hollow trace.
 
-The one decision that needs the planner's (and ideally Joshua's) explicit confirmation is how D-14 (per-item result cache so reruns are free) and D-20 (`predict_fn` wrapping `run_workflow`) fit together. Strictly following D-20 makes a cached rerun emit traces with no spans, which breaks EVAL-05 on every rerun. The verified alternative keeps D-20's intent (verdicts attach to each trace, `mlflow.genai.evaluate` still scores, run-level metrics are logged) by splitting into a **collect phase** (run the bot under tracing, cache outcome + `trace_id`) and a **score phase** (`mlflow.genai.evaluate(data=<list of Trace>)`, scorers read the cache for judge verdicts). This was executed end to end. Everything else in CONTEXT.md is confirmed feasible as written.
+The one decision that needs the planner's (and ideally the owner's) explicit confirmation is how D-14 (per-item result cache so reruns are free) and D-20 (`predict_fn` wrapping `run_workflow`) fit together. Strictly following D-20 makes a cached rerun emit traces with no spans, which breaks EVAL-05 on every rerun. The verified alternative keeps D-20's intent (verdicts attach to each trace, `mlflow.genai.evaluate` still scores, run-level metrics are logged) by splitting into a **collect phase** (run the bot under tracing, cache outcome + `trace_id`) and a **score phase** (`mlflow.genai.evaluate(data=<list of Trace>)`, scorers read the cache for judge verdicts). This was executed end to end. Everything else in CONTEXT.md is confirmed feasible as written.
 
 Two environment facts affect the plan: (1) the official `ghcr.io/mlflow/mlflow` image runs as root with no `USER` and fails to open SQLite on a fresh non-root named volume, and MLflow 3.x rejects the compose service-name Host header with 403 unless `--allowed-hosts` lists it (while `/health` stays 200, so a healthcheck will not catch it); (2) both new pins (`mlflow-skinny`, `pandas`) are rated `SUS` by the legitimacy seam purely because their latest release is under 30 days old and registry metadata lacked a repo URL; both are long-established projects, but the protocol still requires a `checkpoint:human-verify` before install.
 
@@ -168,7 +168,7 @@ A dry-run resolve of `requirements-dev.txt + mlflow-skinny==3.18.0 + pandas==3.1
 
 ```
                        (host, once per refresh)
- Guides repo --guides-index--> GUIDES_INDEX.md  (Joshua commits)   handbook snapshot (private)
+ Guides repo --guides-index--> GUIDES_INDEX.md  (the owner commits)   handbook snapshot (private)
         |                                                                |
         +----------- compose `sync` one-shot (existing) -----------------+
                                    |  writes index.db + manifest
@@ -480,7 +480,7 @@ Executed: a sync scorer calling `asyncio.run(...)` with a fresh `AsyncAnthropic`
 docker run --rm --network none --user "$(id -u):$(id -g)" -e HOME=/tmp \
   -v "$PWD:/app" -v "$HOME/Desktop/WORK/Guides:/guides-src" -w /app \
   ai-buddy-test python -m buddy_sync guides-index --checkout /guides-src
-# Joshua commits GUIDES_INDEX.md in the Guides repo (the sync clones committed content only)
+# The owner commits GUIDES_INDEX.md in the Guides repo (the sync clones committed content only)
 # then refresh and check drift; the strict check is `run --strict` (plain `run` only warns, and sync-and-publish.sh calls plain `run`)
 HANDBOOK_SRC_DIR=... GUIDES_SRC_DIR=... REDACT_PAGE_FILES=... scripts/sync-and-publish.sh --local-only
 ```
@@ -532,13 +532,13 @@ RAG guide §21 [VERIFIED: Read, lines 1187-1190]: "**Recall@k** - of all the chu
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
 | A1 | The MLflow UI deep link for a trace is `{public_url}/#/experiments/{experiment_id}/traces?selectedEvaluationId={trace_id}` (the query parameter `selectedEvaluationId` exists in the shipped UI bundle; the route shape is not verified) | Report format | Broken links in the report; fall back to printing experiment URL + trace id + tag `item_id` (searchable in the UI) |
-| A2 | `claude-opus-5-5` (D-08) is accepted by Meridian and maps to an Opus tier available on Joshua's Max plan, and the `[1m]` default does not require Extra Usage for small prompts | Pitfall 11 | Every judge call fails or bills Extra Usage. Mitigation: `preflight` command calls each configured model once before any run; set `MERIDIAN_OPUS_MODEL=opus` on the compose `meridian` service for the eval profile |
+| A2 | `claude-opus-5-5` (D-08) is accepted by Meridian and maps to an Opus tier available on the owner's Max plan, and the `[1m]` default does not require Extra Usage for small prompts | Pitfall 11 | Every judge call fails or bills Extra Usage. Mitigation: `preflight` command calls each configured model once before any run; set `MERIDIAN_OPUS_MODEL=opus` on the compose `meridian` service for the eval profile |
 | A3 | About 300 first-run calls (about 40 items x 3-4 bot calls, <= 40 Opus judge calls, about 28 x 2-3 empty-context calls) fit one Max usage window; reruns are free via cache | Budget | A run stalls mid-way; resumable by design (cache + abort-after-N-errors) but wall-clock grows |
 | A4 | `mlflow.genai.evaluate(data=traces)` with scorers does not itself create judge-call traces when `mlflow.anthropic.autolog()` is disabled in the score phase | Pitfall 4 | Cosmetic stray traces; verify in the smoke test by asserting trace count == item count |
 | A5 | `docker compose run --rm eval gate` returns the container's exit code, so a non-zero FAIL exit propagates to the shell | Gate | Gate cannot be scripted; verify in `scripts/eval-smoke.sh` |
 | A6 | Running the official MLflow image as root with `cap_drop: [ALL]` is acceptable under the user's "Python 3.12 only" and hardening conventions (the image itself uses Python 3.11 and root) | Compose | If rejected, build a project `mlflow_server` Dockerfile stage + hashed lock (Open Question 2) |
 | A7 | File-store tracking (`file:` URI) is not needed or usable in unit tests (skinny has no SQLAlchemy); unit tests mock the tracing module | Validation | If a hermetic MLflow store is wanted in unit tests, full `mlflow` (or the compose smoke) is required |
-| A8 | The recommended collect-then-evaluate-over-traces split is acceptable as the implementation of D-20 (verdicts attach to each trace, run metrics logged) although D-20 literally says `predict_fn` wrapping `run_workflow` | Summary, Pattern 2 | If Joshua requires literal D-20, per-item cache cannot apply to bot runs (reruns cost ~160 bot calls) or traces go hollow on cache hits |
+| A8 | The recommended collect-then-evaluate-over-traces split is acceptable as the implementation of D-20 (verdicts attach to each trace, run metrics logged) although D-20 literally says `predict_fn` wrapping `run_workflow` | Summary, Pattern 2 | If the owner requires literal D-20, per-item cache cannot apply to bot runs (reruns cost ~160 bot calls) or traces go hollow on cache hits |
 | A9 | The `getpwuid(): uid not found` warnings MLflow logs when the container uid has no passwd entry are harmless (observed with uid 1000; images here use 10001) | Environment | Log noise only; setting `USER=eval` env may silence it (unverified) |
 
 ## Open Questions
@@ -549,9 +549,9 @@ RAG guide §21 [VERIFIED: Read, lines 1187-1190]: "**Recall@k** - of all the chu
    - Recommendation: first task of the live wave is a `preflight` command (one tiny structured call per configured model, prints model id and success) behind a `checkpoint:human-verify`; ship `MERIDIAN_OPUS_MODEL: opus` in the eval profile's meridian service; cap calls and keep the stop-and-resume behaviour.
 2. **Root-in-container for the MLflow server acceptable?**
    - Known: official image has no `USER`; a fresh named volume is root-owned; non-root fails.
-   - Recommendation: accept root + `cap_drop: ALL` + `no-new-privileges` + loopback-only port (verified working). Switch to a project-built stage only if Joshua rejects it.
+   - Recommendation: accept root + `cap_drop: ALL` + `no-new-privileges` + loopback-only port (verified working). Switch to a project-built stage only if the owner rejects it.
 3. **Minimal bot edits.** `build_llm_client(settings: BotSettings)` needs a `BotSettings` instance (llm.py:118), which requires `allowed_users`, `thread_key_secret`, `mcp_url`, `intake`, `video_thumbnail_url` (config.py:48-77). Recommendation: change only its parameter type to a small structural `Protocol` (`llm_backend`, `anthropic_api_key`, `meridian_api_key`, `llm_base_url`, `llm_timeout_seconds`) so `EvalSettings` reuses the real `LLM_BACKEND` logic; this edit triggers the chat-bot workflow (Pitfall 12) but changes no behaviour. The alternative (duplicate the 20 lines in eval) risks drifting from the bot's backend rules.
-4. **Where do `handbook://` expectations of rule-exists sensitive items live?** D-02 says committed no-answer/sensitive items must not quote handbook text, but a rule-exists item's `expected_sources` contains a real `handbook://<page_id>`. Recommendation: any item whose `expected_sources` contains `handbook://` lives in the private file regardless of `kind`; a unit test asserts the committed YAML contains no `handbook://` and no `clickup` string. Joshua should confirm that page ids count as private.
+4. **Where do `handbook://` expectations of rule-exists sensitive items live?** D-02 says committed no-answer/sensitive items must not quote handbook text, but a rule-exists item's `expected_sources` contains a real `handbook://<page_id>`. Recommendation: any item whose `expected_sources` contains `handbook://` lives in the private file regardless of `kind`; a unit test asserts the committed YAML contains no `handbook://` and no `clickup` string. The owner should confirm that page ids count as private.
 5. **Re-score policy for MLflow assessments** (Pitfall 5): decide between "evaluate only unscored traces" and `log_feedback` once per trace/scorer. Recommendation: the former, with `scored` markers in the cache.
 
 ## Environment Availability
@@ -563,7 +563,7 @@ RAG guide §21 [VERIFIED: Read, lines 1187-1190]: "**Recall@k** - of all the chu
 | Network to PyPI / GHCR | locks, image pull | yes (executed) | - | - |
 | `ghcr.io/mlflow/mlflow:v3.18.0` | EVAL-05 | pulled locally (1.34 GB) | 3.18.0 | project-built stage (Open Q 2) |
 | `meridian-claude` external volume | live LLM runs | yes (`docker volume ls`) | - | stub LLM for hermetic smoke only |
-| `MERIDIAN_API_KEY` in `.env` | live LLM runs | not checked (secret-guard blocked reading `.env`; do not read it) | - | ask Joshua at the live checkpoint |
+| `MERIDIAN_API_KEY` in `.env` | live LLM runs | not checked (secret-guard blocked reading `.env`; do not read it) | - | ask the owner at the live checkpoint |
 | Guides checkout | D-01, goldens | yes `~/Desktop/WORK/Guides` @ `4526500`, `GUIDES_INDEX.md` stale | - | - |
 | Handbook snapshot | handbook goldens | yes `docs/research/handbook-raw` (23 files; 22 indexed) | - | - |
 | Firestore emulator | gap log | in default compose (`google/cloud-sdk:592.0.0-emulators`) | 592.0.0 | `reply.gap_reported` still works if the emulator count check is skipped |
@@ -588,7 +588,7 @@ RAG guide §21 [VERIFIED: Read, lines 1187-1190]: "**Recall@k** - of all the chu
 | Req ID | Behavior | Test Type | Automated Command | File Exists? |
 |--------|----------|-----------|-------------------|-------------|
 | EVAL-01 | golden schema: kinds, review enum, no extra fields; loader merges public+private; missing private file warns and marks set incomplete; committed YAML has no `handbook://`/`clickup`; counts within 30-50 on merged set (committed-only counts asserted when private file absent); lint rejects unknown expected sources against a synthetic index | unit | `./run-unit-tests.sh --single-file test_golden.py tests/unit/buddy_eval` | no, Wave 0 |
-| EVAL-01 | Joshua reviews drafts (`draft` -> `approved`) | manual checkpoint | `human-verify` plan task | n/a |
+| EVAL-01 | The owner reviews drafts (`draft` -> `approved`) | manual checkpoint | `human-verify` plan task | n/a |
 | EVAL-02 | recall math (hit-any, fractional, per source), threshold flag at `< 0.8` (0.79 vs 0.80), failed tool call is an error not a miss, reformulation cache hit makes zero LLM calls on second run, source-id resolution of permalinks | unit | `--single-file test_recall.py tests/unit/buddy_eval` | no, Wave 0 |
 | EVAL-03 | per-kind scoring table (all rows of Pattern 4 incl. `error`/`smalltalk`), invented count only over answered items, judge prompt contains full source text and fact list and is data-fenced, cache key changes with each key ingredient, errored never cached, resume after interruption | unit (FakeLlm + in-process FastMCP) | `--single-file test_scoring.py` / `test_judge.py` / `test_cache.py` / `test_runner.py` | no, Wave 0 |
 | EVAL-03 | live scoring through Meridian | manual/live checkpoint | `docker compose --profile eval run --rm eval run` | n/a |
@@ -602,8 +602,8 @@ RAG guide §21 [VERIFIED: Read, lines 1187-1190]: "**Recall@k** - of all the chu
 ### Sampling Rate
 - **Per task commit:** `./run-unit-tests.sh --single-file <the touched test file> tests/unit/buddy_eval`
 - **Per wave merge:** `./run-unit-tests.sh --all` (also runs the structural tests that this phase edits: compose, dockerfile stages, requirements locks, repo layout, workflows)
-- **Before the phase gate:** `scripts/eval-smoke.sh` (hermetic, stub LLM, real MLflow container) then the three live checkpoints (`preflight`, `run`, `empty-context`/`gate`) with Joshua present
-- **Phase gate:** full suite green and the live `gate` command executed once by Joshua before `/gsd-verify-work`
+- **Before the phase gate:** `scripts/eval-smoke.sh` (hermetic, stub LLM, real MLflow container) then the three live checkpoints (`preflight`, `run`, `empty-context`/`gate`) with the owner present
+- **Phase gate:** full suite green and the live `gate` command executed once by the owner before `/gsd-verify-work`
 
 ### Wave 0 Gaps
 - [ ] `tests/unit/buddy_eval/` with `conftest.py` (fixture index via `tests.unit.mcp_server.conftest.write_index/make_content`, `FakeLlm`, `RecordingConnector`, fake tracing sink)

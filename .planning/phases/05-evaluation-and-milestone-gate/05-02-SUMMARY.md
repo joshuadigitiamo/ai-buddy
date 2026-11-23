@@ -54,7 +54,7 @@ The two approved pins (`mlflow-skinny==3.18.0`, `pandas==3.1.1`) are locked with
 
 ## Supply chain (05-02 Task 1)
 
-Approved by Joshua at the blocking legitimacy checkpoint ("approved"). Nothing containing these packages was installed, locked or built before the reply.
+Approved by the owner at the blocking legitimacy checkpoint ("approved"). Nothing containing these packages was installed, locked or built before the reply.
 
 | Item | Approved value |
 |------|----------------|
@@ -90,7 +90,7 @@ Verification done by the orchestrator in Chrome on 2026-11-22:
 | 2 | Pin eval requirements, regenerate hashed locks, extend lock tests and Dependabot | cb17d30 | jobs/eval/requirements.txt, jobs/eval/requirements.lock, requirements-dev.lock, scripts/lock-requirements.sh, tests/unit/test_requirements_lock.py, .github/dependabot.yml |
 | 3 | Dockerfile eval stage, pyproject entries, package root, structural tests | cdc4040 | Dockerfile, pyproject.toml, jobs/eval/buddy_eval/__init__.py, tests/unit/test_dockerfile_stages.py, .github/workflows/tests.yml |
 
-Task 2 was done by an earlier executor and committed by this one after re-running `test_requirements_lock.py` (26 passed). The earlier executor halted at the default-branch commit guard; the orchestrator then set `git.allow_default_branch_commits: true` on Joshua's authorization to commit on main.
+Task 2 was done by an earlier executor and committed by this one after re-running `test_requirements_lock.py` (26 passed). The earlier executor halted at the default-branch commit guard; the orchestrator then set `git.allow_default_branch_commits: true` on the owner's authorization to commit on main.
 
 ## Verification
 

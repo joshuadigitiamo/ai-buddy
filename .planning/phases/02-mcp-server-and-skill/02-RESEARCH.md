@@ -38,7 +38,7 @@
 
 **Skill `digitiamo-buddy`**
 - **D-16:** Referral contacts: the Skill commits a **topic -> role map** only; the model resolves the actual person/email via `handbook_search` (handbook keeps work contacts, Phase 1 D-16). No names in the repo.
-- **D-17:** Escalation topic list: **Claude drafts** (from the test handbook + usual sensitive areas: salary, health/sickness, harassment, disciplinary, contract changes, personal data), **Joshua reviews and approves** before execution of the Skill task (checkpoint).
+- **D-17:** Escalation topic list: **Claude drafts** (from the test handbook + usual sensitive areas: salary, health/sickness, harassment, disciplinary, contract changes, personal data), **The owner reviews and approves** before execution of the Skill task (checkpoint).
 - **D-18:** SKILL.md instructions in **English**; answer templates and refusal phrases in **Italian** (answer, fonte, owner/referente, data di revisione; "non lo so, chiedi a ..."). Includes the Italian -> English keyword bridge for `guides_search`.
 - **D-19:** One-page install guide covers **claude.ai custom connector + Skill upload, Claude Desktop, Claude Code** (`claude mcp add --transport http` + skill folder).
 
@@ -163,7 +163,7 @@ The Dockerfile `base` stage currently only copies `requirements.txt requirements
 | uvicorn (transitive) | PyPI | 2026-09-25 | github.com/Kludex/uvicorn | SUS (unknown-downloads) | Flagged (transitive) |
 
 **Packages removed due to SLOP verdict:** none.
-**Packages flagged SUS:** all of the above. Planner: add **one** `checkpoint:human-verify` task ahead of the first `pip install` covering the three direct new pins (`fastmcp`, `snowballstemmer`, `google-cloud-firestore`); transitives ride on `fastmcp`'s own requirement set (inspected: `requires_dist` of `fastmcp`, `fastmcp-slim`, `mcp`). Joshua's established Phase 1 posture is "latest verified on PyPI, pin with ==". [VERIFIED: gsd package-legitimacy seam; PyPI JSON]
+**Packages flagged SUS:** all of the above. Planner: add **one** `checkpoint:human-verify` task ahead of the first `pip install` covering the three direct new pins (`fastmcp`, `snowballstemmer`, `google-cloud-firestore`); transitives ride on `fastmcp`'s own requirement set (inspected: `requires_dist` of `fastmcp`, `fastmcp-slim`, `mcp`). The owner's established Phase 1 posture is "latest verified on PyPI, pin with ==". [VERIFIED: gsd package-legitimacy seam; PyPI JSON]
 
 ## Architecture Patterns
 
@@ -524,7 +524,7 @@ Emulator start command verified: `gcloud emulators firestore start --host-port=0
 | (support) | cold start fails fast on missing/incompatible index (`IndexVersionError`) | unit | `./run-unit-tests.sh --single-file test_snapshot.py tests/unit/mcp_server` | Wave 0 |
 | MCP-08 | SKILL.md frontmatter only allowed keys, `name == folder`, description <= 200 chars; body mentions all five tools, answer-format fields (risposta/fonte/referente/data di revisione), "non lo so, chiedi a", escalation topics, IT->EN bridge; no e-mail addresses/person names; install guide covers claude.ai, Desktop, Claude Code and fits one page | unit (file contract) | `./run-unit-tests.sh --single-file test_skill_package.py tests/unit/mcp_server` | Wave 0 |
 
-Manual-only (justified, cannot be automated here): live Google login from claude.ai and Claude Code (needs public HTTPS + real OAuth client), Skill behaviour in a real Claude session (Phase 5 EVAL-03 measures it), Joshua's approval of the escalation list (D-17 checkpoint).
+Manual-only (justified, cannot be automated here): live Google login from claude.ai and Claude Code (needs public HTTPS + real OAuth client), Skill behaviour in a real Claude session (Phase 5 EVAL-03 measures it), the owner's approval of the escalation list (D-17 checkpoint).
 
 ### Sampling Rate
 - **Per task commit:** `./run-unit-tests.sh --single-file <touched test> tests/unit/mcp_server`

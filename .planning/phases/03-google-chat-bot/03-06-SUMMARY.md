@@ -219,13 +219,13 @@ None.
 
 ## User Setup Required
 
-None - no external service configuration required. `VIDEO_THUMBNAIL_URL` has no default: Joshua supplies its value through `.env` at 03-12 (03-01 decision 2c); nothing was invented here.
+None - no external service configuration required. `VIDEO_THUMBNAIL_URL` has no default: the owner supplies its value through `.env` at 03-12 (03-01 decision 2c); nothing was invented here.
 
 ## Next Phase Readiness
 
 - 03-07 to 03-11 can read every setting from `BotSettings`; 03-11 builds the client with `build_llm_client(settings)`.
 - **Open for 03-12 live check [Unknown]:** with `MERIDIAN_API_KEY` set, Meridian's gate may expect `x-api-key` rather than `Authorization: Bearer`, which is all anthropic 2.6.0 sends. If the live request is rejected, add `default_headers={"x-api-key": <key>}` for the meridian branch in `build_llm_client`; with the placeholder key and no gate nothing changes. Not verified offline.
-- The bot README (03-12) must say that with Meridian Joshua lists exactly one ALLOWED_USERS form (`users/<id>` or e-mail), since two forms of the same person count as two entries.
+- The bot README (03-12) must say that with Meridian the owner lists exactly one ALLOWED_USERS form (`users/<id>` or e-mail), since two forms of the same person count as two entries.
 
 ## Self-Check: PASSED
 

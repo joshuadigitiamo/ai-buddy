@@ -106,7 +106,7 @@ coverage:
     requirement: BOT-01
     verification: []
     human_judgment: true
-    rationale: "Fixtures are synthetic reconstructions from the Google docs; only the 03-12 live checkpoint with Joshua's Chat app confirms the real payloads and RESEARCH A13 (argumentText)."
+    rationale: "Fixtures are synthetic reconstructions from the Google docs; only the 03-12 live checkpoint with the owner's Chat app confirms the real payloads and RESEARCH A13 (argumentText)."
 
 duration: 10min
 completed: 2026-11-07

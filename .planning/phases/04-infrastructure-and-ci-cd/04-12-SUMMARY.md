@@ -196,7 +196,7 @@ None.
 
 ## Next Phase Readiness
 
-- Ready for 04-13 and 04-14. 04-14 can author the five drafts in the local Guides tree and run `video-coverage --guides-dir` to see the projected gain (ceiling 898 rows over the 238 baseline) before Joshua commits them.
+- Ready for 04-13 and 04-14. 04-14 can author the five drafts in the local Guides tree and run `video-coverage --guides-dir` to see the projected gain (ceiling 898 rows over the 238 baseline) before the owner commits them.
 - Not run live: nothing in this plan calls GCS or the network.
 
 ---

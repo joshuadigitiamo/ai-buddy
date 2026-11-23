@@ -72,7 +72,7 @@
 | service accounts and role bindings per service | INTEGRATE | |
 | service-account keys | OPT-OUT | explicitly out of scope: INFRA-05 forbids key files |
 | service-account impersonation for one-hour publish tokens (sa-publisher) | INTEGRATE | |
-| impersonated Chat credentials for the bot | OPT-OUT | not needed yet: prepared fallback for RESEARCH Pitfall 3, applied only if the 04-13 live check fails and Joshua agrees |
+| impersonated Chat credentials for the bot | OPT-OUT | not needed yet: prepared fallback for RESEARCH Pitfall 3, applied only if the 04-13 live check fails and the owner agrees |
 
 ## GitHub Actions (plan 04-09)
 

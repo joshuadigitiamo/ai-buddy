@@ -26,7 +26,7 @@ completed: 2026-11-16
 
 - Task 1: not applicable (decision no-fix).
 - Task 2: not applicable (decision no-fix).
-- Task 3: no deploy (no-fix); live check 10 run by Claude in Joshua's Chrome session at his request.
+- Task 3: no deploy (no-fix); live check 10 run by Claude in the owner's Chrome session at his request.
 
 ## Live check 10
 

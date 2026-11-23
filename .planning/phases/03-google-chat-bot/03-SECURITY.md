@@ -59,7 +59,7 @@ created: "2026-11-07"
 | T-03-12 | Spoofing | fabricated referente contact | high | mitigate | `referral.py:41-42` contact must be verbatim substring of a page returned this run; `test_refusal.py:86,104` | closed |
 | T-03-13 | Information disclosure | gap record content | medium | mitigate | `mcp_client.py:144` sends only question + tried queries; `test_workflow.py:120,139` read the gap log | closed |
 | T-03-14 | Information disclosure | secrets in validation errors | high | mitigate | `config.py:44` `hide_input_in_errors`, `SecretStr` fields; sentinel tests (`test_llm_client.py:266,300`) | closed |
-| T-03-15 | Elevation of privilege | Meridian used by more than one person | high | mitigate | `config.py:112` refuses meridian with >1 ALLOWED_USERS; README visibility "Joshua only" (`README.md:113`) | closed |
+| T-03-15 | Elevation of privilege | Meridian used by more than one person | high | mitigate | `config.py:112` refuses meridian with >1 ALLOWED_USERS; README visibility "The owner only" (`README.md:113`) | closed |
 | T-03-16 | Information disclosure | LangSmith/LangChain tracing export | high | mitigate | `config.py:19,149-151` refuses true tracing vars; `Dockerfile:42` sets false; dev compose sets false | closed |
 | T-03-17 | Denial of service | LLM backend hang | medium | mitigate | `llm.py:125,134` client timeout; `LlmUnavailableError` (`llm.py:112`); service run deadline | closed |
 | T-03-18 | Spoofing | unauthenticated MCP calls on Cloud Run | high | mitigate | `config.py:126` MCP_AUTH=none refused with K_SERVICE; `config.py:133` MCP_AUDIENCE required for ID-token auth | closed |
@@ -84,7 +84,7 @@ created: "2026-11-07"
 | T-03-37 | Information disclosure | bot service-account key | high | mitigate | `${BOT_SA_KEY_FILE}` from shell env, mounted `:ro` (`docker-compose.dev.yml:92`); absent from `.env.example` | closed |
 | T-03-38 | Spoofing | forged events on Pub/Sub topic | medium | mitigate | README IAM step restricts publisher; see Notes on add-on SA deviation | closed |
 | T-03-39 | Repudiation | phase decision record | low | mitigate | `03-CONTEXT.md:132` `## Amendments (03-01 checkpoint)` block; overrides tagged in 03-01-SUMMARY | closed |
-| T-03-SC | Tampering | pip installs, Meridian commit, emulator image | high | mitigate | 03-01 legitimacy gate approved by Joshua (03-01-SUMMARY:109,123); `==` pins in `services/chat_bot/requirements.txt`; shared firestore pin equal to MCP server; emulator `google/cloud-sdk:592.0.0-emulators` reused | closed |
+| T-03-SC | Tampering | pip installs, Meridian commit, emulator image | high | mitigate | 03-01 legitimacy gate approved by the owner (03-01-SUMMARY:109,123); `==` pins in `services/chat_bot/requirements.txt`; shared firestore pin equal to MCP server; emulator `google/cloud-sdk:592.0.0-emulators` reused | closed |
 
 *Status: open · closed · open — below high threshold (non-blocking)*
 *Severity: critical > high > medium > low — only open threats at or above workflow.security_block_on count toward threats_open*
@@ -102,8 +102,8 @@ created: "2026-11-07"
 
 | Risk ID | Threat Ref | Rationale | Accepted By | Date |
 |---------|------------|-----------|-------------|------|
-| AR-03-01 | T-03-21 | Single user; last-write-wins can only drop history turns, never add identity | Joshua (03-07 plan) | 2026-11-07 |
-| AR-03-02 | T-03-24 | One static thumbnail chosen by Joshua; fetched by Google Chat's proxy, not the bot | Joshua (03-01 decision) | 2026-11-07 |
+| AR-03-01 | T-03-21 | Single user; last-write-wins can only drop history turns, never add identity | The owner (03-07 plan) | 2026-11-07 |
+| AR-03-02 | T-03-24 | One static thumbnail chosen by the owner; fetched by Google Chat's proxy, not the bot | The owner (03-01 decision) | 2026-11-07 |
 
 *Accepted risks do not resurface in future audit runs.*
 

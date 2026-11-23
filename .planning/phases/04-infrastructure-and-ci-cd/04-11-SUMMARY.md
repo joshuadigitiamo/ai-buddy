@@ -127,7 +127,7 @@ coverage:
     description: "Live upload, authenticated inline playback and #t= seeking on storage.cloud.google.com after the Google login redirect"
     verification: []
     human_judgment: true
-    rationale: "Needs the real bucket, Joshua's IAM grant and a browser; first real use is plan 04-13 (RESEARCH A1, A7, Pitfall 13)"
+    rationale: "Needs the real bucket, the owner's IAM grant and a browser; first real use is plan 04-13 (RESEARCH A1, A7, Pitfall 13)"
 
 duration: 7min
 completed: 2026-11-14
@@ -225,9 +225,9 @@ See `key-decisions` above. Two worth repeating: the script passes `VIDEO_BUCKET`
 
 No real GCS or gcloud was called. Run live in 04-13 and not yet proven:
 - `upload-videos` against the real bucket: `md5_hash` availability after `reload()` (RESEARCH A1) and the three headers on the stored objects.
-- Inline playback and `#t=` seeking on `storage.cloud.google.com` after the Google login redirect (A7, Pitfall 13); fallbacks are in `deploy/cloudrun/README.md` and are never applied without Joshua.
+- Inline playback and `#t=` seeking on `storage.cloud.google.com` after the Google login redirect (A7, Pitfall 13); fallbacks are in `deploy/cloudrun/README.md` and are never applied without the owner.
 - `scripts/sync-and-publish.sh` was checked with `bash -n` and a stubbed `docker` for the four paths (project set with extra dir, `--local-only`, no project, bad project id), not with real containers.
-- Joshua must fill `.cache/videos` first: `gh release download videos --repo <owner>/Guides --dir .cache/videos` on the host with his own login. 12 of 20 videos exist under the Guides `videos/` tree; the rest come from there. Until the directory is filled `upload-videos` exits 1 listing the missing names.
+- The owner must fill `.cache/videos` first: `gh release download videos --repo <owner>/Guides --dir .cache/videos` on the host with his own login. 12 of 20 videos exist under the Guides `videos/` tree; the rest come from there. Until the directory is filled `upload-videos` exits 1 listing the missing names.
 
 ## Known Stubs
 

@@ -6,7 +6,7 @@
 <domain>
 ## Phase Boundary
 
-`services/chat_bot`: a Google Chat bot for Joshua only (`ALLOWED_USERS`). It answers in Italian through a LangGraph 2-step RAG workflow, calling the Phase 2 MCP server over HTTP as an MCP client. Events arrive through Pub/Sub in dev and through HTTP with Google JWT checks on Cloud Run; both sit behind one intake interface. Every answer either cites a source the tools returned in that run or refuses with "Non lo so, chiedi a …" and logs a gap. Sensitive topics get only the general written rule plus a referral to a person. Guides answers with a mapped video show a card with a "Guarda" button. Covers BOT-01..BOT-11.
+`services/chat_bot`: a Google Chat bot for the owner only (`ALLOWED_USERS`). It answers in Italian through a LangGraph 2-step RAG workflow, calling the Phase 2 MCP server over HTTP as an MCP client. Events arrive through Pub/Sub in dev and through HTTP with Google JWT checks on Cloud Run; both sit behind one intake interface. Every answer either cites a source the tools returned in that run or refuses with "Non lo so, chiedi a …" and logs a gap. Sensitive topics get only the general written rule plus a referral to a person. Guides answers with a mapped video show a card with a "Guarda" button. Covers BOT-01..BOT-11.
 
 Out of this phase: Cloud Run deploy, CI, kind manifests (Phase 4); golden set, MLflow scoring (Phase 5).
 
@@ -21,7 +21,7 @@ Out of this phase: Cloud Run deploy, CI, kind manifests (Phase 4); golden set, M
 - Phase 2 D-10: gap log never stores user identity (no user id, email, IP, session id).
 - Phase 2 D-12: the bot authenticates to the MCP server with a Google-signed ID token minted by its service account. D-13: `AUTH_MODE=off` only off Cloud Run.
 - Phase 1 D-21: the Guides index is English. The bot bridges Italian → English keywords for `guides_search` (the Skill already has the bridge table).
-- PROJECT D1a: Meridian only for Joshua as the single user. D4/D5: no vector DB. D11: the bot holds no retrieval logic of its own. D15: video shown as thumbnail + "Guarda" button.
+- PROJECT D1a: Meridian only for the owner as the single user. D4/D5: no vector DB. D11: the bot holds no retrieval logic of its own. D15: video shown as thumbnail + "Guarda" button.
 
 ### Confidence and citation gate
 - **D-01:** The gate has two independent signals. (a) Deterministic: refuse if every tool returned `no_results` or the citation check fails. (b) LLM: the answer step returns structured output with a `grounded` flag and a `confidence` score; the bot refuses below a threshold set by env.
@@ -49,9 +49,9 @@ Out of this phase: Cloud Run deploy, CI, kind manifests (Phase 4); golden set, M
 
 ### Dev wiring
 - **D-15:** Live dev uses a real GCP project: the Chat app is configured to publish to a Pub/Sub topic, and the bot consumes a pull subscription from compose or kind, so no public URL is needed. Automated tests use the Pub/Sub emulator in Docker with recorded Chat event JSON fixtures. Uses the Pub/Sub free tier.
-- **D-16:** Meridian runs in its own compose service: a pinned Node image, with Joshua's Max credentials mounted read-only from the host config dir and never baked into an image. The bot uses it as the Anthropic `base_url` (`http://meridian:<port>`). The `api` backend uses the same Anthropic Messages client with an API key (BOT-07).
+- **D-16:** Meridian runs in its own compose service: a pinned Node image, with the owner's Max credentials mounted read-only from the host config dir and never baked into an image. The bot uses it as the Anthropic `base_url` (`http://meridian:<port>`). The `api` backend uses the same Anthropic Messages client with an API key (BOT-07).
 - **D-17:** Two models: Haiku 5.5 (`claude-haiku-5-5`) for reformulate/classify (standalone query, English keywords, `intent`, `sensitive_topic`), and Sonnet 5.5 (`claude-sonnet-5-5`) for the cited answer plus `grounded`/`confidence`. Both model ids come from env so Phase 5 can A/B them.
-- **D-18:** The last plan ends with a live Chat checkpoint: Joshua DMs the bot scripted questions (one answerable from the handbook, one from the Guides with a video, one sensitive, one with no source) and confirms the results. The checkpoint may be deferred to Phase 4 if GCP setup blocks it (as with 02-07).
+- **D-18:** The last plan ends with a live Chat checkpoint: the owner DMs the bot scripted questions (one answerable from the handbook, one from the Guides with a video, one sensitive, one with no source) and confirms the results. The checkpoint may be deferred to Phase 4 if GCP setup blocks it (as with 02-07).
 
 ### Claude's Discretion
 - Card layout (cardsV2 structure, multi-source answers, thumbnail source) and the exact Italian strings, following BOT-09 and the Skill answer template.

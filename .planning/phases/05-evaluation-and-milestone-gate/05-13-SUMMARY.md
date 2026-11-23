@@ -98,13 +98,13 @@ Trace inspection (EVAL-05, orchestrator via Chrome, MLflow UI 3.18.0 at 127.0.0.
 ## Status and Follow-up
 
 - Phase 5 deliverable (a working gate run once on the live stack, traces inspectable) is met. The Milestone 1 gate verdict is FAIL.
-- Requirements: the plan lists EVAL-02..EVAL-06. Because the gate FAILed, requirements that depend on a PASS are NOT marked complete here; requirement status is left to the orchestrator and Joshua's follow-up decision.
+- Requirements: the plan lists EVAL-02..EVAL-06. Because the gate FAILed, requirements that depend on a PASS are NOT marked complete here; requirement status is left to the orchestrator and the owner's follow-up decision.
 - No golden item, threshold, judge prompt or bot change was made after seeing results (EVAL-06 prohibition honored).
-- Follow-up input for `/gsd-plan-phase 5 --gaps` or a new phase (Joshua decides):
+- Follow-up input for `/gsd-plan-phase 5 --gaps` or a new phase (the owner decides):
   1. Investigate the gd-13 invented-policy claim (the only failing rule): inspect the trace and judge feedback for gd-13 locally and decide whether the answer, the retrieval or the judge is at fault.
   2. Investigate the Guides failures gd-02 (facts), gd-05 (citation and facts) and gd-13 (citation); Guides Recall@5 is 0.85 (11/13), below handbook 1.00, so check whether the two non-recalled Guides items overlap these ids.
   3. Investigate sr-02 (sensitive, facts).
-  4. Any change to golden items, thresholds, judge or bot needs a recorded decision by Joshua, then a re-run of `gate` (cache reuse per D-13/D-14).
+  4. Any change to golden items, thresholds, judge or bot needs a recorded decision by the owner, then a re-run of `gate` (cache reuse per D-13/D-14).
 
 ## Deviations from Plan
 

@@ -100,7 +100,7 @@
 | mcp_server only in kind | (recommended by Claude) | |
 | Full stack in kind | | ✓ |
 
-**Notes:** Joshua chose Meridian on Cloud Run and full-stack kind over Claude's recommendations, accepting Max credentials in the cloud and in the cluster.
+**Notes:** the owner chose Meridian on Cloud Run and full-stack kind over Claude's recommendations, accepting Max credentials in the cloud and in the cluster.
 
 ## Video hosting
 

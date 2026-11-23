@@ -31,7 +31,7 @@
 ## Judging method, Eval runtime + budget, MLflow scope
 
 **User's choice:** "On this phase accept all your recommendations." No per-question prompts. Claude's recommended options were recorded as D-08..D-21. Main alternatives considered:
-- **Judge:** Opus 5.5 via LlmClient (chosen) vs Sonnet as judge (self-preference) vs Joshua-only manual scoring vs MLflow built-in judges (provider wiring around Meridian).
+- **Judge:** Opus 5.5 via LlmClient (chosen) vs Sonnet as judge (self-preference) vs owner-only manual scoring vs MLflow built-in judges (provider wiring around Meridian).
 - **Runtime:** in-process `run_workflow` against compose mcp-server (chosen) vs Chat/Cloud Run end to end.
 - **Recall query:** reformulated query, cached (chosen) vs raw Italian question.
 - **Empty-context:** unrelated fixture index (chosen) vs truly empty index.

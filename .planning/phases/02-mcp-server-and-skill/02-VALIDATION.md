@@ -55,7 +55,7 @@ created: "2026-11-06"
 | 02-05-01 | 05 | 4 | MCP-07 | T-02-20 | 401 + resource_metadata; bot SA token accepted, forged/expired/wrong-aud rejected | unit (ASGI, fake keys) | `./run-unit-tests.sh --single-file test_auth.py tests/unit/mcp_server` (forged-signature case: `test_forged_bot_token_is_401`, added by validate-phase) | ✅ | ✅ green |
 | 02-05-02 | 05 | 4 | MCP-07, MCP-01 | T-02-16, T-02-17, T-02-18, T-02-23, T-02-33 | exact-domain + verified e-mail; redirect allowlist; Host/Origin protection; no disk writes with auth on | unit (ASGI) | `./run-unit-tests.sh --single-file test_auth.py tests/unit/mcp_server`; `./run-unit-tests.sh --single test_http_transport.py test_serving_writes_nothing_to_disk tests/unit/mcp_server` | ✅ | ✅ green |
 | 02-05-03 | 05 | 4 | MCP-07 | T-02-19, T-02-21, T-02-22 | auth off refused under K_SERVICE; secrets never in errors; per-identity rate limit | unit | `./run-unit-tests.sh --single-file test_auth_mode.py tests/unit/mcp_server`; `test_config.py`; `test_rate_limit.py` | ✅ | ✅ green |
-| 02-06-01 | 06 | 4 | MCP-08 | T-02-26 | escalation list approved by Joshua (D-17) | manual checkpoint | — (blocking) | n/a | ✅ approved as drafted |
+| 02-06-01 | 06 | 4 | MCP-08 | T-02-26 | escalation list approved by the owner (D-17) | manual checkpoint | — (blocking) | n/a | ✅ approved as drafted |
 | 02-06-02 | 06 | 4 | MCP-08 | T-02-24, T-02-25, T-02-27 | Skill format, tool coverage vs live tools/list, refusal + gap, no contacts committed | unit (file contract) | `./run-unit-tests.sh --single-file test_skill_package.py tests/unit/mcp_server` | ✅ | ✅ green |
 | 02-06-03 | 06 | 4 | MCP-08 | T-02-25 | one-page guide, three clients, no contacts | unit (file contract) | `./run-unit-tests.sh --single-file test_skill_package.py tests/unit/mcp_server` | ✅ | ✅ green |
 | 02-07-01 | 07 | 5 | MCP-01, MCP-05 | T-02-29, T-02-30, T-02-32 | real process: stateless JSON, five tools, gap in emulator; non-root image; safe startup errors | unit + integration (emulator) + image | `./run-unit-tests.sh --single-file test_main.py tests/unit/mcp_server`; `./run-unit-tests.sh --emulator`; `docker build --target mcp_server -t ai-buddy-mcp .` | ✅ | ✅ green |
@@ -88,7 +88,7 @@ Wave 0 is folded into the first task of each plan (tracer-first): each tracer cr
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
 | Package legitimacy of fastmcp, snowballstemmer, google-cloud-firestore | (supply chain) | registry trust judgment (user decision 5) | 02-01 Task 1 how-to-verify steps |
-| Escalation topic -> role list | MCP-08 | content approval by Joshua (D-17) | 02-06 Task 1 options |
+| Escalation topic -> role list | MCP-08 | content approval by the owner (D-17) | 02-06 Task 1 options |
 | Live Google login from claude.ai and Claude Code, non-domain account refused | MCP-07 | needs a public HTTPS URL, a real Google OAuth client and real accounts (user decision 4) | 02-07 Task 3: OAuth flow verified with a fastmcp client; claude.ai connector check and non-digitiamo rejection deferred to Phase 4 (02-07-SUMMARY). Automated proxy: `test_other_domains_are_rejected`, `test_hosted_domain_mismatch_is_rejected` |
 | Skill behaviour in a real Claude session (answer ordering, sensitive-topic handling) | MCP-08 | model behaviour; measured by Phase 5 EVAL-03 | backstop truth in 02-06; Phase 5 golden set |
 

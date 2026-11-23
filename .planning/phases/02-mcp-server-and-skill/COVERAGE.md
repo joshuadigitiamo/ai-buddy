@@ -13,7 +13,7 @@
 | tokeninfo (access-token validation) | INTEGRATE | |
 | userinfo (email, email_verified, hd) | INTEGRATE | |
 | JWKS oauth2/v3/certs (service-account ID-token verification) | INTEGRATE | |
-| token revocation endpoint | OPT-OUT | not needed yet: no logout requirement in MCP-07; proxy tokens expire; revisit before any rollout beyond Joshua |
+| token revocation endpoint | OPT-OUT | not needed yet: no logout requirement in MCP-07; proxy tokens expire; revisit before any rollout beyond the owner |
 | OIDC discovery document (.well-known/openid-configuration) | OPT-OUT | endpoints are fixed constants verified in research; avoids a network call at cold start |
 | additional scopes (Drive, Calendar, ...) | OPT-OUT | explicitly out of scope: least privilege, only openid and userinfo.email |
 | service-account ID-token minting (metadata server / IAM generateIdToken) | OPT-OUT | belongs to the bot side, Phase 3 (D-12) |

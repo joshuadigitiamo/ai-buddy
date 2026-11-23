@@ -145,11 +145,11 @@ coverage:
         status: pass
     human_judgment: false
   - id: D7
-    description: "The live profile has not been run against the real Chat API, Joshua's Max session or a real service-account key"
+    description: "The live profile has not been run against the real Chat API, the owner's Max session or a real service-account key"
     requirement: "INFRA-02"
     verification: []
     human_judgment: true
-    rationale: "Needs Joshua's Claude login volume, the bot service-account key and a real Chat space; the plan verifies the live profile by config validation and structural test only"
+    rationale: "Needs the owner's Claude login volume, the bot service-account key and a real Chat space; the plan verifies the live profile by config validation and structural test only"
 
 duration: about 25min (start time not recorded; estimated from commit times)
 completed: 2026-11-14

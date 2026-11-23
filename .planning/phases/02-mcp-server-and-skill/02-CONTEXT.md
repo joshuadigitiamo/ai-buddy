@@ -44,7 +44,7 @@ Not in this phase: Google Chat bot (Phase 3), hosting choice / deploy manifests 
 
 ### Skill `digitiamo-buddy`
 - **D-16:** Referral contacts: the Skill commits a **topic → role map** only; the model resolves the actual person/email via `handbook_search` (handbook keeps work contacts, Phase 1 D-16). No names in the repo.
-- **D-17:** Escalation topic list: **Claude drafts** (from the test handbook + usual sensitive areas: salary, health/sickness, harassment, disciplinary, contract changes, personal data), **Joshua reviews and approves** before execution of the Skill task (checkpoint).
+- **D-17:** Escalation topic list: **Claude drafts** (from the test handbook + usual sensitive areas: salary, health/sickness, harassment, disciplinary, contract changes, personal data), **The owner reviews and approves** before execution of the Skill task (checkpoint).
 - **D-18:** SKILL.md instructions in **English**; answer templates and refusal phrases in **Italian** (answer, fonte, owner/referente, data di revisione; "non lo so, chiedi a ..."). Includes the Italian → English keyword bridge for `guides_search`.
 - **D-19:** One-page install guide covers **claude.ai custom connector + Skill upload, Claude Desktop, Claude Code** (`claude mcp add --transport http` + skill folder).
 

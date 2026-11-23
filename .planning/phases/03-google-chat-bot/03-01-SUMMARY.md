@@ -56,7 +56,7 @@ requirements-completed: [BOT-07, BOT-09, BOT-10, BOT-11]
 
 coverage:
   - id: D1
-    description: "Supply chain approved by Joshua before any install of a new pin"
+    description: "Supply chain approved by the owner before any install of a new pin"
     requirement: "BOT-07"
     verification: []
     human_judgment: true
@@ -66,7 +66,7 @@ coverage:
     requirement: "BOT-09"
     verification: []
     human_judgment: true
-    rationale: "Decision content was chosen by Joshua; correctness of the wording is a human review item"
+    rationale: "Decision content was chosen by the owner; correctness of the wording is a human review item"
   - id: D3
     description: "Test image carries exactly the approved pins and shared pins agree across requirements files"
     requirement: "BOT-10"
@@ -98,7 +98,7 @@ status: complete
 
 ## Performance
 
-- **Duration:** about 2 min for the continuation (Tasks 1 and 2 were checkpoints answered by Joshua in an earlier session)
+- **Duration:** about 2 min for the continuation (Tasks 1 and 2 were checkpoints answered by the owner in an earlier session)
 - **Started:** 2026-11-07T11:12:38Z (continuation)
 - **Completed:** 2026-11-07T11:14:39Z (code commit; metadata commit follows)
 - **Tasks:** 3 (2 checkpoints, 1 auto)
@@ -106,7 +106,7 @@ status: complete
 
 ## Supply chain (03-01 Task 1)
 
-Joshua approved the package legitimacy gate as presented ("DO your suggestions").
+The owner approved the package legitimacy gate as presented ("DO your suggestions").
 
 Approved pins (services/chat_bot/requirements.txt):
 
@@ -126,7 +126,7 @@ Evidence recorded at the gate: PyPI checks on 2026-11-07 showed each pin exists 
 
 ## Phase decisions (03-01 Task 2)
 
-Joshua replied "defaults" (1b, 2a+2c, 3b, 4a, 5b, 6b).
+The owner replied "defaults" (1b, 2a+2c, 3b, 4a, 5b, 6b).
 
 - meridian_credentials: (b) dedicated Docker named volume seeded once by copying the host credentials file, writable only by the Meridian container, never baked into an image, host ~/.claude untouched — overrides D-16
 - bot09_rendering: (2a+2c) handbook source as text citation `Manuale – <title> (handbook://<page_id>), revisione <YYYY-MM-DD>` until CONT-01 gives a URL; `VIDEO_THUMBNAIL_URL` is a required HTTPS setting, startup fails without it — interprets BOT-09
@@ -135,7 +135,7 @@ Joshua replied "defaults" (1b, 2a+2c, 3b, 4a, 5b, 6b).
 - gap_question: (b) the standalone question from the reformulation step is logged, not the raw message text — interprets D-07
 - http_ack: (b) await the run inside the request for up to 25 s, then return `{}` and let any remainder continue in the background — overrides D-09
 
-Open item for 03-12: Joshua has not yet supplied the image for `VIDEO_THUMBNAIL_URL`. The value is supplied at the 03-12 live checkpoint through `.env`; no URL was invented here, and `.env.example` is untouched by this plan.
+Open item for 03-12: the owner has not yet supplied the image for `VIDEO_THUMBNAIL_URL`. The value is supplied at the 03-12 live checkpoint through `.env`; no URL was invented here, and `.env.example` is untouched by this plan.
 
 ## Accomplishments
 
@@ -183,7 +183,7 @@ None. `buddy_bot/__init__.py` holds only the docstring and version; it feeds no 
 
 ## User Setup Required
 
-None for this plan. Carried to 03-12: Joshua supplies the `VIDEO_THUMBNAIL_URL` image through `.env`.
+None for this plan. Carried to 03-12: the owner supplies the `VIDEO_THUMBNAIL_URL` image through `.env`.
 
 ## Next Phase Readiness
 

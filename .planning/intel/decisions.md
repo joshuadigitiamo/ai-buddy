@@ -10,10 +10,10 @@ Precedence inside PLAN.md: section 2.1 (03/11/2026) overrides section 2 wherever
 - decision: Non usare Meridian. I termini Anthropic vietano di instradare richieste tramite credenziali Free/Pro/Max per conto di altri utenti, Agent SDK incluso; il divieto e' applicato (blocchi lato server dal 9/1/2026, ban di account). Il repo non ha un file LICENSE e ha un solo maintainer. Confidenza [High].
 - scope: backend AI, Meridian, Claude Max credentials, multi-user usage
 
-## D1a: Meridian + Joshua's Claude Max only for personal development
+## D1a: Meridian + the owner's Claude Max only for personal development
 - source: docs/PLAN.md (section 2.1, D1a, 03/11/2026)
 - status: locked
-- decision: Meridian + Claude Max di Joshua solo in sviluppo personale. Joshua e' l'unico utente. Prima che un'altra persona usi il bot, `LLM_BACKEND` passa ad API key (Console o Vertex UE). Guardie: visibilita' dell'app Google Chat limitata a Joshua; allowlist `ALLOWED_USERS` nel bot. Uso personale = zona grigia accettata da Joshua (verificato il 03/11/2026 su code.claude.com/docs/en/legal-and-compliance e Consumer Terms sez. 2). Correzione: Meridian ora dichiara licenza MIT. Confidenza [High] divieto, [Medium] uso personale.
+- decision: Meridian + Claude Max di the owner solo in sviluppo personale. The owner e' l'unico utente. Prima che un'altra persona usi il bot, `LLM_BACKEND` passa ad API key (Console o Vertex UE). Guardie: visibilita' dell'app Google Chat limitata a the owner; allowlist `ALLOWED_USERS` nel bot. Uso personale = zona grigia accettata da the owner (verificato il 03/11/2026 su code.claude.com/docs/en/legal-and-compliance e Consumer Terms sez. 2). Correzione: Meridian ora dichiara licenza MIT. Confidenza [High] divieto, [Medium] uso personale.
 - scope: LLM backend in Milestone 1, Google Chat bot access control
 
 ## D2: One Claude seat per person, ideally move from Max to Claude Team
@@ -92,7 +92,7 @@ Precedence inside PLAN.md: section 2.1 (03/11/2026) overrides section 2 wherever
 ## D13: Milestone 1 = sync, MCP server, Google Chat bot, infra and eval together
 - source: docs/PLAN.md (section 2.1, D13)
 - status: locked
-- decision: Milestone 1 = sync, server MCP, bot Google Chat, infra ed eval insieme. Il bot riceve gli eventi via Pub/Sub in sviluppo e via HTTP (JWT Google) su Cloud Run. Richiesta di Joshua; Pub/Sub non richiede un URL pubblico verso la macchina locale. Confidenza [Medium].
+- decision: Milestone 1 = sync, server MCP, bot Google Chat, infra ed eval insieme. Il bot riceve gli eventi via Pub/Sub in sviluppo e via HTTP (JWT Google) su Cloud Run. Richiesta di the owner; Pub/Sub non richiede un URL pubblico verso la macchina locale. Confidenza [Medium].
 - scope: Milestone 1 scope, bot event transport
 
 ## D14: Test data = separate ClickUp doc "AI Buddy - Test Handbook"

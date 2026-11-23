@@ -56,7 +56,7 @@ key-decisions:
 
 patterns-established:
   - "Templates keep comments free of placeholder markers, so any leftover marker after rendering is a bug"
-  - "Runbook states every prepared fallback as 'only with Joshua's consent'"
+  - "Runbook states every prepared fallback as 'only with the owner's consent'"
 
 requirements-completed: [INFRA-04]
 
@@ -134,7 +134,7 @@ status: complete
 - `chat-bot.yaml`: ingress container `chat-bot` (port 8080, `INTAKE=http`, Google JWT, `LLM_BACKEND=meridian`, `ALLOWED_USERS` from a secret) plus the `meridian` sidecar (no port, `MERIDIAN_HOST 127.0.0.1`, `MERIDIAN_SILENT 1`, 7-day transcript retention, session dir on a 64Mi in-memory volume), gen2, container-dependencies, and the credentials bucket mounted read-write in Meridian only. `MCP_AUDIENCE` equals the server's `MCP_PUBLIC_BASE_URL`, `MCP_URL` is that plus `/mcp`, both asserted across the two files.
 - `scripts/render-cloudrun.sh`: nine-variable fixed list, `MERIDIAN_TAG` defaulting to `deploy/meridian.version`, names (never values) of missing variables, refuses a value with a quote, backslash, `$` or newline, fails on any leftover `${`, never prints the rendered file. Executable bit set in the index.
 - `deploy/cloudrun/bootstrap.sh`: verifies the project exists and its number matches, enables nine APIs, creates the Firestore `(default)` database only after the region is typed at a terminal, enables TTL on `expire_at` for `gaps` and `thread_memory`, creates the `ai-buddy` registry (keep 3 versions), three private buckets (uniform access, public access prevention), three service accounts with the RESEARCH roles, six empty secrets, and the WIF pool and provider restricted to the numeric repository id and `refs/heads/main`.
-- `deploy/cloudrun/README.md` (11 sections) with the fresh-login seeding procedure (`claude auth login` in the Meridian image into a temp dir), cost table, org-policy handling and seven prepared fallbacks, each marked "only with Joshua's consent".
+- `deploy/cloudrun/README.md` (11 sections) with the fresh-login seeding procedure (`claude auth login` in the Meridian image into a temp dir), cost table, org-policy handling and seven prepared fallbacks, each marked "only with the owner's consent".
 
 ## Task Commits
 
@@ -226,7 +226,7 @@ None beyond the plan's threat model (T-04-27 to T-04-33 covered: production and 
 
 ## User Setup Required
 
-None in this plan. 04-13 (live, with Joshua present) runs `bootstrap.sh`, adds the six secret values, seeds the credentials bucket with a fresh `claude auth login`, and sets the GitHub repository variables, all described in `deploy/cloudrun/README.md`.
+None in this plan. 04-13 (live, with the owner present) runs `bootstrap.sh`, adds the six secret values, seeds the credentials bucket with a fresh `claude auth login`, and sets the GitHub repository variables, all described in `deploy/cloudrun/README.md`.
 
 ## Not Run (static plan)
 

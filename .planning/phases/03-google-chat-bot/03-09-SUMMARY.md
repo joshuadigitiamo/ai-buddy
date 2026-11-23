@@ -119,7 +119,7 @@ coverage:
         status: pass
     human_judgment: false
   - id: D6
-    description: "Wording of INTRO_TEXT and USAGE_TEXT (Italian, tone, adequacy for Joshua) is a discretion item"
+    description: "Wording of INTRO_TEXT and USAGE_TEXT (Italian, tone, adequacy for the owner) is a discretion item"
     verification: []
     human_judgment: true
     rationale: "Tests assert presence of key elements only; whether the copy reads right is a human review item"

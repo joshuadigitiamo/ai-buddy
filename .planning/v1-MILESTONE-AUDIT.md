@@ -1,6 +1,6 @@
 ---
 milestone: v1
-milestone_name: "Milestone 1 — personal dev use (Joshua)"
+milestone_name: "Milestone 1 — personal dev use (the owner)"
 audited: 2026-11-07T00:00:00Z
 status: gaps_found
 scores:

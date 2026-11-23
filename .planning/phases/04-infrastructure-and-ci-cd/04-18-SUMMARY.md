@@ -110,7 +110,7 @@ status: complete
 
 pip-tools==7.6.2
 
-Joshua's reply: "Approve 7.6.2 (2026-11-15)".
+The owner's reply: "Approve 7.6.2 (2026-11-15)".
 
 Evidence shown at the gate: base image `python:3.12-slim` ships pip 25.0.1; pip-tools 7.6.2 was uploaded 2026-10-07, is not yanked, requires Python >=3.9 and pip >=22.2; source https://github.com/jazzband/pip-tools. No `pip install pip-tools` ran before the reply. pip-tools installs only into a throwaway venv inside the lock-generation container, never into an image or requirements-dev.txt (pinned by `test_pip_tools_stays_out_of_the_images_and_requirement_files`).
 

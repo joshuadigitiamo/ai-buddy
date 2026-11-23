@@ -15,10 +15,10 @@ Not in this phase: hybrid dense+BM25 retrieval (D5; only triggered by the Recall
 <decisions>
 ## Implementation Decisions
 
-Joshua chose the first four Golden-set answers explicitly, then said "On this phase accept all your recommendations": every remaining decision below is Claude's recommended option, approved by Joshua.
+The owner chose the first four Golden-set answers explicitly, then said "On this phase accept all your recommendations": every remaining decision below is Claude's recommended option, approved by the owner.
 
 ### Prerequisite (before drafting the golden set)
-- **D-01:** The Guides checkout was fast-forwarded on 2026-11-21 to `4526500` (8 commits; 10 guides edited: RAG_CHATBOT, MCP_SERVERS, MULTI_AGENT_ARCHITECTURE_DESIGN, AIRFLOW, BIGQUERY_DATA_WAREHOUSE, BIG_DATA_FRAMEWORKS, ETL_VS_ELT, CICD, CLOUD_DEPLOYMENT, KUBERNETES; ETL vs ELT video re-cut). `GUIDES_INDEX.md` in the Guides repo was last updated 2026-11-03 and is stale. The first plan regenerates `GUIDES_INDEX.md` (Joshua commits it in the Guides repo), re-runs the sync and publish (`sync-and-publish.sh`), and confirms the drift check is green, before any golden item is drafted. Golden expected sources are taken from that fresh index. Recall and scoring runs record the Guides commit and the index content hash.
+- **D-01:** The Guides checkout was fast-forwarded on 2026-11-21 to `4526500` (8 commits; 10 guides edited: RAG_CHATBOT, MCP_SERVERS, MULTI_AGENT_ARCHITECTURE_DESIGN, AIRFLOW, BIGQUERY_DATA_WAREHOUSE, BIG_DATA_FRAMEWORKS, ETL_VS_ELT, CICD, CLOUD_DEPLOYMENT, KUBERNETES; ETL vs ELT video re-cut). `GUIDES_INDEX.md` in the Guides repo was last updated 2026-11-03 and is stale. The first plan regenerates `GUIDES_INDEX.md` (the owner commits it in the Guides repo), re-runs the sync and publish (`sync-and-publish.sh`), and confirms the drift check is green, before any golden item is drafted. Golden expected sources are taken from that fresh index. Recall and scoring runs record the Guides commit and the index content hash.
 
 ### Golden set
 - **D-02:** Split storage. Guides items are committed (`eval/golden/guides.yaml`, or a path the planner picks). Handbook items live gitignored at `docs/internal/golden-handbook.yaml` (`docs/internal/` is already ignored; `docs/research/` is committed apart from `handbook-raw/`, so not there). The loader merges both files and warns loudly if the handbook file is missing; the gate then FAILs (incomplete set). Committed no-answer and sensitive items must not quote handbook text. — **Reversibility:** costly — committing handbook-derived content to the public repo cannot be undone (git history), so the split must hold from the first commit.
@@ -26,7 +26,7 @@ Joshua chose the first four Golden-set answers explicitly, then said "On this ph
 - **D-04:** Item schema (fields; planner finalizes names): `id`, `kind` (`handbook | guides | no_answer | sensitive`), `question` (Italian), `expected_answer` (short reference answer), `key_facts` (list of facts a correct answer must contain), `expected_sources` (list of `source_url`: `handbook://<page_id>` or Guides permalink/section id), `expected_referente_role` (sensitive/no-answer), `review` (`draft | approved | rejected`), `review_note`. No item points at the official handbook doc.
 - **D-05:** Review status gates the gate: scoring counts only `approved` items; the gate refuses PASS (prints FAIL "golden set not fully reviewed") while any item is `draft`. `rejected` items are excluded.
 - **D-06:** Single-turn items only (empty history). Follow-up behaviour stays covered by Phase 3 tests.
-- **D-07:** Claude drafts all items, Joshua reviews them (an existing locked decision, see INGEST-CONFLICTS). Drafting is a plan task that ends in a human-review checkpoint.
+- **D-07:** Claude drafts all items, the owner reviews them (an existing locked decision, see INGEST-CONFLICTS). Drafting is a plan task that ends in a human-review checkpoint.
 
 ### Judging
 - **D-08:** The LLM judge is Opus 5.5 (`claude-opus-5-5`), a different model from the Sonnet 5.5 answer step, to limit self-preference. It goes through the existing `LlmClient.structured()` and `LLM_BACKEND` (Meridian in M1), and the model id comes from config. MLflow's built-in provider judges are not used: they would need their own provider credentials or base_url wiring around Meridian.
@@ -36,7 +36,7 @@ Joshua chose the first four Golden-set answers explicitly, then said "On this ph
   - **Sensitive items:** correct iff the reply is a referral naming the expected role, plus, in the rule-exists branch, a cited general rule from `expected_sources`.
   - The headline % is over all approved items.
 - **D-10:** Invented policy. The judge receives the answer plus the full text of every source the answer cites, as the tools returned it in that run. It flags any normative claim (rule, obligation, entitlement, number, deadline, contact) that the cited text does not support. The invented-policy count is the number of answered items with at least one flagged claim. It is counted on every item that produced an answer, refusal items included if they wrongly answered.
-- **D-11:** No human override of judge verdicts in M1. The report lists every failed item and every invented-policy flag, with the judge's reasoning and the MLflow trace link, for Joshua to inspect. The judge prompt has deterministic unit tests (stub LLM) only.
+- **D-11:** No human override of judge verdicts in M1. The report lists every failed item and every invented-policy flag, with the judge's reasoning and the MLflow trace link, for the owner to inspect. The judge prompt has deterministic unit tests (stub LLM) only.
 
 ### Eval runtime and budget
 - **D-12:** New eval package under `jobs/eval` (e.g. `buddy_eval`), with its own Dockerfile stage and its own requirements (mlflow pinned and passed through the legitimacy gate, like every new pin). Commands (names are planner's discretion): `recall`, `run`, `empty-context`, `gate`. Everything runs in Docker through a compose `eval` profile.
@@ -77,7 +77,7 @@ Joshua chose the first four Golden-set answers explicitly, then said "On this ph
 - `.planning/ROADMAP.md` §Phase 5: goal and 5 success criteria
 - `.planning/REQUIREMENTS.md`: EVAL-01..06
 - `.planning/PROJECT.md`: Milestone 1 gate, D1a (Meridian single user), D4/D5 (retrieval, Recall@5 < 0.8 hybrid trigger), D9, D16 (Guides best practices applied per phase)
-- `.planning/INGEST-CONFLICTS.md`: golden set drafted by Claude from the handbook snapshot + Guides, reviewed by Joshua
+- `.planning/INGEST-CONFLICTS.md`: golden set drafted by Claude from the handbook snapshot + Guides, reviewed by the owner
 
 ### Prior phase decisions that constrain eval
 - `.planning/phases/03-google-chat-bot/03-CONTEXT.md`: D-01..D-07 (gate signals, citation by `source_url`, retry-once, refusal + referente, sensitive detection and handling), D-17 (Haiku reformulate / Sonnet answer)

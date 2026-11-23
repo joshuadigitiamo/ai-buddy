@@ -6,7 +6,7 @@ tags: [yaml, escalation, safe_load, drift-test, buddy_core]
 
 requires:
   - phase: 02-mcp-server-and-skill
-    provides: "SKILL.md 'Temi da escalare' table approved by Joshua in 02-06"
+    provides: "SKILL.md 'Temi da escalare' table approved by the owner in 02-06"
 provides:
   - "buddy_core/data/escalation_topics.yaml: eight topic -> role rows, fallback_role HR, version 1"
   - "buddy_core.escalation: EscalationTopic, EscalationTable (ids, topic, referente_role), EscalationTableError, load_escalation_table, DEFAULT_TABLE_PATH"

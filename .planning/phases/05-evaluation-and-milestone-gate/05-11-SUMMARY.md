@@ -30,7 +30,7 @@ key-files:
     - jobs/eval/golden/guides.yaml
   modified: []
 key-decisions:
-  - "Review approval was given in chat for the whole set at once (\"They are ok for now\"); recorded per item as review_note; Joshua may revisit and change any item later"
+  - "Review approval was given in chat for the whole set at once (\"They are ok for now\"); recorded per item as review_note; the owner may revisit and change any item later"
   - "Public file holds Guides, no-answer and no-rule sensitive items only; every handbook-sourced item stays in the ignored private file"
 requirements-completed: [EVAL-01]
 metrics:
@@ -41,7 +41,7 @@ status: complete
 
 # Phase 5 Plan 11: Golden Set Review and Commit Summary
 
-40-item Italian golden set drafted from the fresh index, approved by Joshua in chat, linted OK, with only the 22 public items committed and the 18 handbook-derived items kept in the gitignored private file.
+40-item Italian golden set drafted from the fresh index, approved by the owner in chat, linted OK, with only the 22 public items committed and the 18 handbook-derived items kept in the gitignored private file.
 
 ## Golden set (05-11)
 
@@ -66,7 +66,7 @@ Private items are reported as counts only (15 handbook, 3 sensitive with a rule)
 
 ### Review record
 
-Joshua approved the whole set in chat ("They are ok for now"), not item by item in the files. The orchestrator then set every item to `review: approved` with `review_note: "approved by Joshua in chat 2026-11-22 (all items, ok for now)"`; no other field was edited. This means the approval is a blanket one: Joshua may revisit individual items later and change their review value or content. Any such edit to the public file needs an eval image rebuild (A-11-3).
+The owner approved the whole set in chat ("They are ok for now"), not item by item in the files. The orchestrator then set every item to `review: approved` with `review_note: "approved by the owner in chat 2026-11-22 (all items, ok for now)"`; no other field was edited. This means the approval is a blanket one: the owner may revisit individual items later and change their review value or content. Any such edit to the public file needs an eval image rebuild (A-11-3).
 
 ## Verification
 
@@ -82,7 +82,7 @@ Joshua approved the whole set in chat ("They are ok for now"), not item by item 
 
 None in content. Process notes:
 
-- Task 2 (blocking checkpoint) was resolved by Joshua's chat reply, and the orchestrator, not the executor, wrote the `approved` values. The executor changed no review value.
+- Task 2 (blocking checkpoint) was resolved by the owner's chat reply, and the orchestrator, not the executor, wrote the `approved` values. The executor changed no review value.
 - The eval image build needed the compose-required host variables HANDBOOK_SRC_DIR, GUIDES_SRC_DIR, REDACT_PAGE_FILES and THREAD_KEY_SECRET set in the shell, because `.env` lacks REDACT_PAGE_FILES; they were passed inline for the one command only.
 
 ## Known Stubs

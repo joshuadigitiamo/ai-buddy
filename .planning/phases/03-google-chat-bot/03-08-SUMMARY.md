@@ -191,7 +191,7 @@ None.
 
 ## Known Stubs
 
-None. `video_thumbnail_url=None` omits the image widget by design (the setting itself is required at startup by `BotSettings`, 03-06). The real thumbnail value is an open item for Joshua at 03-12; tests use the synthetic `https://example.invalid/thumb.png`.
+None. `video_thumbnail_url=None` omits the image widget by design (the setting itself is required at startup by `BotSettings`, 03-06). The real thumbnail value is an open item for the owner at 03-12; tests use the synthetic `https://example.invalid/thumb.png`.
 
 ## Threat Flags
 
@@ -199,7 +199,7 @@ None. T-03-22 (model-written links and Chat markup) and T-03-23 (non-web scheme 
 
 ## User Setup Required
 
-None in this plan. Carried to 03-12: Joshua supplies `VIDEO_THUMBNAIL_URL` through `.env`.
+None in this plan. Carried to 03-12: the owner supplies `VIDEO_THUMBNAIL_URL` through `.env`.
 
 ## Next Phase Readiness
 

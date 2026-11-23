@@ -5,7 +5,7 @@ subsystem: sync / evaluation prerequisites
 tags: [guides-index, drift-check, index-identity, sync, EVAL-01]
 requires: []
 provides:
-  - "GUIDES_INDEX.md regenerated and committed in the Guides repo (by Joshua) from Guides commit 4526500"
+  - "GUIDES_INDEX.md regenerated and committed in the Guides repo (by the owner) from Guides commit 4526500"
   - "strict drift check green (guides_index_drift 0)"
   - "index identity (guides_commit_sha, content hashes, build ids) that later eval runs compare against"
 affects: [05-11 golden drafting, 05-03 tracer]
@@ -17,7 +17,7 @@ key-files:
     - .planning/phases/05-evaluation-and-milestone-gate/05-01-SUMMARY.md
   modified: []
 key-decisions:
-  - "Full publish chosen by Joshua (publish_mode published); executor ran no publish and no local-only sync"
+  - "Full publish chosen by the owner (publish_mode published); executor ran no publish and no local-only sync"
 patterns-established: []
 requirements-completed: []
 metrics:
@@ -34,7 +34,7 @@ plan_head_after: 0f0a9e84e6e0d87157f5ec9bbd1a2121af44ffe1
 
 # Phase 5 Plan 01: Guides index refresh and index identity Summary
 
-GUIDES_INDEX.md regenerated from Guides commit 4526500, committed and published by Joshua, strict drift check green (exit 0, drift 0), compose `artifacts` volume rebuilt, and the index identity recorded below.
+GUIDES_INDEX.md regenerated from Guides commit 4526500, committed and published by the owner, strict drift check green (exit 0, drift 0), compose `artifacts` volume rebuilt, and the index identity recorded below.
 
 ## Index identity (05-01)
 
@@ -59,14 +59,14 @@ GUIDES_INDEX.md
 |-----|-----------|-----------------|--------------|--------|-------------|--------------------|
 | strict drift check (throwaway dir) | 23 | 22 | 1 | 2800 | 2529 | 0 |
 | compose sync (`artifacts` volume) | 23 | 22 | 1 | 2800 | 2529 | 0 |
-| host `./artifacts` (Joshua's full publish) | 23 | n/a | 1 | 2800 | 2529 | 0 |
+| host `./artifacts` (the owner's full publish) | 23 | n/a | 1 | 2800 | 2529 | 0 |
 
 Compose and strict runs share content_hash 55ce7925...; the host `./artifacts` hash cb01e4d6... differs because the full publish rewrote video links to the bucket (assumption A-01-3). guides_commit_sha, page set and chunk count are identical across all three, which is what golden drafting needs.
 
 ## What was done
 
 1. Task 1 (earlier agent): GUIDES_INDEX.md regenerated in the Guides working tree from 4526500; no other Guides file changed.
-2. Task 2 (checkpoint): Joshua committed it in the Guides repo (3cabe681fe76), pushed to origin/master, and ran the full publish from the repo root (exit 0, new mcp-server revision forced). Reply was "committed; published".
+2. Task 2 (checkpoint): the owner committed it in the Guides repo (3cabe681fe76), pushed to origin/master, and ran the full publish from the repo root (exit 0, new mcp-server revision forced). Reply was "committed; published".
 3. Task 3: rebuilt the `ai-buddy-test` image (05-02 changed locks), ran `python -m buddy_sync run --strict` with `ARTIFACT_DIR=/tmp/strict-artifacts` (exit 0), refreshed the compose volume with `docker compose run --rm sync` (exit 0), read the host manifest.
 
 ## Deviations from Plan
@@ -84,11 +84,11 @@ Publish step 1 (local-only sync) was skipped as planned because publish_mode is 
 
 ## Auth gates
 
-None for the executor. The gcloud-authenticated publish was Joshua's action at the Task 2 checkpoint.
+None for the executor. The gcloud-authenticated publish was the owner's action at the Task 2 checkpoint.
 
 ## Commit accounting
 
-`files_modified` is empty by design (the only edited file lives in the Guides repository, committed by Joshua there). Measured `commits:` before this SUMMARY commit is 0 and no code changed, which is legitimate for a docs-only plan. The SUMMARY commit is the only commit this plan lands in this repository.
+`files_modified` is empty by design (the only edited file lives in the Guides repository, committed by the owner there). Measured `commits:` before this SUMMARY commit is 0 and no code changed, which is legitimate for a docs-only plan. The SUMMARY commit is the only commit this plan lands in this repository.
 
 ## Known Stubs
 

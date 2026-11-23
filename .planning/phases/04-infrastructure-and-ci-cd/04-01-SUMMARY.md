@@ -36,10 +36,10 @@ key-files:
     - .planning/phases/04-infrastructure-and-ci-cd/04-CONTEXT.md
 
 key-decisions:
-  - "billing_mode (a): request-based billing on both services; 04-13 measures a slow question and asks Joshua again on a stall (keeps INFRA-04)"
+  - "billing_mode (a): request-based billing on both services; 04-13 measures a slow question and asks the owner again on a stall (keeps INFRA-04)"
   - "coverage_inheritance (a): literal D-18 fallback, a section with no sections.yaml entry gets start 0 (keeps D-18)"
-  - "sections_authoring (a): Claude drafts five sections.yaml, Joshua commits them with five durations.json; eight guides without durations stay at 0 (interprets D-18)"
-  - "video_fetch (a): Joshua downloads release videos into .cache/videos on the host (interprets D-17)"
+  - "sections_authoring (a): Claude drafts five sections.yaml, the owner commits them with five durations.json; eight guides without durations stay at 0 (interprets D-18)"
+  - "video_fetch (a): the owner downloads release videos into .cache/videos on the host (interprets D-17)"
   - "token_chain (b): separate fresh claude login seeds the Cloud Run bucket; local volume keeps its own chain (keeps D-12)"
   - "org_policy: (yes) project ai-buddy-dev is under the digitiamo.com organization (IDs in docs/internal/gcp-project.md); billing linked; org policies may apply to 04-08 bootstrap and 04-13 (information)"
 
@@ -66,11 +66,11 @@ coverage:
         status: pass
     human_judgment: false
   - id: D3
-    description: "Six open questions answered by Joshua and recorded with option letters and relation to locked text; D-17 and D-18 interpretations written additively to 04-CONTEXT.md"
+    description: "Six open questions answered by the owner and recorded with option letters and relation to locked text; D-17 and D-18 interpretations written additively to 04-CONTEXT.md"
     requirement: "INFRA-04"
     verification: []
     human_judgment: true
-    rationale: "Decisions are Joshua's recorded answers; whether each line states the intent he meant is his judgment, not a test assertion"
+    rationale: "Decisions are the owner's recorded answers; whether each line states the intent he meant is his judgment, not a test assertion"
 
 duration: 25min
 completed: 2026-11-14
@@ -90,18 +90,18 @@ status: complete
 
 ## Supply chain (04-01 Task 1)
 
-- Approved by Joshua at the blocking legitimacy checkpoint ("approved") before any install or image build that included the pin.
+- Approved by the owner at the blocking legitimacy checkpoint ("approved") before any install or image build that included the pin.
 - Pin: `google-cloud-storage==3.17.1` (newest release; 3.17.0 and 3.16.0 are older). Checked on 2026-11-14 with `docker run --rm python:3.12-slim pip index versions google-cloud-storage` (no install into a project image). Today is before 2026-12-14, so no re-check was needed.
 - Meridian commit: `cafdcf780f1b40c8f0dee17481132f47b4cbb353` (approved at 03-01, built by Phase 4 CI per D-14), stored in `deploy/meridian.version`.
 
 ## Phase decisions (04-01 Task 2)
 
-Joshua replied "defaults; org: Personal". "Defaults" accepts options 1a, 2a, 3a, 4a and 5b. The org answer was first read as `no`; the orchestrator then checked the GCP console on 2026-11-14 and corrected it to `yes`: project `ai-buddy-dev` (ID `ai-buddy-dev`) is under the `digitiamo.com` organization (IDs in docs/internal/gcp-project.md) with a billing account linked. The console fact is what is recorded.
+The owner replied "defaults; org: Personal". "Defaults" accepts options 1a, 2a, 3a, 4a and 5b. The org answer was first read as `no`; the orchestrator then checked the GCP console on 2026-11-14 and corrected it to `yes`: project `ai-buddy-dev` (ID `ai-buddy-dev`) is under the `digitiamo.com` organization (IDs in docs/internal/gcp-project.md) with a billing account linked. The console fact is what is recorded.
 
-- billing_mode: (a) request-based billing on both services; 04-13 measures a deliberately slow question and asks Joshua again if it stalls — keeps INFRA-04
+- billing_mode: (a) request-based billing on both services; 04-13 measures a deliberately slow question and asks the owner again if it stalls — keeps INFRA-04
 - coverage_inheritance: (a) a section with no `sections.yaml` entry gets start 0 of the current part, no new heuristic — keeps D-18
-- sections_authoring: (a) Claude drafts the five `sections.yaml` (a2a-protocol, airflow, big-data-frameworks, deep-agents, langsmith) in the local Guides working tree; Joshua reviews and commits them with the five `durations.json` in the Guides repo; the eight guides without `durations.json` stay at the 0-offset fallback and are listed as "no durations" — interprets D-18
-- video_fetch: (a) Joshua runs `gh release download videos --repo <owner>/Guides --dir .cache/videos` on the host with his own login; `upload-videos` reads `Guides/videos/*/out/` and `.cache/videos` — interprets D-17
+- sections_authoring: (a) Claude drafts the five `sections.yaml` (a2a-protocol, airflow, big-data-frameworks, deep-agents, langsmith) in the local Guides working tree; the owner reviews and commits them with the five `durations.json` in the Guides repo; the eight guides without `durations.json` stay at the 0-offset fallback and are listed as "no durations" — interprets D-18
+- video_fetch: (a) the owner runs `gh release download videos --repo <owner>/Guides --dir .cache/videos` on the host with his own login; `upload-videos` reads `Guides/videos/*/out/` and `.cache/videos` — interprets D-17
 - token_chain: (b) a fresh, separate `claude` login seeds the Cloud Run bucket; the local `meridian-claude` volume keeps its own chain and the compose live profile stays writable; kind always mounts a read-only copy — keeps D-12
 - org_policy: (yes) project ai-buddy-dev is under the digitiamo.com organization (IDs in docs/internal/gcp-project.md); billing linked; org policies may apply to 04-08 bootstrap and 04-13 — information
 
@@ -141,7 +141,7 @@ None. The project works directly on `main` (project memory, no phase branches); 
 
 ## User Setup Required
 
-None - no external service configuration required in this plan. Later plans carry the Joshua-side steps (video download in 04-14, Guides commits, fresh `claude` login for the Cloud Run bucket seed in 04-08).
+None - no external service configuration required in this plan. Later plans carry the owner-side steps (video download in 04-14, Guides commits, fresh `claude` login for the Cloud Run bucket seed in 04-08).
 
 ## Next Phase Readiness
 
