@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 current_phase: 5
 status: completed
 stopped_at: Phase 5 complete — all phases complete
-last_updated: "2026-11-22T22:53:14.401Z"
-last_activity: 2026-11-22
+last_updated: "2026-11-23T11:15:37.364Z"
+last_activity: 2026-11-23
 last_activity_desc: Phase 5 complete
-state_head: 586b707b364587f500b91dc79068a8805d5f826d
+state_head: 6af3b94ca905cfe38ce3ceed041cb9ab01f39c1f
 progress:
   total_phases: 5
   completed_phases: 5
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-22)
 Phase: 5
 Plan: Not started
 Status: All phases complete
-Last activity: 2026-11-22 — Phase 5 complete
+Last activity: 2026-11-23 - Completed quick task 261123-fpj: Restructure internal deep dive and story deck into three parts, with terminology, fact and clear-writing fixes
 
 Progress: [██████████] 100%
 
@@ -244,6 +244,12 @@ None yet.
 - [Later] Videos must move to Google Drive before any non-dev user (D15); `LLM_BACKEND` must move to API key before any second user (D1a)
 - [Later] Re-check the thread-memory privacy posture (D-11: HMAC key, N turns, 24 h TTL) before any second user, together with the LLM_BACKEND switch (D1a)
 - [Later] Open: real team chat channel, Team license budget, CCNL, official handbook owner, which Guides go company-wide, formal data-sovereignty constraint
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261123-fpj | Restructure internal deep dive and story deck into three parts, with terminology, fact and clear-writing fixes | 2026-11-23 | 6af3b94 | [261123-fpj-restructure-deep-dive-and-story-deck-aft](./quick/261123-fpj-restructure-deep-dive-and-story-deck-aft/) |
 
 ## Deferred Items
 
