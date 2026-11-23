@@ -117,11 +117,11 @@ Progress: [██████████] 100%
 Full log in PROJECT.md Key Decisions (`<decisions>` block, D1-D16 locked).
 Recent decisions affecting current work:
 
-- [Init]: D1a — Meridian + Joshua's Max only for personal dev; guards: Chat app visible to Joshua, `ALLOWED_USERS`, `LLM_BACKEND` meridian|api
+- [Init]: D1a — Meridian + the owner's Max only for personal dev; guards: Chat app visible to the owner, `ALLOWED_USERS`, `LLM_BACKEND` meridian|api
 - [Init]: D14 — Test handbook [ClickUp doc ID removed] (id via env); official [ClickUp doc ID removed] not used in Milestone 1
 - [Init]: D16 — every phase plan cites applied Guides sections and justifies exceptions
 - [Init]: Foundation (repo skeleton, `run-unit-tests.sh`, tooling) moved from Phase 4 to Phase 1 so Phases 1-3 can be verified in Docker
-- [Init]: Golden set drafted by Claude from test doc + Guides (incl. no-answer and sensitive cases), reviewed by Joshua
+- [Init]: Golden set drafted by Claude from test doc + Guides (incl. no-answer and sensitive cases), reviewed by the owner
 - [Phase 01]: Dependency pins: user chose latest versions; verified latest on PyPI 2026-11-03 (ten direct packages, pinned with ==)
 - [Phase 01]: ruff extend-exclude .planning and docs: ruff 0.17 formats Python code blocks in Markdown
 - [Phase 01]: 01-02: search queries built only via to_match_query (quoted tokens, NUL as separator, bound MATCH parameter); chunk_key is heading-based (changing it needs a schema major bump plus re-sync)
@@ -142,7 +142,7 @@ Recent decisions affecting current work:
 - [Phase 1]: Handbook pages flat (parent_id null, depth 0) in file-name order; index.db schema stays 1.0.0
 - [Phase 1]: Executor commits went to branch gsd/phase-01-content-sync because main is guard-protected; needs merge to main
 - [Phase 1]: 01-10: revision_date_iso documented as full ISO-8601 UTC datetime (matches code); handbook format change recorded as 1.0.0 amendment (DDL unchanged, no artifact published)
-- [Phase 02]: 02-01: fastmcp 4.1.6, snowballstemmer 3.1.1, google-cloud-firestore 2.34.1 pins approved by Joshua at the legitimacy gate
+- [Phase 02]: 02-01: fastmcp 4.1.6, snowballstemmer 3.1.1, google-cloud-firestore 2.34.1 pins approved by the owner at the legitimacy gate
 - [Phase 02]: 02-01: revision_kind keeps its default but is forced into the advertised output schema required list (json_schema_extra)
 - [Phase 02]: 02-01: Guides revision_date is the index build date labelled indexed_on; source_url is a GitHub permalink pinned to the indexed commit with #L<n> for single-line sections
 - [Phase 02]: handbook_get and handbook://{pagina} use exact page_id lookup only (case-sensitive, no fuzzy match); resources/list stays empty, only the template is advertised
@@ -154,14 +154,14 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-05: bot-to-MCP auth is a Google-signed service-account ID token (aud = MCP_PUBLIC_BASE_URL, e-mail in BOT_SA_EMAILS) verified through MultiAuth beside the OAuth proxy (D-12 defined and tested)
 - [Phase 02]: 02-05: email_verified accepts only boolean true or string 'true' (Google tokeninfo returns strings); user and bot verifiers require audience and bot tokens require exp
 - [Phase 02]: 02-05: Host/Origin guard uses fastmcp host_origin_protection=True via host_kwargs(settings); K_SERVICE presence refuses AUTH_MODE=off in McpSettings
-- [Phase 02]: 02-06: D-17 escalation list (8 rows, roles HR and responsabile diretto) approved by Joshua as drafted; Skill holds roles only
+- [Phase 02]: 02-06: D-17 escalation list (8 rows, roles HR and responsabile diretto) approved by the owner as drafted; Skill holds roles only
 - [Phase 02]: 02-06: Skill description must avoid ': ' (breaks unquoted YAML front matter); guarded by safe_load test
 - [Phase 02]: 02-07: python -m buddy_mcp composition root proven as a real process on the Firestore emulator; mcp_server image runs as uid 10001 and does not bake the index
 - [Phase 02]: 02-07: Google OAuth verified live through a fastmcp OAuth client (DCR, Google login, token, five tools, cited search); MCP-07 marked complete by user decision 2026-11-06 with claude.ai connector and non-digitiamo rejection checks carried to Phase 4
 - [Phase 03]: 03-02: escalation table ids fixed (stipendio, malattia, molestie, disciplinare, contratto, privacy, ferie_personali, rimborsi); ruolo is the role the bot names, referente keeps Skill wording for the drift check
-- [Phase 03]: 03-01: chat-bot pins approved by Joshua (langgraph 1.2.20, anthropic 2.6.0, google-cloud-pubsub 2.43.0, google-apps-chat 0.10.9, requests 2.34.2 pin-only); Meridian source commit cafdcf780f1b40c8f0dee17481132f47b4cbb353
+- [Phase 03]: 03-01: chat-bot pins approved by the owner (langgraph 1.2.20, anthropic 2.6.0, google-cloud-pubsub 2.43.0, google-apps-chat 0.10.9, requests 2.34.2 pin-only); Meridian source commit cafdcf780f1b40c8f0dee17481132f47b4cbb353
 - [Phase 03]: 03-01: D-16, D-11, D-09 overridden (Meridian credentials in a named volume; DM memory key HMAC(space); HTTP run awaited up to 25 s); BOT-09, D-10, D-07 interpreted; recorded in 03-CONTEXT.md Amendments (03-01 checkpoint)
-- [Phase 03]: 03-01: VIDEO_THUMBNAIL_URL is a required HTTPS setting; the image is supplied by Joshua via .env at the 03-12 live checkpoint (not yet provided)
+- [Phase 03]: 03-01: VIDEO_THUMBNAIL_URL is a required HTTPS setting; the image is supplied by the owner via .env at the 03-12 live checkpoint (not yet provided)
 - [Phase 03]: All chat-bot I/O ports are async; RunContext and State are public workflow names for 03-05
 - [Phase 03]: render strips URL tokens from model prose so only bot-built Fonte lines carry links (T-03-01)
 - [Phase 03]: normalize_event takes object and returns None for malformed shapes (mistyped slashCommand, messagePayload without message, bool or missing command id) instead of degrading the event
@@ -184,10 +184,10 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-12: add-on Chat apps publish to Pub/Sub as the gsuiteaddons service agent (not chat-api-push); bot shares the MCP server network namespace for the loopback Host guard; live check approved 2026-11-07
 - [Phase 04]: DEPLOY_ENV (default production) is the explicit marker for auth-off guards; AUTH_MODE=off only with DEPLOY_ENV=local, and local is refused whenever K_SERVICE is set — K_SERVICE-only guard failed open on kind and any non-Cloud-Run host (audit warning 4, WR-01)
 - [Phase 04]: MCP_ALLOWED_HOSTS widens the Host guard by exact-match bare hostnames only; /healthz is a FastMCP custom route outside the auth provider, Host-guarded — Pod-to-pod Service names got 421; guard must stay on (INFRA-03); AUTH_MODE=on test proved route is unauthenticated
-- [Phase 04]: billing_mode (a): request-based on both services; 04-13 measures a slow question and re-asks Joshua on a stall (keeps INFRA-04)
+- [Phase 04]: billing_mode (a): request-based on both services; 04-13 measures a slow question and re-asks the owner on a stall (keeps INFRA-04)
 - [Phase 04]: coverage_inheritance (a): literal D-18 fallback, no-entry sections start at 0 (keeps D-18)
-- [Phase 04]: sections_authoring (a): Claude drafts five sections.yaml; Joshua commits them with five durations.json; eight guides stay at 0 offset (interprets D-18)
-- [Phase 04]: video_fetch (a): Joshua downloads release videos to .cache/videos; upload-videos reads both directories (interprets D-17)
+- [Phase 04]: sections_authoring (a): Claude drafts five sections.yaml; the owner commits them with five durations.json; eight guides stay at 0 offset (interprets D-18)
+- [Phase 04]: video_fetch (a): the owner downloads release videos to .cache/videos; upload-videos reads both directories (interprets D-17)
 - [Phase 04]: token_chain (b): fresh separate claude login seeds the Cloud Run bucket; local volume keeps its own chain (keeps D-12)
 - [Phase 04]: org_policy (yes): project `ai-buddy-dev` (IDs in docs/internal/gcp-project.md, gitignored) under the digitiamo.com organization, billing linked; org policies may apply to 04-08 and 04-13 (information)
 - [Phase 04]: 04-03: bot mirrors the server DEPLOY_ENV rule; MCP_AUTH=none and CHAT_API=recording need explicit DEPLOY_ENV=local, local refused under K_SERVICE — RecordingChatApi is a config-selected second adapter of the ChatApi port so compose and kind can prove a chat round trip with no Google Chat API (Chat has no emulator); CHAT_API and CHAT_RECORD_PATH stay out of .env.example
@@ -225,8 +225,8 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-25: the five GCP identifiers are repository secrets only (no vars expression); a missing one fails the deploy and Meridian runs by name instead of skipping
 - [Phase 04]: 04-25: chat-bot deploy polls up to 30 min (30 s interval) for the Meridian image before the existing error; deploy job timeout 75 min
 - [Phase 05]: 05-GAP-DECISION approved changes (all four): Guides search also uses the standalone question with k 4 -> 8 (05-14); case-scope answer-prompt rule (05-14); CR-01, WR-01..03 fixes (05-15, 05-16); golden edits gd-02, sr-02, gd-05 (05-15); then one live gate re-run (05-17)
-- [Phase 05]: 05-17: live gate re-run printed GATE: PASS — correctness-with-citation 38/40 = 95.0%, invented 0, empty-context 28/28; Recall@5 handbook 15/15 = 1.00, Guides 11/13 = 0.85 (no D5 hybrid trigger)
-- [Phase 05]: 05-GAP-DECISION UAT follow-up: Joshua accepted 05-17 GATE: PASS 38/40 as the Milestone 1 outcome; gd-05 and sr-03 recorded as known compound-fact items; no golden, judge, threshold or bot change, no re-run
+- [Phase 05]: 05-17: live gate re-run printed GATE: PASS on every gate threshold (numbers in the 05-17 SUMMARY); Recall@5 did not trigger D5 hybrid search
+- [Phase 05]: 05-GAP-DECISION UAT follow-up: the owner accepted the 05-17 GATE: PASS as the Milestone 1 outcome; gd-05 and sr-03 recorded as known compound-fact items; no golden, judge, threshold or bot change, no re-run
 
 ### Pending Todos
 
